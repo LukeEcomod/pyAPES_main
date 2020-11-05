@@ -63,6 +63,9 @@ plot_fluxes(results, flxdata, norain=True,
             Data_var=['Rnet','H','LE','NEE','GPP','Reco'],
             fmonth=5, lmonth=9, sim_idx=0)
 
+plt.figure()
+results['ffloor_energy_closure'].plot.line(x='date')
+
 #%%
 # --- prints content of results -dataset
 results
