@@ -219,6 +219,8 @@ class OrganicLayer(object):
             states (dict)
         """
 
+        forcing['max_pond_recharge'] = forcing['soil_pond_storage'] / dt
+
         if controls['energy_balance']:
             # calculate moss energy and water balance
             fluxes, states = self.heat_and_water_exchange(
@@ -637,7 +639,7 @@ class OrganicLayer(object):
         # [kg m-2] or [mm]
         max_recharge = max(max_recharge - interception, 0.0)
 
-        pond_recharge = min(max_recharge - EPS, forcing['soil_pond_storage'])
+        pond_recharge = min(max_recharge - EPS, forcing['max_pond_recharge'] * dt)
 
         # [kg m-2 s-1] or [mm s-1]
         pond_recharge_rate = pond_recharge / dt
@@ -836,7 +838,7 @@ class OrganicLayer(object):
         d_water_storage += interception
 
         pond_recharge = min(max_storage - (water_storage + d_water_storage),
-                            forcing['soil_pond_storage'])
+                            forcing['max_pond_recharge'] * dt)
         d_water_storage += pond_recharge
 
         #--- capillary rise from underlying soil during dt [kg m-2]
@@ -1475,7 +1477,7 @@ def soil_boundary_layer_conductance(u, z, zo, Ta, dT, P=101300.):
         # [kg m-2] or [mm]
         max_recharge = max(max_recharge - interception, 0.0)
 
-        pond_recharge = min(max_recharge - EPS, forcing['soil_pond_storage'])
+        pond_recharge = min(max_recharge - EPS, forcing['max_pond_recharge'] * dt)
 
         # [kg m-2 s-1] or [mm s-1]
         pond_recharge_rate = pond_recharge / dt

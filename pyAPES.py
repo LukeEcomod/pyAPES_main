@@ -283,8 +283,8 @@ class Model(object):
             soil_forcing = {
                 'potential_infiltration': out_ffloor['throughfall'] / WATER_DENSITY,
                 'potential_evaporation': ((out_ffloor['soil_evaporation'] +
-                                          out_ffloor['capillary_rise'] +
-                                          out_ffloor['pond_recharge']) / WATER_DENSITY),
+                                           out_ffloor['capillary_rise']) / WATER_DENSITY),
+                'pond_recharge': out_ffloor['pond_recharge'] / WATER_DENSITY,
                 'atmospheric_pressure_head': -1.0E6,  # set to large value, because potential_evaporation already account for h_soil
                 'ground_heat_flux': -out_ffloor['ground_heat'],
                 'date': self.forcing.index[k]}
