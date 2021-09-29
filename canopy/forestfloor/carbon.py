@@ -57,6 +57,7 @@ class BryophyteFarquhar(object):
         err = 10^9
         Cc = 0.8*Ca
 
+        iterNo = 0
         while err > 1e-3:
             Cco = Cc
             An, Rd, _, _ = photo_farquhar(p, Qp, Cc, T)
@@ -64,6 +65,12 @@ class BryophyteFarquhar(object):
             Cc = Ca - An / g  # new Cc
             Cc = 0.5*(Cco + Cc)
             err = np.nanmax(abs(Cc - Cco))
+
+            if iterNo > 50:
+                Cc = 0.8*Ca
+                An, Rd, _, _ = photo_farquhar(p, Qp, Cc, T)
+                break
+            iterNo += 1
 
         return {'net_co2': -An,
                 'photosynthesis': An + Rd,
