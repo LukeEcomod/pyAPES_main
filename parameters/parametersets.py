@@ -12,7 +12,7 @@ def get_parameters(scenario):
     # spefify as one values (same for all simulations) or tuple of length 'count'
     if scenario.upper() == 'TEST':
         parameters = {
-            'count': 2,
+            'count': 1,
             'scenario': 'test',
             'general':{
                 'start_time' : "2005-06-01",
@@ -22,7 +22,7 @@ def get_parameters(scenario):
             'canopy': {
                 'planttypes': {
                     'decid': {
-                        'LAImax': (1.2, 3.0),
+                        'LAImax': (1.2),
                     },
                 },
             },

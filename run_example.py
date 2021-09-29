@@ -24,28 +24,20 @@ from pyAPES_utilities.plotting import plot_fluxes
 
 from parameters.SmearII import gpara, cpara, spara
 
-forcing = read_forcing(
-    forc_filename=gpara['forc_filename'],
-    start_time=gpara['start_time'],
-    end_time=gpara['end_time'],
-    dt=gpara['dt']
-)
-
-#  wrap parameters and forcing in dictionary
+#  wrap parameters in dictionary
 params = {
     'general': gpara,
     'canopy': cpara,
-    'soil': spara,
-    'forcing': forcing
-}
+    'soil': spara
+    }
 
-# to run multiple simulation with some variable varying
-# params = get_parameter_list(params, 'test')
+# parameters simulation(s)
+params = get_parameter_list(params, 'test')
 
+# run model
 outputfile, Model = driver(parameters=params, create_ncf=True)
 
 # read results
-
 results = read_results(outputfile)
 
 # import fluxdata
