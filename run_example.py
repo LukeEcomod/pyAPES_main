@@ -13,7 +13,7 @@ Created on Tue Oct 09 16:31:25 2018
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-
+import xarray as xr
 from pyAPES import driver
 from parameters.parameter_tools import get_parameter_list
 from tools.iotools import read_results
