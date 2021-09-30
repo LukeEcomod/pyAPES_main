@@ -61,7 +61,7 @@ class PlantType(object):
 
     def __init__(self, z, p, dz_soil, ctr, loc):
         r""" Initialises a planttype object and submodel objects
-        using given parameters.
+        using given parameters. This is a cool comment
 
         Args:
             z (array): canopy model nodes, height from soil surface (= 0.0) [m]
