@@ -2,7 +2,17 @@
 Skeleton of pyAPES -multi-layer soil-plant-atmosphere model.
 Original version used for simplified model: pyAPES_kersti master (v. 12.11.2019).
 
-Push to this dev branch from your own pyapes clones
+Push to this dev branch from your own pyapes clones.
+The idea is to first create a dev branch in your own apes clone, then set up a remote to apes_main repository and push from your dev branch to apes_main dev branch.
+workflow could look like this (pyAPES_name is your own pyAPES repository)
+```console
+user@computer pyAPES_name % git remote add apes_main git@github.com:LukeEcoMod/pyAPES_main
+user@computer pyAPES_name % git checkout -b dev
+user@computer pyAPES_name % git pull apes_main dev
+user@computer pyAPES_name % git add .
+user@computer pyAPES_name % git commit -m "committing to push to apes_main/dev"
+user@computer pyAPES_name % git push -u apes_main dev
+```
 
 Samuli Launiainen 20.01.2020:
 
