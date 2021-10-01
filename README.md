@@ -2,6 +2,8 @@
 Skeleton of pyAPES -multi-layer soil-plant-atmosphere model.
 Original version used for simplified model: pyAPES_kersti master (v. 12.11.2019).
 
+Push to this dev branch from your own pyapes clones
+
 Samuli Launiainen 20.01.2020:
 
 * new canopy.forestfloor and more outputs to ncf
