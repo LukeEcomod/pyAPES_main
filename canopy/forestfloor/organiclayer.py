@@ -568,18 +568,23 @@ class OrganicLayer(object):
         # relative_conductance = min(1.0, (0.1285 * y[1] / self.dry_mass - 0.1285))
         relative_conductance = min(1.0, (y[1] / symplast_storage) + EPS)
         gv = gav * relative_conductance # h2o, [mol m-2 s-1]
-
         # -- solve surface temperature Ts iteratively
+        Rni = SWabs + self.emissivity * forcing['lw_dn'] \
+            - self.emissivity * STEFAN_BOLTZMANN *(Ta + DEG_TO_KELVIN) **4
+
         err = 999.0
         itermax = 50
         iter_no = 0
-        Ts = Ta  # initial guess
+        wo = 0.5 # weight of old Ts
+
+        # initial guess
+        Ts = 0.5 * (Ta + self.temperature)
 
         while err > 0.01 and iter_no < itermax:
-
             # evaporation demand and supply --> latent heat flux
             es = saturation_vapor_pressure(Ts) / forcing['air_pressure']
             LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
+
             if LEdemand > 0:
                 LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate)
                 if iter_no > 100:
@@ -587,31 +592,53 @@ class OrganicLayer(object):
             else: # condensation
                 LE = max(LEdemand, LATENT_HEAT * max_condensation_rate)
 
-            Told = np.copy(Ts)
+            Told = Ts.copy()
 
             # --- find Ts: Long-wave term is linearized as in Campbell & Norman 1998 Ch 12.
-            # Kersti's edits: LW_up linearized against Told (instead of Ta): eoT_s^4 ~= eoT_old^4 + 4eoT_old^3*Ts
-            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
-            Rn = (SWabs
-                  + self.emissivity * forcing['lw_dn'] - self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**4)
+            Te =  0.5 * (Ta + Ts)
 
-            Ts = (Rn + SPECIFIC_HEAT_AIR * (gr * Told + ga * Ta) - LE + gms * y[0]) / (
-                SPECIFIC_HEAT_AIR * (ga + gr) + gms)
+            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
+            a = Rni - LE
+            b = SPECIFIC_HEAT_AIR * (ga + gr)
+            Ts = (a + b * Ta + gms * y[0]) / (b + gms)
+
+#            #LW_up linearized against Told (instead of Ta): eoT_s^4 ~= eoT_old^4 + 4eoT_old^3*Ts
+#            #This results in smaller err but solution does not converge in all cases!
+#            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
+#            Rn = (SWabs
+#                  + self.emissivity * forcing['lw_dn']
+#                  - self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**4)
+#
+#            Ts = (Rn + SPECIFIC_HEAT_AIR * (gr * Told + ga * Ta) - LE + gms * y[0]) / (
+#                SPECIFIC_HEAT_AIR * (ga + gr) + gms)
 
             err = abs(Ts - Told)
+            # new guess
+            Ts =  wo * Told + (1 - wo) * Ts
 
             iter_no += 1
 
-# KERSTI
-            if iter_no == itermax:
-                print('Maximum number of iterations reached', Ts, err)
-                Ts = Ta
-                es = saturation_vapor_pressure(Ts) / forcing['air_pressure']
-                LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
-                if LEdemand > 0:
-                    LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate)
-                else: # condensation
-                    LE = max(LEdemand, LATENT_HEAT * max_condensation_rate)
+        if iter_no == itermax:
+            logger.debug('gt Tsurf: Maximum number of iterations reached: Ts = %.2f, err = %.2f', np.mean(Ts), err)
+            # solve Ts assuming evaporating surface is at Ta, then compute Ts and other fluxes
+
+            # evaporation demand and supply --> latent heat flux
+            es = saturation_vapor_pressure(Ta) / forcing['air_pressure']
+            LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
+
+            if LEdemand > 0:
+                LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate)
+                if iter_no > 100:
+                    LE = 0.1 * LATENT_HEAT * max_evaporation_rate
+            else: # condensation
+                LE = max(LEdemand, LATENT_HEAT * max_condensation_rate)
+
+            Te =  0.5 * (Ta + Ts)
+
+            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
+            a = Rni - LE
+            b = SPECIFIC_HEAT_AIR * (ga + gr)
+            Ts = (a + b * Ta + gms * y[0]) / (b + gms)
 
         # -- energy fluxes  [J m-2 s-1] or [W m-2]
 
