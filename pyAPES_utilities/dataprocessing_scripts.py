@@ -107,7 +107,7 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
         f_cloud, f_diff, emi_sky = compute_clouds_rad(dat['doy'].values,
                                                       dat['Zen'].values,
                                                       dat['Rg'].values,
-                                                      dat['H2O'].values * dat['P'].values,
+                                                      1e-3 * dat['H2O'].values * dat['P'].values,
                                                       dat['Tair'].values)
 
     if 'LWin' not in dat or dat['LWin'].isnull().any():
@@ -125,7 +125,7 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
         tau_atm = tau_atm = dat['Rg'].rolling(4,1).sum() / (dat['Qclear'].rolling(4,1).sum() + EPS)
         # cloud cover fraction
         dat['f_cloud'] = 1.0 - (tau_atm - 0.2) / (0.7 - 0.2)
-        dat['f_cloud'][dat['Qclear'] < 10] = np.nan
+        dat.loc[dat['Qclear'] < 10, 'f_cloud'] = np.nan
 
         dat['Qclear_12h'] = dat['Qclear'].resample('12H').sum()
         dat['Qclear_12h'] = dat['Qclear_12h'].fillna(method='ffill')
@@ -138,10 +138,10 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
         dat['f_cloud'] = np.where((dat.index.hour > 12) & (dat['f_cloud_12h'] < 0.2), 0.0, dat['f_cloud'])
         dat['f_cloud'] = dat['f_cloud'].fillna(method='ffill')
         dat['f_cloud'] = dat['f_cloud'].fillna(method='bfill')
-        dat['f_cloud'][dat['f_cloud'] < 0.0] = 0.0
-        dat['f_cloud'][dat['f_cloud'] > 1.0] = 1.0
+        dat.loc[dat['f_cloud'] < 0.0, 'f_cloud'] = 0.0
+        dat.loc[dat['f_cloud'] > 1.0, 'f_cloud'] = 1.0
 
-        emi0 = 1.24 * (dat['H2O'].values * dat['P'].values / 100 /(dat['Tair'].values + 273.15))**(1./7.)
+        emi0 = 1.24 * (1e-3 * dat['H2O'].values * dat['P'].values / 100 /(dat['Tair'].values + 273.15))**(1./7.)
         emi_sky = (1 - 0.84 * dat['f_cloud']) * emi0 + 0.84 * dat['f_cloud']
 
         # estimated long wave budget
