@@ -572,7 +572,7 @@ def waterFlow1D(t_final, grid, forcing, initial_state, pF, Ksat,
 
         # calculate q_sur and q_bot in case of head boundaries
         if ubc_flag == 'head':
-            q_sur = -KLh[0] * (h_sur - h[0]) / dzu[0] - KLh[0]
+            q_sur = -KLh[0] * (h_sur - h[0]) / dzu[0] - KLh[0]  # should be calculated inside iteration not to cause mass balance error
         if lbc['type'] == 'head':
             q_bot = -KLh[-1] * (h[-1] - h_bot) / dzl[-1] - KLh[-1] * cosalfa
 
@@ -586,8 +586,10 @@ def waterFlow1D(t_final, grid, forcing, initial_state, pF, Ksat,
             C_inf += (q_sur - Evap) * dt
             C_eva += Evap * dt
         else:  # evaporation dominates
-            C_eva += (q_sur + Prec) * dt + h_pond
-            h_pond = 0.0
+            C_eva += Evap * dt
+            h_pond = max(0, pond_ini - (-Prec + Evap - q_sur) * dt)
+            # C_eva += (q_sur + Prec) * dt + pond_ini
+            # h_pond = 0.0
 
         if abs(h_pond) < EPS:
             h_pond = 0.0
@@ -794,8 +796,10 @@ def waterStorage1D(t_final, grid, forcing, initial_state, pF, Ksat, wsto_gwl,
         C_inf += (q_sur - Evap) * dt
         C_eva += Evap * dt
     else:  # evaporation dominates
-        C_eva += (q_sur + Prec) * dt + pond_ini
-        h_pond = 0.0
+        C_eva += Evap * dt
+        h_pond = max(0, pond_ini - (-Prec + Evap - q_sur) * dt)
+        # C_eva += (q_sur + Prec) * dt + pond_ini
+        # h_pond = 0.0
 
     if abs(h_pond) < EPS:  # eliminate h_pond caused by numerical innaccuracy (?)
         h_pond = 0.0
