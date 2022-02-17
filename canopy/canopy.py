@@ -14,28 +14,32 @@ Note:
     Migrated to python3:
         - absolute imports
         - for each loop: usage of enumerate() instead of list(range(len(foo)))
-        - if dictionary IS modified in a for-loop dict.items()/.keys()/.values() wrapped in a list
-        (this is not necessary if only modifying and not adding/deleting)
+        - if dictionary IS modified in a for-loop dict.items()/.keys()/.values() wrapped in a list 
+            - this is not necessary if only modifying and not adding/deleting
         - if dictionary IS NOT modified in a for-loop, wrapped anyways (for caution).
 
-References:
-Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
-forest CO2, H2O and energy flows by a vertically structured forest canopy –
-Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
+Note: 
+    LAST EDITS: Samuli Launiainen 15.01.2020
+        - new forestfloor: in canopy changes in:
+            * ff_forcing
+            * forestfloor optical properties taken from previous timestep
+            * ff_longwave computed in canopy
+            * _restore() returns also Tsurf = forestfloor temperature in previous timestep
+        - units of water fluxes [m s-1] -->  [kg m-2 s-1]
+            -> * forcing['precipitation'] now in [kg m-2 s-1]
+            * interception updated accordingly
+        - cleaned forcing
+        - returns altered
 
-LAST EDITS: Samuli Launiainen 15.01.2020
-    - new forestfloor: in canopy changes in:
-        * ff_forcing
-        * forestfloor optical properties taken from previous timestep
-        * ff_longwave computed in canopy
-        * _restore() returns also Tsurf = forestfloor temperature in previous timestep
-    - units of water fluxes [m s-1] -->  [kg m-2 s-1]
-        -> * forcing['precipitation'] now in [kg m-2 s-1]
-         * interception updated accordingly
-    - cleaned forcing
-    - returns altered
-TODO:
-    - clean interception -code
+Note:
+    Todo:
+        - clean interception code
+
+References:
+
+    Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
+    forest CO2, H2O and energy flows by a vertically structured forest canopy –
+    Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
 
 """
 
@@ -59,50 +63,50 @@ class CanopyModel(object):
 
         Args:
             cpara (dict):
-                'ctr' (dict): switches and specifications for computation
-                    'Eflow' (bool): ensemble flow assumption (False solves U_normed on daily timestep)
-                    'WMA' (bool): well-mixed assumption (False solves H2O, CO2, T)
-                    'Ebal' (bool): True solves energy balance
-                    'WaterStress' (str): account for water stress in planttypes via 'Rew', 'PsiL' or None omits
-                    'seasonal_LAI' (bool): account for seasonal LAI dynamics
-                    'pheno_cycle' (bool): account for phenological cycle
-                'grid' (dict):
-                    'zmax': heigth of grid from ground surface [m]
-                    'Nlayers': number of layers in grid [-]
-                'radiation' (dict): radiation model parameters
-                'micromet' (dict): micromet model parameters
-                'interception' (dict): interception model parameters
-                'planttypes' (list):
-                    i. (dict): properties of planttype i
-                'forestfloor': forestfloor parameters
-                    'bryophytes'(list):
-                        i. (dict): properties of bryotype i
-                    'baresoil' (dict): baresoil parameters
-                    'snowpack' (dict): smow model parameters
-                    'initial_conditions': initial conditions for forest floor
-            dz_soil (array): thickness of soilprofile layers, needed for rootzone
+                - 'ctr' (dict): switches and specifications for computation
+                    - Eflow (bool): ensemble flow assumption (False solves U_normed on daily timestep)
+                    - 'WMA' (bool): well-mixed assumption (False solves H2O, CO2, T)
+                    - 'Ebal' (bool): True solves energy balance
+                    - 'WaterStress' (str): account for water stress in planttypes via 'Rew', 'PsiL' or None omits
+                    - 'seasonal_LAI' (bool): account for seasonal LAI dynamics
+                    - 'pheno_cycle' (bool): account for phenological cycle
+                - 'grid' (dict):
+                    - 'zmax': heigth of grid from ground surface [m]
+                    - 'Nlayers': number of layers in grid [-]
+                - 'radiation' (dict): radiation model parameters
+                - 'micromet' (dict): micromet model parameters
+                - 'interception' (dict): interception model parameters
+                - 'planttypes' (list):
+                    - i. (dict): properties of planttype i
+                - 'forestfloor': forestfloor parameters
+                    - 'bryophytes'(list):
+                        - i. (dict): properties of bryotype i
+                    - 'baresoil' (dict): baresoil parameters
+                    - 'snowpack' (dict): smow model parameters
+                    - 'initial_conditions': initial conditions for forest floor
+            - dz_soil (array): thickness of soilprofile layers, needed for rootzone
 
         Returns:
-            self (object):
-                .location (dict):
-                    'lat': latitude [deg]
-                    'lon': longitude [deg]
-                .z (array): canopy model nodes, height from soil surface (= 0.0) [m]
-                .dz (float): thickness of canopy layers [m]
-                .ones (array): dummy of len(z)
-                .Switch_Eflow (bool): ensemble flow assumption
-                .Switch_WMA (bool): well-mixed assumption (H2O, CO2, T)
-                .Switch_Ebal (bool): solve energy balance
-                .LAI (array): total leaf area index [m2 m-2]
-                .lad (array): total leaf area density [m2 m-3]
-                .hc (float): canopy heigth [m]
-                .rad (array): normalized total fine root density distribution [-]
-                .planttypes (list):
-                    i. (object): planttype object i
-                .radiation (object): radiation model (SW, LW)
-                .micromet (object): micromet model (U, H2O, CO2, T)
-                .interception (object): interception model
-                .forestfloor (object): forest floor object (bryotype/baresoil/snow)
+            self (object): CanopyModel object with following properties
+                - location (dict):
+                    - 'lat': latitude [deg]
+                    - 'lon': longitude [deg]
+                - z (array): canopy model nodes, height from soil surface (= 0.0) [m]
+                - dz (float): thickness of canopy layers [m]
+                - ones (array): dummy of len(z)
+                - Switch_Eflow (bool): ensemble flow assumption
+                - Switch_WMA (bool): well-mixed assumption (H2O, CO2, T)
+                - Switch_Ebal (bool): solve energy balance
+                - LAI (array): total leaf area index [m2 m-2]
+                - lad (array): total leaf area density [m2 m-3]
+                - hc (float): canopy heigth [m]
+                - rad (array): normalized total fine root density distribution [-]
+                - planttypes (list):
+                    - i. (object): planttype object i
+                - radiation (object): radiation model (SW, LW)
+                - micromet (object): micromet model (U, H2O, CO2, T)
+                - interception (object): interception model
+                - forestfloor (object): forest floor object (bryotype/baresoil/snow)
         """
 
         # --- grid ---
@@ -182,7 +186,7 @@ class CanopyModel(object):
             PsiL (float): leaf water potential [MPa] --- CHECK??
             Rew (float): relatively extractable water (-)
         """
-        """ update physiology and leaf area of planttypes and canopy"""
+        # update physiology and leaf area of planttypes and canopy
         for pt in self.planttypes:
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
@@ -201,30 +205,31 @@ class CanopyModel(object):
 
     def run(self, dt, forcing, parameters):
         r""" Calculates one timestep and updates state of CanopyModel object.
+
         Args:
             dt: timestep [s]
             forcing (dict): meteorological forcing at ubc and soil state at uppermost soil layer.
-                'precipitation': precipitation rate [kg m-2 s-1]
-                'air_temperature': air temperature [\ :math:`^{\circ}`\ C]
-                'wind_speed': wind speed [m s-1]
-                'friction_velocity': friction velocity [m s-1]
-                'co2': ambient CO2 mixing ratio [ppm]
-                'h2o': ambient H2O mixing ratio [mol mol-1]
-                'air_pressure': pressure [Pa]
-                'zenith_angle': solar zenith angle [rad]
-                'PAR' (dict): with keys 'direct', 'diffuse' [Wm-2]
-                'NIR' (dict): with keys 'direct', 'diffuse' [Wm-2]
+                - 'precipitation': precipitation rate [kg m-2 s-1]
+                - 'air_temperature': air temperature [\ :math:`^{\circ}`\ C]
+                - 'wind_speed': wind speed [m s-1]
+                - 'friction_velocity': friction velocity [m s-1]
+                - 'co2': ambient CO2 mixing ratio [ppm]
+                - 'h2o': ambient H2O mixing ratio [mol mol-1]
+                - 'air_pressure': pressure [Pa]
+                - 'zenith_angle': solar zenith angle [rad]
+                - 'PAR' (dict): with keys 'direct', 'diffuse' [Wm-2]
+                - 'NIR' (dict): with keys 'direct', 'diffuse' [Wm-2]
 
-                'soil_temperature': [\ :math:`^{\circ}`\ C] properties of first soil node
-                'soil_water_potential': [m] properties of first soil node
-                'soil_volumetric_water': [m m\ :sup:`-3`\ ] properties of first soil node
-                'soil_volumetric_air': [m m\ :sup:`-3`\ ] properties of first soil node
-                'soil_pond_storage': [kg m-2] properties of first soil node
-            'parameters':
-                'date'
-                'thermal_conductivity': [W m\ :sup:`-1`\  K\ :sup:`-1`\ ] properties of first soil node
-                'hydraulic_conductivity': [m s\ :sup:`-1`\ ] properties of first soil node
-                'depth': [m] properties of first soil node
+                - 'soil_temperature': [\ :math:`^{\circ}`\ C] properties of first soil node
+                - 'soil_water_potential': [m] properties of first soil node
+                - 'soil_volumetric_water': [m m\ :sup:`-3`\ ] properties of first soil node
+                - 'soil_volumetric_air': [m m\ :sup:`-3`\ ] properties of first soil node
+                - 'soil_pond_storage': [kg m-2] properties of first soil node
+            parameters (dict):
+                - date
+                - thermal_conductivity: [W m\ :sup:`-1`\  K\ :sup:`-1`\ ] properties of first soil node
+                - hydraulic_conductivity: [m s\ :sup:`-1`\ ] properties of first soil node
+                - depth: [m] properties of first soil node
 
         Returns:
             fluxes (dict)

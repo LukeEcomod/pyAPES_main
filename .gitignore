@@ -120,3 +120,11 @@ sand*.ipynb
 *.log
 
 *.sh
+
+#Poetry
+pyproject.toml
+poetry.lock
+
+docs/_build
+
+.vscode
