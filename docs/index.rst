@@ -10,9 +10,19 @@ Welcome to pyAPES's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-Canopy
----------
+Canopy package
+---------------
+
+canopy
+^^^^^^
 .. automodule:: canopy.canopy
+   :members:
+   :special-members:
+   :exclude-members: __weakref__
+
+interception
+^^^^^^^^^^^^
+.. automodule:: canopy.interception
    :members:
    :special-members:
    :exclude-members: __weakref__
