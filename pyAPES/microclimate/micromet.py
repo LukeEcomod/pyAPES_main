@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 .. module: micromet
-    :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+    :synopsis: pyAPES-model component
+.. moduleauthor:: Samuli Launiainen, Kersti Leppä, Gaby Katul
 
-Describes turbulent flow and scalar profiles within canopy.
-Based on MatLab implementation by Samuli Launiainen.
-
-Created on Tue Oct 02 09:04:05 2018
+Describes turbulent flow and momentum & scalar profiles within canopy.
 
 References:
 Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
@@ -15,21 +12,22 @@ forest CO2, H2O and energy flows by a vertically structured forest canopy –
 Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
 """
 import numpy as np
-
+from typing import Dict, List, Tuple
 import logging
+
+from pyAPES.utils.utilities import central_diff, forward_diff, tridiag, smooth, spatial_average
+from pyAPES.utils.constants import EPS, VON_KARMAN, GRAVITY, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
+THERMAL_DIFFUSIVITY_AIR, AIR_VISCOSITY, MOLAR_MASS_AIR, SPECIFIC_HEAT_AIR, DEG_TO_KELVIN
+
 logger = logging.getLogger(__name__)
 
-from tools.utilities import central_diff, forward_diff, tridiag, smooth, spatial_average
-from .constants import EPS, VON_KARMAN, GRAVITY
-from .constants import MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O
-from .constants import THERMAL_DIFFUSIVITY_AIR, AIR_VISCOSITY, MOLAR_MASS_AIR, SPECIFIC_HEAT_AIR
-
 class Micromet(object):
-    r""" Computes flow and scalar profiles within canopy.
+    r""" 
+    Mean flow and scalar profiles within horizontally homogeneous multi-layer canopy.
     """
-    def __init__(self, z, lad, hc, p):
-        r""" Initializes micromet object for computation of flow
-        and scalar profiles within canopy.
+    def __init__(self, z: np.ndarray, lad: np.ndarray, hc: float, p: Dict):
+        r""" 
+        Initializes micromet object
 
         Args:
             z (array): canopy model nodes, equidistance, height from soil surface (= 0.0) [m]
@@ -40,8 +38,8 @@ class Micromet(object):
                 'dPdx': horizontal pressure gradient
                 'Cd': drag coefficient
                 'Utop': ensemble U/ustar [-]
-                'Ubot': lower boundary
-                'Sc' (dict): {'T','H2O','CO2'} Schmidt numbers
+                'Ubot': U or U/ustar at the lower boundary
+                'Sc' (dict): {'T','H2O','CO2'}, turbulent Schmidt numbers [-]
         Returns:
             self (object)
         """
@@ -60,16 +58,17 @@ class Micromet(object):
         self.tau, self.U_n, self.Km_n, _, _, _ = closure_1_model_U(
                 z, self.Cd, lad, hc, self.Utop + EPS, self.Ubot, dPdx=self.dPdx)
 
-    def normalized_flow_stats(self, z, lad, hc, Utop=None):
-        r""" Computes normalized mean velocity profile, shear stress and
-        eddy diffusivity within and above horizontally homogenous plant
+    def normalized_flow_stats(self, z: np.ndarray, lad: np.ndarray, hc: float, Utop: float=None):
+        r"""
+        Computes normalized mean velocity, shear stress and
+        eddy diffusivity profiles within and above horizontally homogenous plant
         canopies using 1st order closure.
 
         Args:
             z (array): canopy model nodes, height from soil surface (= 0.0) [m]
             lad (array): leaf area density [m2 m-3]
             hc (float): canopy heigth [m]
-            Utop (float): U/ustar [-], if None set to self.Utop
+            Utop (float): U/ustar [-], if None, set to self.Utop
         """
         if Utop is None:
             Utop = self.Utop
@@ -84,10 +83,14 @@ class Micromet(object):
             self.Km_n = Km_n.copy()
             self.tau = tau.copy()
 
-    def update_state(self, ustaro):
-        r""" Updates wind speed profile.
+    def update_state(self, ustaro: float):
+        r""" 
+        Updates mean wind speed, ustar and eddy-diffusivity profile.
         Args:
-            ustaro (float): friction velocity [m s-1]
+            ustaro (float): friction velocity at uppermost grid-point [m s-1]
+        Returns:
+            U (array): mean wind speed [m s-1]
+            ustar (array): friction velocity [m s-1]
         """
 
         U = self.U_n * ustaro + EPS
@@ -101,15 +104,17 @@ class Micromet(object):
 
         return U, ustar
 
-    def scalar_profiles(self, gam, H2O, CO2, T, P, source, lbc, Ebal):
-        r""" Solves scalar profiles (H2O, CO2 and T) within canopy.
+    def scalar_profiles(self, gam: float, H2O: np.ndarray, CO2: np.ndarray, T: np.ndarray, 
+                        P: float, source: Dict, lbc: Dict, Ebal: bool) -> Tuple:
+        r""" 
+        Solves scalar profiles (H2O, CO2 and T) within the canopy using 1st order closure
 
         Args:
             gam (float): weight for new value in iterations
             H2O (array): water vapor mixing ratio [mol mol-1]
             CO2 (array): carbon dioxide mixing ratio [ppm]
             T (array): ambient air temperature [degC]
-            P: ambient pressure [Pa]
+            P (float): ambient pressure [Pa]
             source (dict):
                 'H2O' (array): water vapor source [mol m-3 s-1]
                 'CO2' (array): carbon dioxide source [umol m-3 s-1]
@@ -122,7 +127,9 @@ class Micromet(object):
             H2O (array): water vapor mixing ratio [mol mol-1]
             CO2 (array): carbon dioxide mixing ratio [ppm]
             T (array): ambient air temperature [degC]
-            err_h2o, err_co2, err_t (floats): maximum error for each scalar
+            err_h2o (float): maximum error for H2O
+            err_co2 (float): -"- CO2
+            err_t (float): -"- T
         """
 
         # previous guess, not values of previous time step!
@@ -144,6 +151,7 @@ class Micromet(object):
         if all(~np.isnan(H2O)):
             H2O[H2O > H2O_prev] = np.minimum(H2O_prev[H2O > H2O_prev] * 1.1, H2O[H2O > H2O_prev])
             H2O[H2O < H2O_prev] = np.maximum(H2O_prev[H2O < H2O_prev] * 0.9, H2O[H2O < H2O_prev])
+        
         # relative error
         err_h2o = max(abs((H2O - H2O_prev) / H2O_prev))
 
@@ -161,6 +169,7 @@ class Micromet(object):
         if all(~np.isnan(CO2)):
             CO2[CO2 > CO2_prev] = np.minimum(CO2_prev[CO2 > CO2_prev] * 1.1, CO2[CO2 > CO2_prev])
             CO2[CO2 < CO2_prev] = np.maximum(CO2_prev[CO2 < CO2_prev] * 0.9, CO2[CO2 < CO2_prev])
+        
         # relative error
         err_co2 = max(abs((CO2 - CO2_prev) / CO2_prev))
 
@@ -180,37 +189,40 @@ class Micromet(object):
                 T[T > T_prev] = np.minimum(T_prev[T > T_prev] + 2.0, T[T > T_prev])
                 T[T < T_prev] = np.maximum(T_prev[T < T_prev] - 2.0, T[T < T_prev])
 
-            # absolut error
+            # absolute error
             err_t = max(abs(T - T_prev))
         else:
             err_t = 0.0
 
         return H2O, CO2, T, err_h2o, err_co2, err_t
 
-def closure_1_model_U(z, Cd, lad, hc, Utop, Ubot, dPdx=0.0, lbc_flux=None, U_ini=None):
+def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float, 
+                      Utop: float, Ubot: float, dPdx: float=0.0, lbc_flux: bool=None, 
+                      U_ini: np.array=None) -> Tuple:
     """
     Computes normalized mean velocity profile, shear stress and eddy diffusivity
     within and above horizontally homogenous plant canopies using 1st order closure.
     Accounts for horizontal pressure gradient force dPdx, assumes neutral diabatic stability.
-    Soleves displacement height as centroid of drag force.
-    IN:
-       z - height (m), constant increments
-       Cd - drag coefficient (0.1-0.3) (-)
-       lad - plant area density, 1-sided (m2m-3)
-       hc - canopy height (m)
-       Utop - U /u* upper boundary
-       Uhi - U /u* at ground (0.0 for no-slip)
+    Solves displacement height as centroid of drag force.
+    
+    Args:
+       z - height [m]], constant increments
+       Cd - drag coefficient (typical range 0.1 - 0.3) [-]]
+       lad - plant area density, 1-sided [m2 m-3]
+       hc - canopy height [m]
+       Utop - U /u* [-] upper boundary
+       Uhi - U /u* [-]at ground (0.0 for no-slip)
        dPdx - u* -normalized horizontal pressure gradient
-    OUT:
-       tau - u* -normalized momentum flux
-       U - u* normalized mean wind speed (-)
-       Km - eddy diffusivity for momentum (m2s-1)
-       l_mix - mixing length (m)
-       d - zero-plane displacement height (m)
-       zo - roughness lenght for momentum (m)
-    CODE:
-        Gaby Katul, Samuli Launiainen 2008-2015. Converted to Python 17.5.2017
+    
+    Returns:
+       tau (array): u* -normalized momentum flux
+       U (array): u* normalized mean wind speed [-]]
+       Km (array): eddy diffusivity for momentum [m2 s-1]
+       l_mix (array): mixing length [m]]
+       d (float): zero-plane displacement height [m]
+       zo (float): roughness lenght for momentum [m]]
     """
+
     lad = 0.5*lad  # frontal plant-area density is half of one-sided
     dz = z[1] - z[2]
     N = len(z)
@@ -494,3 +506,18 @@ def e_sat(T):
     s = 17.502 * 240.97 * esa / ((240.97 + T)**2)
 
     return esa, s
+
+def latent_heat(T):
+    """
+    Computes latent heat of vaporization or sublimation [J/kg]
+    Args:
+        T: ambient air temperature [degC]
+    Returns:
+        L: latent heat of vaporization or sublimation depending on 'type'[J/kg]
+    """
+    # latent heat of vaporizati [J/kg]
+    Lv = 1e3 * (3147.5 - 2.37 * (T + DEG_TO_KELVIN))
+    # latent heat sublimation [J/kg]
+    Ls = Lv + 3.3e5
+    L = np.where(T < 0, Ls, Lv)
+    return L

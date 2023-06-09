@@ -3,7 +3,7 @@
 """
 .. module: planttype
     :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+.. moduleauthor:: Kersti Leppä
 
 Describes planttype spefic processes such as dry leaf gas exchange, leaf energy
 balance, root uptake, seasonal cycle of LAI and photosynthetic capacity.
@@ -42,24 +42,27 @@ Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
 """
 
 import numpy as np
-#from copy import deepcopy
 import logging
-logger = logging.getLogger(__name__)
+from typing import List, Dict, Tuple
 
-from .photo import photo_c3_medlyn_farquhar, photo_temperature_response
-from .phenology import Photo_cycle, LAI_cycle
-from .rootzone import RootUptake
-from canopy.micromet import leaf_boundary_layer_conductance, e_sat
-from canopy.interception import latent_heat
-from canopy.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
+from pyAPES.leaf.photo import photo_c3_medlyn_farquhar #, photo_temperature_response
+from pyAPES.microclimate.micromet import leaf_boundary_layer_conductance, e_sat
+from pyAPES.canopy.interception import latent_heat
+from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
+
+from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle
+from pyAPES.planttype.rootzone import RootUptake
+
 H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
+
+logger = logging.getLogger(__name__)
 
 class PlantType(object):
     r""" Contains plant-specific properties, state variables and phenological
     functions.
     """
 
-    def __init__(self, z, p, dz_soil, ctr, loc):
+    def __init__(self, z: np.ndarray, p: Dict, dz_soil: np.ndarray, ctr: Dict, loc: Dict):
         r""" Initialises a planttype object and submodel objects
         using given parameters.
 
@@ -91,18 +94,18 @@ class PlantType(object):
                     'sdur': duration of decreasing period [days]
 
                 'photop' (dict): leaf gas-exchange and stomatal control parameters
-                    'Vcmax': maximum carboxylation velocity [umolm-2s-1]
-                    'Jmax': maximum rate of electron transport [umolm-2s-1]
-                    'Rd': dark respiration rate [umolm-2s-1]
-                    'alpha': quantum yield parameter [mol/mol]
-                    'theta': co-limitation parameter of Farquhar-model
+                    'Vcmax': maximum carboxylation velocity [umol m-2 (leaf) s-1]
+                    'Jmax': maximum rate of electron transport [umol m-2 (leaf) s-1]
+                    'Rd': dark respiration rate [umol m-2 (leaf) s-1]
+                    'alpha': quantum yield parameter [mol mol-1]
+                    'theta': co-limitation parameter of Farquhar-model [-]
                     # 'm': stomatal parameter of Ball-Berry model
                     # 'La': stomatal parameter of stomatal optimality model
-                    'g1': stomatal parameter of Medlyn A-gs model
+                    'g1': stomatal parameter of Medlyn A-gs model [kPa^0.5]
                     'g0': residual conductance for CO2 [molm-2s-1]
                     'kn': nitrgogen attenuation factor [-]; vertical scaling of Vcmax, Jmax, Rd
-                    'beta':  co-limitation parameter of Farquhar-model
-                    'drp': drought-response parameters
+                    'beta':  co-limitation parameter of Farquhar-model [-]
+                    'drp': drought-response parameters [UNITS]
                     'tresp' (dict): temperature sensitivity parameters
                         'Vcmax': [Ha, Hd, Topt]; activation energy [kJmol-1], deactivation energy [kJmol-1], optimum temperature [degC]
                         'Jmax': [Ha, Hd, Topt];
@@ -127,6 +130,9 @@ class PlantType(object):
                 'WaterStress' (str): account for water stress using 'Rew', 'PsiL' or 'None'
                 'seasonal_LAI' (bool): account for seasonal LAI dynamics
                 'pheno_cycle' (bool): account for phenological cycle
+            loc (dict): site location
+                'lat': latitude (decimal degrees)
+                'lon': 'longitude (decimal degrees)
         Returns:
             self (object):
                 .name (str)
@@ -167,10 +173,10 @@ class PlantType(object):
             self.relative_LAI = 1.0
 
         # physical structure
-        self.LAImax = p['LAImax']  # maximum annual 1-sided LAI [m2m-2]
+        self.LAImax = p['LAImax']  # maximum annual 1-sided LAI [m 2m-2]
         self.LAI = self.LAImax * self.relative_LAI  # current LAI
         self.lad_normed = p['lad']  # normalized leaf-area density [m-1]
-        self.lad = self.LAI * self.lad_normed  # current leaf-area density [m2m-3]
+        self.lad = self.LAI * self.lad_normed  # current leaf-area density [m2 m-3]
 
         # root properties
         self.Roots = RootUptake(p['rootp'], dz_soil, self.LAImax)
@@ -187,8 +193,9 @@ class PlantType(object):
 
         #print(self.name, self.mask)
 
-    def update_daily(self, doy, T, PsiL=0.0, Rew=1.0):
-        r""" Updates planttype pheno_state, gas-exchange parameters, LAI and lad.
+    def update_daily(self, doy, T, PsiL=0.0, Rew=1.0)-> None:
+        """ 
+        Updates planttype pheno_state, gas-exchange parameters, LAI and lad.
 
         Args:
             doy (float): day of year [days]
@@ -240,7 +247,7 @@ class PlantType(object):
             self.photop['g1'] = self.photop0['g1'] * np.maximum(0.05, np.exp(b*PsiL))
 
             # Vmax and Jmax responses to leaf water potential. Kellomäki & Wang, 1996.
-            # (Note! mistake in paper eq's, these correspond to their figure)
+            # (Note! mistake in KW96 eq's, these correspond to their figure)
             fv = 1.0 / (1.0 + (PsiL / - 2.04)**2.78)  # vcmax
             fj = 1.0 / (1.0 + (PsiL / - 1.56)**3.94)  # jmax
             fr = 1.0 / (1.0 + (PsiL / - 2.53)**6.07)  # rd
@@ -248,8 +255,9 @@ class PlantType(object):
             self.photop['Jmax'] *= fj
             self.photop['Rd'] *= fr
 
-    def run(self, forcing, parameters, controls):
-        r"""Computes dry leaf gas-exchange for shaded and sunlit leaves for timestep.
+    def run(self, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple[Dict, Dict]:
+        """
+        Computes dry leaf gas-exchange for shaded and sunlit leaves for timestep.
 
         Args:
             forcing (dict):
@@ -258,9 +266,9 @@ class PlantType(object):
                 'air_temperature' (array): air temperature [degC]
                 'air_pressure' (float): ambient pressure [Pa]
                 'wind_speed' (array): mean wind speed [m s-1]
-                'par' (dict): incident and absorbed PAR [Wm-2] for sunlit & shaded leaves seprately; see structure in caller
+                'par' (dict): incident and absorbed PAR [W m-2] for sunlit & shaded leaves seprately; see structure in caller
                 'nir' (dict): --"-- for NIR
-                'lw' (dict): long-wave related inputs; see structure from caller
+                'lw' (dict): long-wave related inputs, see structure from caller
 
             'parameters' (dict):
                 'sunlit_fraction': array [-]
@@ -281,7 +289,7 @@ class PlantType(object):
             self.Tl_sh = sh['leaf_temperature'].copy()
             self.Tl_sl = sl['leaf_temperature'].copy()
 
-# TEST: CO2 exchange for wet leaves
+        # CO2 exchange for wet leaves
         gb_h, gb_c, gb_v = leaf_boundary_layer_conductance(forcing['wind_speed'], self.leafp['lt'],
                                                             forcing['air_temperature'],
                                                             forcing['wet_leaf_temperature'] - forcing['air_temperature'],
@@ -290,16 +298,19 @@ class PlantType(object):
         # VDP from Tl_wet
         esat, s = e_sat(forcing['wet_leaf_temperature'])
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
-        # sunlit shaded separately
+        
+        # sunlit & shaded separately
         An_wet_sl, Rd_wet_sl, _, _, _, _ = photo_c3_medlyn_farquhar(self.photop,
                                                                     forcing['par']['sunlit']['incident']* PAR_TO_UMOL,
                                                                     forcing['wet_leaf_temperature'],
                                                                     Dleaf, forcing['co2'], gb_c, gb_v, P=forcing['air_pressure'])
+        
         An_wet_sh, Rd_wet_sh, _, _, _, _ = photo_c3_medlyn_farquhar(self.photop,
                                                                     forcing['par']['shaded']['incident']* PAR_TO_UMOL,
                                                                     forcing['wet_leaf_temperature'],
                                                                     Dleaf, forcing['co2'], gb_c, gb_v, P=forcing['air_pressure'])
         An_wet = (1 - parameters['sunlit_fraction']) * An_wet_sh + parameters['sunlit_fraction'] * An_wet_sl
+        
         Rd_wet = (1 - parameters['sunlit_fraction']) * Rd_wet_sh + parameters['sunlit_fraction'] * Rd_wet_sl
 
         # prepare outputs
@@ -307,10 +318,12 @@ class PlantType(object):
 
         return pt_stats, layer_stats
 
-    def leaf_gas_exchange(self, forcing, controls, leaftype):
-        r""" Solves leaf gas-exchange and energy balance (optionally).
-        Energy balance is solved using Taylor's expansion (i.e isothermal
-        net radiation -approximation) which eliminates need for iterations with radiation-scheme.
+    def leaf_gas_exchange(self, forcing: Dict, controls: Dict, leaftype: str) -> dict:
+        """
+        Solves leaf gas-exchange and energy balance (optionally).
+        Energy balance is solved using Taylor's expansion (i.e isothermal net radiation -approximation),
+        which eliminates need for iterations with the LW radiation scheme.
+        
         Args:
             forcing (dict):
                 'h2o': water vapor mixing ratio (mol/mol)
@@ -465,13 +478,16 @@ class PlantType(object):
 
         return x
 
-    def _outputs(self, sl, sh, Rd_wet, An_wet, f_sl, df):
+    def _outputs(self, sl: Dict, sh: Dict, Rd_wet: np.ndarray, An_wet: np.ndarray, f_sl:np.ndarray, df:np.ndarray) -> Tuple[Dict, Dict]:
         """
-        Combines outputs.
+        Combines planttype outputs.
         Args:
             sl, sh (dict)
             f_sl (array), sunlit fraction
             df (array), dry-leaf fraction
+        Returns:
+            pt_stats (dict), plant-type integrated results
+            layer_stats (dict), layer-wise results from the planttype
         """
 
         # weight factors are sunlit and shaded dry-leaf lad
@@ -486,7 +502,6 @@ class PlantType(object):
         # pt_stats['net_co2'] *= -1 # net uptake is negative
         del keys
 
-# TEST
         pt_stats['net_co2'] += (np.sum(self.lad * (1.0 - df) * An_wet)) * self.dz
         pt_stats['dark_respiration'] += (np.sum(self.lad * (1.0 - df) * Rd_wet)) * self.dz
 
@@ -494,7 +509,6 @@ class PlantType(object):
         keys = ['net_co2', 'dark_respiration', 'transpiration', 'latent_heat', 'sensible_heat', 'fr']
         layer_stats = {k: sl[k]*f1 + sh[k]*f2 for k in keys}
 
-# TEST
         layer_stats['net_co2'] += self.lad * (1.0 - df) * An_wet
         layer_stats['dark_respiration'] += self.lad * (1.0 - df) * Rd_wet
 
@@ -527,3 +541,4 @@ class PlantType(object):
                 )
         return pt_stats, layer_stats
 
+#EOF

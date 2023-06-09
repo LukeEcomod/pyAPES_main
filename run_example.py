@@ -22,7 +22,7 @@ from pyAPES_utilities.plotting import plot_fluxes
 
 # Get parameters and forcing for SMEAR II -site
 
-from parameters.SmearII import gpara, cpara, spara
+#from parameters.SmearII import gpara, cpara, spara
 
 forcing = read_forcing(
     forc_filename=gpara['forc_filename'],

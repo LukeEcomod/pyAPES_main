@@ -24,9 +24,10 @@ from builtins import range
 import numpy as np
 import pandas as pd
 import logging
-from tools.utilities import tridiag
 from matplotlib import pyplot as plt
-from .constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
+
+from pyAPES.utils.utilities import tridiag
+from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
 logger = logging.getLogger(__name__)
 
 class Radiation(object):

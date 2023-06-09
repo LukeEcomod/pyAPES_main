@@ -1,96 +1,102 @@
 # -*- coding: utf-8 -*-
 """
 .. module: photo
-    :synopsis: APES-model component
-.. moduleauthor:: Samuli Launiainen & Kersti Haahti
+    :synopsis: pyAPES-model component leaf
+.. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
-Note:
-    migrated to python3
-    - nothing changed
+Describes coupled leaf/needle-scale photosynthesis and stomatal control using variants of
+Farquhar model and 'A-gs' schemes. Includes also energy balance.
 
-Describes leaf-scale functions for photosynthesis and stomatal control.
-Based on MatLab implementation by Samuli Launiainen.
-
-Created on Mon May 15 13:43:44 2017
+Key references:
+    Launiainen et al. 2015 Ecol. Mod.
+    Farquhar et al. 1980 Planta
+    Medlyn et al., 2002a,b
+    Medlyn et al. 2011
+    Katul et al. 2009, 2010
+    Vico et al. 2013
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-from canopy.micromet import leaf_boundary_layer_conductance, e_sat
-from canopy.interception import latent_heat
-
 import logging
-logger = logging.getLogger(__name__)
+from typing import List, Dict, Tuple
 
-from canopy.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS
-from canopy.constants import SPECIFIC_HEAT_AIR
-from canopy.constants import GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O
+from pyAPES.microclimate.micromet import leaf_boundary_layer_conductance, e_sat, latent_heat
+from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
+GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O
+
 H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
 TN = 25.0 + DEG_TO_KELVIN  # reference temperature [K]
 
-def leaf_interface(photop,
-                   leafp,
-                   forcing,
-                   controls,
-                   df=1.0,
-                   dict_output=True,
-                   logger_info=''):
-    r""" Entry-point to coupled leaf gas-exchange and energy balance functions.
+logger = logging.getLogger(__name__)
 
-    CALCULATES leaf photosynthesis (An), respiration (Rd), transpiration (E) and estimates of
-    leaf temperature (Tl) and sensible heat fluxes (H) based onleaf energy balance equation coupled with
+#%% 
+# --- coupled leaf energy balance and gas-exchange
+
+def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
+                   df: float=1.0, dict_output: bool=True, logger_info: str=''):
+    r""" 
+    Computes leaf net CO2 flux (An), respiration (Rd), transpiration (E) and estimates
+    leaf temperature (Tl) and sensible heat fluxes (H) based on leaf energy balance equation coupled with
     leaf-level photosynthesis and stomatal control schemes.
-    Energy balance is solved using Taylor's expansion (i.e isothermal net radiation -approximation) which
-    eliminates need for iterations with radiation-sceme.
 
-    Depending on choise of 'model', photosynthesis is calculated based on biochemical model of Farquhar et
-    al. (1980) coupled with various stomatal control schemes (Medlyn, Ball-Woodrow-Berry, Hari, Katul-Vico et al.)
-    In all these models, stomatal conductance (gs) is directly linked to An, either by optimal stomatal control principles or
+    Energy balance is solved using Taylor's expansion (i.e isothermal net radiation -approximation) which
+    eliminates need for iterations with the long-wave radiation-sceme.
+
+    Depending on choise of 'photo_model', photosynthesis is calculated based on biochemical model of Farquhar et
+    al. (1980), coupled with alternative stomatal control schemes (Medlyn, Ball-Woodrow-Berry, Hari, Katul-Vico et al.)
+    In all these models, stomatal conductance (gs) is proportional to instantaneous An, either by optimal stomatal control principles or
     using semi-empirical models.
 
     Args:
         photop (dict): leaf gas-exchange parameters
-            'Vcmax': maximum carboxylation velocity [umolm-2s-1]
-            'Jmax': maximum rate of electron transport [umolm-2s-1]
-            'Rd': dark respiration rate [umolm-2s-1]
-            'alpha': quantum yield parameter [mol/mol]
-            'theta': co-limitation parameter of Farquhar-model
-            'La': stomatal parameter (Lambda, m, ...) depending on model
-            'g1': stomatal slope parameter
-            'g0': residual conductance for CO2 [molm-2s-1]
-            'kn': ?? not used ??
-            'beta': co-limitation parameter of Farquhar-model
-            'drp': drought response parameters of Medlyn stomatal model and apparent Vcmax;
+            'Vcmax': [umol m-2 s-1] maximum carboxylation velocity at 25C
+            'Jmax': [umol m-2 s-1] maximum rate of electron transport at 25C
+            'Rd': [umol m-2 s-1] dark respiration rate at 25C
+            'alpha': apparent quantum yield parameter
+            'theta': [-] co-limitation parameter of Farquhar-model
+            'La': stomatal parameter (Lambda, m [-], ...) depending on model
+            'g1': [kPa^0.5] stomatal slope parameter of USO -model
+            'g0': [mol m-2 s-1] residual conductance for CO2
+            #'kn': [-] nitrogen attenuation factor in canopy, Not used ??
+            'beta': [-] co-limitation parameter of Farquhar-model
+            'drp': drought response parameters of Medlyn stomatal model and apparent Vcmax
                  list: [Rew_crit_g1, slope_g1, Rew_crit_appVcmax, slope_appVcmax]
-            'tresp' (dict): temperature sensitivity parameters
-                'Vcmax' (list): [Ha, Hd, dS]; activation energy [kJmol-1], deactivation energy [kJmol-1], entropy factor [J mol-1]
-                'Jmax' (list): [Ha, Hd, dS];
-                'Rd' (list): [Ha]; activation energy [kJmol-1)]
+            tresp' (dict): parameters of photosynthetic temperature response curve
+                - Vcmax (list): [activation energy [kJ mol-1], 
+                                 deactivation energy [kJ mol-1]
+                                 entropy factor [kJ mol-1]
+                                ]
+                - Jmax (list): [activation energy [kJ mol-1], 
+                                 deactivation energy [kJ mol-1]
+                                 entropy factor [kJ mol-1]
+                                ]
+                - Rd (list): [activation energy [kJ mol-1]
         
         leafp (dict): leaf properties
             'lt': leaf lengthscale [m]
         
         forcing (dict):
-            'h2o': water vapor mixing ratio (mol/mol)
-            'co2': carbon dioxide mixing ratio (ppm)
-            'air_temperature': ambient air temperature (degC)
-            'par_incident': incident PAR at leaves (umolm-2s-1)
-            'sw_absorbed': absorbed SW (PAR + NIR) at leaves (Wm-2)
-            'lw_net': net isothermal long-wave radiation (Wm-2)
-            'wind_speed': mean wind speed (m/s)
-            'air_pressure': ambient pressure (Pa)
-            'leaf_temperature': initial guess for leaf temperature (optional)
-            'average_leaf_temperature': leaf temperature used for computing LWnet (optional)
-            'radiative_conductance': radiative conductance used in computing LWnet (optional)
+            'h2o': water vapor mixing ratio [mol mol-1]
+            'co2': carbon dioxide mixing ratio [ppm]]
+            'air_temperature': ambient air temperature [degC]
+            'par_incident': incident PAR at leaves [umol m-2 s-1] 
+            'sw_absorbed': absorbed SW (PAR + NIR) at leaves [W m-2]
+            'lw_net': net isothermal long-wave radiation [W m-2]
+            'wind_speed': mean wind speed [m s-1]
+            'air_pressure': ambient pressure [Pa]
+            'leaf_temperature': initial guess for leaf temperature (optional) [degC]
+            'average_leaf_temperature': leaf temperature used for computing LWnet (optional) [degC]
+            'radiative_conductance': radiative conductance used in computing LWnet (optional) [degC]
+
         controls (dict):
             'photo_model' (str): photosysthesis model
                 CO_OPTI (Vico et al., 2014)
-                MEDLYN (Medlyn et al., 2011 with co-limitation Farquhar)
-                MEDLYN_FARQUHAR
+                #MEDLYN (Medlyn et al., 2011 with co-limitation Farquhar)
+                MEDLYN_FARQUHAR Medlyn et al., 2011 with co-limitation Farquhar)
                 BWB (Ball et al., 1987 with co-limitation Farquhar)
-                others?
-            'energy_balance' (bool): True computes leaf temperature by solving energy balance
-        dict_output (bool): True returns output as dict, False as separate arrays (optional)
+            'energy_balance' (bool): True -> computes leaf temperature by solving energy balance
+        dict_output (bool): True -> returns output as dict, False as separate arrays (optional)
         logger_info (str): optional
 
     OUTPUT:
@@ -107,9 +113,9 @@ def leaf_interface(photop,
             'leaf_surface_co2': leaf surface CO2 mixing ratio (mol/mol)
 
     NOTE: Vectorized code can be used in multi-layer sense where inputs are vectors of equal length
+    
+    NOTE: NOT currently used in pyAPES-MLM! There coupled leaf energy balance is solved in planttype.PlantType.leaf_gas_exchange()
 
-    Samuli Launiainen LUKE 3/2011 - 5/2017
-    Last edit 15.11.2019 / SL
     """
 
     # -- parameters -----
@@ -237,31 +243,35 @@ def leaf_interface(photop,
         return An, Rd, E, H, Fr, Tl, Ci, Cs, gsv, gs_opt, gb_v
 
 
-""" ---- photosynthesis models ----- """
+#%%
+#  ---- photosynthesis - stomatal control (A-gs) models ----- """
 
-def photo_c3_analytical(photop, Qp, T, VPD, ca, gb_c, gb_v):
+def photo_c3_analytical(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray, 
+                        ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray):
     """
     Leaf photosynthesis and gas-exchange by co-limitation optimality model of
     Vico et al. 2013 AFM
-    IN:
+    Args:
         photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, La, tresp
            can be scalars or arrays.
            tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
-           parameters. OMIT key if no temperature adjustments for photoparameters.
-        Qp - incident PAR at leaves (umolm-2s-1)
-        Tleaf - leaf temperature (degC)
-        VPD - leaf-air vapor pressure difference(mol/mol)
-        ca - ambient CO2 (ppm)
-        gb_c - boundary-layer conductance for co2 (mol m-2 s-1)
-        gb_v - boundary-layer conductance for h2o (mol m-2 s-1)
-    OUT:
-        An - net CO2 flux (umolm-2s-1)
-        Rd - dark respiration (umolm-2s-1)
-        fe - leaf transpiration rate (molm-2s-1)
-        gs - stomatal conductance for CO2 (mol/m-2s-1)
-        ci - leaf internal CO2 (ppm)
-        cs - leaf surface CO2 (ppm)
+           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
+        Qp - incident PAR at leaves [umolm-2s-1]
+        T - leaf temperature [degC]
+        VPD - leaf-air vapor pressure difference [mol mol-1]
+        ca - ambient CO2 [ppm]
+        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
+        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
+    
+    Returns:
+        An - net CO2 flux [umol m-2 s-1]
+        Rd - dark respiration [umol m-2 s-1]
+        fe - leaf transpiration rate [mol m-2 s-1]
+        gs - stomatal conductance for CO2 [mol m-2 s-1]
+        ci - leaf internal CO2 [ppm]
+        cs - leaf surface CO2 [ppm]
     """
+
     Tk = T + DEG_TO_KELVIN
 
     MaxIter = 20
@@ -354,29 +364,31 @@ def photo_c3_analytical(photop, Qp, T, VPD, ca, gb_c, gb_v):
         return An, Rd, fe, gs_opt, ci, cs
 
 
-def photo_c3_medlyn(photop, Qp, T, VPD, ca, gb_c, gb_v, P=101300.0):
+def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray, 
+                    ca: np.ndarray, gb_c: np.ndarray, gb_v=np.ndarray, P: float=101300.0) -> Tuple:
     """
-    Leaf gas-exchange by Farquhar-Medlyn model, where co-limitation as in
-    Vico et al. 2013 AFM
-    IN:
+    Leaf gas-exchange by Farquhar-Medlyn Unified Stomatal Optimality (USO) -model (Medlyn et al., 2011 GCB).
+    Av, Aj co-limitation implemented here as in Vico et al. 2013 AFM
+    
+    Args:
         photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, La, tresp
            can be scalars or arrays.
            tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
-           parameters. OMIT key if no temperature adjustments for photoparameters.
-        Qp - incident PAR at leaves (umolm-2s-1)
-        Tleaf - leaf temperature (degC)
-        VPD - leaf-air vapor pressure difference (mol/mol)
-        ca - ambient CO2 (ppm)
-        gb_c - boundary-layer conductance for co2 (mol m-2 s-1)
-        gb_v - boundary-layer conductance for h2o (mol m-2 s-1)
-        P - atm. pressure (Pa)
-    OUT:
-        An - net CO2 flux (umolm-2s-1)
-        Rd - dark respiration (umolm-2s-1)
-        fe - leaf transpiration rate (molm-2s-1)
-        gs - stomatal conductance for CO2 (mol/m-2s-1)
-        ci - leaf internal CO2 (ppm)
-        cs - leaf surface CO2 (ppm)
+           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
+        Qp - incident PAR at leaves [umolm-2s-1]
+        T - leaf temperature [degC]
+        VPD - leaf-air vapor pressure difference [mol mol-1]
+        ca - ambient CO2 [ppm]
+        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
+        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
+    
+    Returns:
+        An - net CO2 flux [umol m-2 s-1]
+        Rd - dark respiration [umol m-2 s-1]
+        fe - leaf transpiration rate [mol m-2 s-1]
+        gs - stomatal conductance for CO2 [mol m-2 s-1]
+        ci - leaf internal CO2 [ppm]
+        cs - leaf surface CO2 [ppm]
     """
     Tk = T + DEG_TO_KELVIN
     VPD = 1e-3 * VPD * P  # kPa
@@ -448,29 +460,31 @@ def photo_c3_medlyn(photop, Qp, T, VPD, ca, gb_c, gb_v, P=101300.0):
     return An, Rd, fe, gs_opt, ci, cs
 
 
-def photo_c3_medlyn_farquhar(photop, Qp, T, VPD, ca, gb_c, gb_v, P=101300.0):
+def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
+                             ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float=101300.0) -> Tuple:
     """
-    Leaf gas-exchange by Farquhar-Medlyn model, where co-limitation as in standard Farquhar-
-    model
-    IN:
-        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, La, tresp
+    Leaf gas-exchange by Farquhar-Medlyn Unified Stomatal Optimality (USO) -model (Medlyn et al., 2011 GCB), 
+    where co-limitation as in standard Farquhar-model
+    
+    Args:
+        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp
            can be scalars or arrays.
            tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
-           parameters. OMIT key if no temperature adjustments for photoparameters.
-        Qp - incident PAR at leaves (umolm-2s-1)
-        Tleaf - leaf temperature (degC)
-        VPD - leaf-air vapor pressure difference (mol/mol)
-        ca - ambient CO2 (ppm)
-        gb_c - boundary-layer conductance for co2 (mol m-2 s-1)
-        gb_v - boundary-layer conductance for h2o (mol m-2 s-1)
-        P - atm. pressure (Pa)
-    OUT:
-        An - net CO2 flux (umolm-2s-1)
-        Rd - dark respiration (umolm-2s-1)
-        fe - leaf transpiration rate (molm-2s-1)
-        gs - stomatal conductance for CO2 (mol/m-2s-1)
-        ci - leaf internal CO2 (ppm)
-        cs - leaf surface CO2 (ppm)
+           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
+        Qp - incident PAR at leaves [umolm-2s-1]
+        T - leaf temperature [degC]
+        VPD - leaf-air vapor pressure difference [mol mol-1]
+        ca - ambient CO2 [ppm]
+        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
+        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
+    
+    Returns:
+        An - net CO2 flux [umol m-2 s-1]
+        Rd - dark respiration [umol m-2 s-1]
+        fe - leaf transpiration rate [mol m-2 s-1]
+        gs - stomatal conductance for CO2 [mol m-2 s-1]
+        ci - leaf internal CO2 [ppm]
+        cs - leaf surface CO2 [ppm]
     """
     Tk = T + DEG_TO_KELVIN
     VPD = np.maximum(EPS, 1e-3 * VPD * P)  # kPa
@@ -478,13 +492,13 @@ def photo_c3_medlyn_farquhar(photop, Qp, T, VPD, ca, gb_c, gb_v, P=101300.0):
     MaxIter = 50
 
     # --- params ----
-    Vcmax = photop['Vcmax']
+    Vcmax = photop['Vcmax'] # [umol m-2 s-1]
     Jmax = photop['Jmax']
     Rd = photop['Rd']
-    alpha = photop['alpha']
+    alpha = photop['alpha'] # [-]
     theta = photop['theta']
-    g1 = photop['g1']  # slope parameter
-    g0 = photop['g0']
+    g1 = photop['g1']  # [kPa^0.5], slope parameter
+    g0 = photop['g0'] # [mol m-2 (leaf) s-1], for CO2
     beta = photop['beta']
     #print beta
     # --- CO2 compensation point -------
@@ -554,29 +568,31 @@ def photo_c3_medlyn_farquhar(photop, Qp, T, VPD, ca, gb_c, gb_v, P=101300.0):
     return An, Rd, fe, gs_opt, ci, cs
 
 
-def photo_c3_bwb(photop, Qp, T, RH, ca, gb_c, gb_v, P=101300.0):
+def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray, 
+                 ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float=101300.0) -> Tuple:
     """
-    Leaf gas-exchange by Farquhar-Ball-Woodrow-Berry model, as in standard Farquhar-
+    Leaf gas-exchange by Farquhar-Ball-Woodrow-Berry model, co-limitation as in standard Farquhar-
     model
-    IN:
-        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, La, tresp
+
+    Args:
+        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp
            can be scalars or arrays.
            tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
-           parameters. OMIT key if no temperature adjustments for photoparameters.
-        Qp - incident PAR at leaves (umolm-2s-1)
-        Tleaf - leaf temperature (degC)
-        rh - relative humidity at leaf temperature (-)
-        ca - ambient CO2 (ppm)
-        gb_c - boundary-layer conductance for co2 (mol m-2 s-1)
-        gb_v - boundary-layer conductance for h2o (mol m-2 s-1)
-        P - atm. pressure (Pa)
-    OUT:
-        An - net CO2 flux (umolm-2s-1)
-        Rd - dark respiration (umolm-2s-1)
-        fe - leaf transpiration rate (molm-2s-1)
-        gs - stomatal conductance for CO2 (mol/m-2s-1)
-        ci - leaf internal CO2 (ppm)
-        cs - leaf surface CO2 (ppm)
+           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
+        Qp - incident PAR at leaves [umolm-2s-1]
+        T - leaf temperature [degC]
+        VPD - leaf-air vapor pressure difference [mol mol-1]
+        ca - ambient CO2 [ppm]
+        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
+        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
+    
+    Returns:
+        An - net CO2 flux [umol m-2 s-1]
+        Rd - dark respiration [umol m-2 s-1]
+        fe - leaf transpiration rate [mol m-2 s-1]
+        gs - stomatal conductance for CO2 [mol m-2 s-1]
+        ci - leaf internal CO2 [ppm]
+        cs - leaf surface CO2 [ppm]
     """
     Tk = T + DEG_TO_KELVIN
 
@@ -654,10 +670,12 @@ def photo_c3_bwb(photop, Qp, T, RH, ca, gb_c, gb_v, P=101300.0):
 
     return An, Rd, fe, gs_opt, ci, cs
 
-def photo_farquhar(photop, Qp, ci, T, co_limi=False):
+def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray, 
+                   co_limi: bool=False) -> Tuple:
     """
-    Calculates leaf net CO2 exchange and dark respiration rate (umol m-2 s-1).
-    INPUT:
+    Farquhar model for leaf-level photosynthesis, dark respiration and net CO2 exchange.
+    
+    Args:
         photop - dict with keys:
             Vcmax
             Jmax
@@ -669,10 +687,18 @@ def photo_farquhar(photop, Qp, ci, T, co_limi=False):
         Qp - incident Par (umolm-2s-1)
         ci - leaf internal CO2 mixing ratio (ppm)
         T - leaf temperature (degC)
-        co_limi - True uses co-limitation function of Vico et al., 2014.
-    OUTPUT:
-        An - leaf net CO2 exchange (umol m-2 leaf s-1)
-        Rd - leaf dark respiration rate (umol m-2 leaf s-1)
+        co_limi (bool)- True uses co-limitation function of Vico et al., 2014.
+    Returns:
+        An - leaf net CO2 exchange [umol m-2 leaf s-1]
+        Rd - leaf dark respiration rate [umol m-2 leaf s-1]
+        Av - rubisco limited rate (if co_limi==True)
+        Aj - electron transport limited rate (if co_limi==True)
+        Tau_c - CO2 compensation point [ppm]
+        Kc - Rubisco activity for CO2 [umol mol-1]
+        Ko - Rubisco activity for O [umol mol-1] 
+        Km - Kc*(1.0 + O2_IN_AIR / Ko) [umol mol-1]
+        J - electron transport rate [umol m-2 leaf s-1] CHECK UNITS!!
+
     NOTE: original and co_limi -versions converge when beta ~ 0.8
     """
     Tk = T + DEG_TO_KELVIN  # K
@@ -712,7 +738,7 @@ def photo_farquhar(photop, Qp, ci, T, co_limi=False):
         x = Av + Aj
         y = Av * Aj
         An = (x - (x**2 - 4*beta*y)**0.5) / (2*beta) - Rd  # co-limitation
-        return An, Rd, Av, Aj
+        return An, Rd, Av, Aj, Tau_c, Kc, Ko, Km, J
     else:   # use Vico et al. eq. 1
         k1_c = J / 4.0
         k2_c = (J / 4.0) * Km / Vcmax
@@ -720,21 +746,35 @@ def photo_farquhar(photop, Qp, ci, T, co_limi=False):
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
-def photo_temperature_response(Vcmax0, Jmax0, Rd0, Vcmax_T, Jmax_T, Rd_T, T):
+def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray, 
+                               Vcmax_T: Dict, Jmax_T: Dict, Rd_T: Dict, T: np.ndarray):
     """
-    Adjusts Farquhar / co-limitation optimality model parameters for temperature
-    INPUT:
-        Vcmax0, Jmax0, Rd0 - parameters at ref. temperature 298.15 K
-        Vcmax_T, Jmax_T, Rd_T - temperature response parameter lists
-        T - leaf temperature (K)
-    OUTPUT: Nx1-arrays
-        Vcmax, Jmax,Rd (umol m-2(leaf) s-1)
-        Gamma_star - CO2 compensation point
-    CALLED from Farquhar(); Opti_C3_Analytical(); Opti_C3_Numerical()
-    REFERENCES:
+    Adjusts Farquhar-parameters for temperature
+    
+    Args:
+        - Vcmax25, maximum carboxylation velocity at 25 degC
+        - Jmax25, maximum electron transport rate at 25 degC
+        - Rd25, dark respiration rate at 25 degC
+        - Vcmax_T (list) [activation energy [kJ mol-1], 
+                              deactivation energy [kJ mol-1], 
+                              entropy factor [kJ mol-1]
+                             ]
+        - Jmax_T (list): [activation energy [kJ mol-1], 
+                              deactivation energy [kJ mol-1], 
+                              entropy factor [kJ mol-1]
+                             ]
+       - Rd_T (list): [activation energy [kJ mol-1]
+       - T [K] temperature
+
+    Returns:
+        - Vcmax at temperature T
+        - Jmax at temperature T
+        - Rd at temperature T
+        - Gamma_star [ppm], CO2 compensation point at T
+   
+    Reference:
         Medlyn et al., 2002.Plant Cell Environ. 25, 1167-1179; based on Bernacchi
         et al. 2001. Plant Cell Environ., 24, 253-260.
-    Samuli Launiainen, Luke, 28.3.2017
     """
 
     # --- CO2 compensation point -------
@@ -768,14 +808,14 @@ def photo_temperature_response(Vcmax0, Jmax0, Rd0, Vcmax_T, Jmax_T, Rd_T, T):
 
     return Vcmax, Jmax, Rd, Gamma_star
 
-def apparent_photocapacity(b, psi_leaf):
+def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     """
-    computes relative photosynthetic capacity as a function of leaf water potential
+    Relative photosynthetic capacity as a function of leaf water potential
     Function shape from Kellomäki & Wang, adjustments for Vcmax and Jmax
-    IN:
-       beta - parameters, 2x1 array
-       psi - leaf water potential (MPa)
-    OUT:
+    Args:
+       beta (list|array) - parameters
+       psi (float|array) - leaf water potential (MPa)
+    Returns:
        f - relative value [0.2 - 1.0]
     """
     psi_leaf = np.array(np.size(psi_leaf), ndmin=1)
@@ -784,34 +824,61 @@ def apparent_photocapacity(b, psi_leaf):
 
     return f
 
-def topt_deltaS_conversion(xin, Ha, Hd, var_in='deltaS'):
-    """
-    Converts between entropy factor Sv (J mol-1) and temperature optimum
-    Topt (K). Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
-    INPUT:
-        xin, Ha(J mol-1), Hd(J mol-1)
-        input:'deltaS' [Jmol-1] or 'Topt' [K]
-    OUT:
-        xout - Topt or Sv
-    Farquhar parameters temperature sensitivity
-    """
+# def topt_deltaS_conversion(xin, Ha, Hd, var_in='deltaS'):
+#     """
+#     Converts between entropy factor Sv (J mol-1) and temperature optimum
+#     Topt (K). Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
+#     INPUT:
+#         xin, Ha(J mol-1), Hd(J mol-1)
+#         input:'deltaS' [Jmol-1] or 'Topt' [K]
+#     OUT:
+#         xout - Topt or Sv
+#     Farquhar parameters temperature sensitivity
+#     """
 
-    if var_in.lower() == 'deltas':  # Sv --> Topt
-        xout = Hd / (xin - GAS_CONSTANT * np.log(Ha / (Hd - Ha)))
-    else:  # Topt -->Sv
-        c = GAS_CONSTANT * np.log(Ha / (Hd - Ha))
-        xout = (Hd + xin * c) / xin
+#     if var_in.lower() == 'deltas':  # Sv --> Topt
+#         xout = Hd / (xin - GAS_CONSTANT * np.log(Ha / (Hd - Ha)))
+#     else:  # Topt -->Sv
+#         c = GAS_CONSTANT * np.log(Ha / (Hd - Ha))
+#         xout = (Hd + xin * c) / xin
+#     return xout
+
+def topt_deltaS_conversion(Ha: float, Hd: float, dS: float=None, Topt: float=None) -> float:
+    """
+    Converts between entropy factor Sd [kJ mol-1] and temperature optimum
+    Topt [k]. Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
+    
+    Args:
+        - 'Ha' (float): activation energy [kJ mol-1]
+        - 'Hd' (float): deactivation energy [kJ mol-1]
+        - 'dS' (float): entropy factor [kJ mol-1]
+        - 'Topt' (float): temperature optimum [K]
+    Returns:
+        - 'Topt' or 'dS' (float)
+
+    """
+    R = 8.314427  # gas constant, J mol-1 K-1
+    
+    if dS:  # Sv --> Topt
+        xout = Hd / (dS - R * np.log(Ha / (Hd - Ha)))
+    elif Topt:  # Topt -->Sv
+        c = R * np.log(Ha / (Hd - Ha))
+        xout = (Hd + Topt * c) / Topt
+    
     return xout
 
-def photo_Toptima(T10):
+def photo_Toptima(T10: float) -> Tuple:
     """
     computes acclimation of temperature optima of Vcmax and Jmax to 10-day mean air temperature
     Args:
-        T10 - 10-day mean temperature (degC)
+        T10 - 10-day mean temperature [degC]
     Returns:
-        Tv, Tj - temperature optima of Vcmax, Jmax
-        rjv - ratio of Jmax25 / Vcmax25
-    Reference: Lombardozzi et al., 2015 GRL, eq. 3 & 4
+        Tv - temperature optima of Jmax [degC]
+        Tj - temperature optima of Jmax [degC]
+        rjv - ratio of Jmax25 / Vcmax25 [-]
+    
+    Reference:
+        Lombardozzi et al., 2015 GRL, eq. 3 & 4
     """
     # --- parameters
     Hav = 72000.0  # J mol-1
@@ -830,7 +897,9 @@ def photo_Toptima(T10):
 
     return Tv, Tj, rjv
 
-"""--- scripts for testing functions ---- """
+
+#%%
+# --- scripts for testing functions ---- """
 
 def test_leafscale(method='MEDLYN_FARQUHAR', species='pine', Ebal=False):
     gamma = 1.0
@@ -990,7 +1059,7 @@ def test_leafscale(method='MEDLYN_FARQUHAR', species='pine', Ebal=False):
             'energy_balance': Ebal
             }
 
-    x = leaf_interface(photop, leafp, forcing, controls)
+    x = leaf_Ags_ebal(photop, leafp, forcing, controls)
 #    print(x)
     Y=T
     plt.figure(5)
@@ -1118,3 +1187,5 @@ def Topt_to_Sd(Ha, Hd, Topt):
 def Sd_to_Topt(Ha, Hd, Sd):
     Topt = Hd*1e3 / (Sd + GAS_CONSTANT * np.log(Ha /(Hd - Ha)))
     return Topt - DEG_TO_KELVIN
+
+# EOF

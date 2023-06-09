@@ -1,36 +1,40 @@
-#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct  4 08:54:17 2018
+.. module: snowpack
+    :synopsis: APES-model component
+.. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
-@author: ajkieloaho
+Degree-day snow pack model
+
+Future development(s): include energy-balance based snow model
+
 """
 
 import numpy as np
+from typing import Dict, List, Tuple
 
 EPS = np.finfo(float).eps  # machine epsilon
 
 class DegreeDaySnow(object):
-    """ Represents snow cover-soil-atmosphere interactions with simple
-     zero-dimensional degree-day model
-    """
-
     def __init__(self, properties):
         """
-        snowpack = {
-        'kmelt': 2.31e-8,  # Melting coefficient [m degC-1 s-1] (=2.0 mm/C/d)
-        'kfreeze': 5.79e-9,  # Freezing  coefficient [m degC-1 s-1] (=0.5 mm/C/d)
-        'retention': 0.2,  # max fraction of liquid water in snow [-]
-        'Tmelt': 0.0,  # temperature when melting starts [degC]
-        'swe_ini': 0.0,  # initial snow water equivalent [m],
-        'optical_properties': {
-                'albedo': {'PAR': 0.8, 'NIR': 0.8}
-                'emissivity': 0.97,
-                'albedo_PAR': 0.8,
-                'albedo_NIR': 0.8,
-                }
-        }
-
+        Zero-dimensional snowpack model based on degree-day approach.
+        
+        Args:
+            - properties (dict)
+                - 'kmelt' melting coefficient [m degC-1 s-1]
+                - 'kfreeze' (float): freezing coefficient coefficient [m degC-1 s-1]
+                - 'retention' (float): max fraction of liquid water in snow [-]
+                - 'Tmelt' (float): melting temperature (~0.0 degC) [degC]
+                - 'optical_properties' (dict):
+                    - 'albedo' (dict):
+                        - 'PAR' (float): snow Par-albedo [-]
+                        - 'NIR' (float): snow NIR-albedo [-]
+                    - 'emissivity': [-]
+       
+                - 'initial_conditions' (dict):
+                    - 'temperature' (float): [degC]
+                    - 'snow_water_equivalent' (float): [kg m\ :sup:`-2`\ == mm]
         """
 
         #self.properties = properties
@@ -55,33 +59,33 @@ class DegreeDaySnow(object):
         self.iteration_state = None
 
     def update(self):
-        """ Updates new states to the snowpack.
+        """ 
+        Updates snowpack state.
         """
         self.temperature = self.iteration_state['temperature']
         self.ice = self.iteration_state['ice']
         self.liq = self.iteration_state['liq']
         self.swe = self.iteration_state['swe']
 
-    def run(self, dt, forcing):
-        """ Calculates one timestep and updates states of SnowpackModel instance
+    def run(self, dt: float, forcing: Dict) -> Tuple(Dict, Dict):
+        """
+        Calculates one timestep and updates snowpack state
 
         Args:
-            dt: timestep [s]
-            forcing (dict):
-                'air_temperature': [degC]
-                'precipitation_rain': [kg m-2 s-1]
-                'precipitation_snow': [kg m-2 s-1]
+            - 'dt' (float): timestep [s]
+            - 'forcing' (dict):
+                - 'air_temperature': [degC]
+                - 'precipitation_rain': [kg m-2 s-1]
+                - 'precipitation_snow': [kg m-2 s-1]
 
         Returns:
-            fluxes (dict):
-                'throughfall': [kg m-2 s-1]
-                'water_closure': [kg m-2 s-1]
-            states (dict):
-                'snow_water_equivalent': [kg m-2 s-1]
+            - 'fluxes' (dict):
+               - 'potential_infiltration': [kg m-2 s-1]
+               - 'water_closure': [kg m-2 s-1]
+            - 'states' (dict):
+               - 'snow_water_equivalent': [kg m-2 s-1]
+               - 'temperature': [degC]
         """
-
-        """ --- initial conditions for calculating mass balance error --"""
-
 
         """ --- melting and freezing in snopack --- """
         if forcing['air_temperature'] >= self.Tmelt:
@@ -130,4 +134,3 @@ class DegreeDaySnow(object):
         return fluxes, states
 
 # EOF
-

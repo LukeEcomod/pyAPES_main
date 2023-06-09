@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul 13 12:38:05 2018
 
-@author: slauniai
+NOTE: OBSOLETE - NOW ALL MOVED INTO bottomlayer.carbon! SL 7.6.23
+
+.. module: forestfloor
+    :synopsis: pyAPES-model bottomlayer component
+.. moduleauthor:: Samuli Launiainen
+
+Module for moss community photosynthesis. Process-based (Farquhar-type) & empirical model
+to compute moss photosynthesis, dark respiration and net CO2 exchange as a function of light, temperature and water content.
+
+Last edit: 15.3.2023 Samuli 
 """
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,28 +60,53 @@ WATER_DENSITY = 1.0e3
 
 def net_co2_exchange(para, Qp, Ca, T, w, wstar):
     """
-    computes net CO2 exchange of moss community
+    Computes net CO2 exchange of moss community.
     Args:
-        para - parameter dictionary
-        Qp - incident PAR umolm-2s-1
-        Ca - ambient CO2 (ppm)
-        T - moss temperature (degC)
-        w - moss water content (g/g)
-        wstar - delayed water content (g/g) for desiccation recovery
+        - 'para' (dict): parameters
+            - 'Vcmax' (float): maximum carboxylation velocity at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+            - 'Jmax' (float): maximim electron transport rate at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+            - 'Rd' (float): dark respiration rate at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+            - 'alpha' (float): quantum efficiency [-]
+            - 'theta' (float): curvature parameter [-]
+            - 'beta' (float): co-limitation parameter [-]
+            
+            - 'gmax' (float): conductance for CO2 at optimum water content [mol m\ :sup:`-2` s\ :sup:`-1`] 
+            - 'wopt' (flot): parameter of conductance - water content relationship [g g\ :sup:`-1`\ ]
+            - 'a0' (float): parameter of conductance - water content curve [-]
+            - 'a1' (float): parameter of conductance - water content curve [-]
+            - 'CAP_desic' (list): parameters (float) of desiccation curve [-]
+            - 'tresp' (dict): parameters of photosynthetic temperature response curve
+                - Vcmax (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                                 deactivation energy [kJ  mol\ :sup:`-1`]
+                                 entropy factor [kJ  mol\ :sup:`-1`]]
+                                ]
+                - Jmax (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                                 deactivation energy [kJ  mol\ :sup:`-1`]
+                                 entropy factor [kJ  mol\ :sup:`-1`]]
+                                ]
+                - Rd (list): [activation energy [kJ  mol\ :sup:`-1`]]
+                
+        - 'Qp' (float): incident PAR [umol m-2 s-1]
+        - 'Ca' (float): ambient CO2 [ppm]
+        - 'T' (float): temperature [degC]
+        - 'w' (float): gravimetric water content [g/g]
+        - 'wstar' (float): delayed water content [g/g] for desiccation recovery
     Returns:
-        An - net CO2 exchange An = -A + Rd, <0 is uptake (umolm-2s-1 or umol g-1 s-1)
-        A - photosynthesis rate (umolm-2s-1 or umol g-1 s-1)
-        Rd - dark respiration rate (umolm-2s-1 or umol g-1 s-1)
-        Cc - internal CO2 (ppm)
-        g - total conductance for CO2 (molm-2s-1 or mol g-1 s-1)
+        - 'An' (float): net CO2 exchange rate, An = -A + Rd, <0 is uptake [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\]
+        - 'A' (float): photosynthesis rate [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\]
+        - 'Rd' (float): dark respiration rate [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\]
+        - 'Cc' (float): intercellular CO2 (ppm)
+        - 'g' (float): conductance for CO2 [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\]
     """
     p = para.copy()
+    
+    # moisture effect on parameters
     cap, rcap = relative_capacity(p, w, wstar)
     p['Vcmax'] *= cap 
     p['Jmax'] *= cap
     p['alpha'] *= cap
     p['Rd'] *= rcap
-        
+    
     # conductance (mol m-2 s-1)
     g = conductance(p, w)
     
@@ -95,7 +128,7 @@ def conductance(para, w):
     """
     Conductance for CO2 diffusion from bulk air to chloroplast in bryophyte.
     Assumes g = gmax * fw, where gmax is species-specific maximum internal conductance, 
-    occurring at w <= wopt, and fw (-) describes decay of conductance due to
+    occurring at w <= wopt, and fw [-] describes decay of conductance due to
     external water (w > wopt).
     
     gmax and wopt are bryophyte traits, while the shape of fw is fixed based on
@@ -104,10 +137,14 @@ def conductance(para, w):
     function was fitted to data.
     
     Args:
-        para - parameters: gmax, wopt, a
-        w - water content (g/g)
+        - 'para' (dict):
+            - 'gmax' (float): conductance [mol m\ :sup:`-2` (ground) s\ :sup:`-1`] at wopt
+            - 'wopt' (float): scaling water content [g g\ :sup:`-1`]
+            - 'a0' (float): shape parameter [-]
+            - 'a1' (float): shape parameter [-]
+        - 'w' (float): gravimetric water content [g g\ :sup:`-1`]
     Returns:
-        g (mol m-2 s-1)
+        - 'g' (float): air - reaction site conductance for CO2 [molm\ :sup:`-2` (ground) s\ :sup:`-1`]
     """
  
     gmax = para['gmax']
@@ -122,13 +159,15 @@ def conductance(para, w):
 
 def relative_capacity(para, w, wstar):
     """
-    Relative photosynthetic capacity and dark respiration rate as a function of water content
+    Relative photosynthetic capacity and dark respiration rate as a function of water content.
+    
     Args:
-        para - parameter dictionary
-        w - current water content (g/g)
-        wstar - delayed effective water content for desiccation recovery (g/g)
+        - 'para' (dict): parameter dictionary
+        - 'w' (float): current gravimetric water content [g g\ :sup:`-1`]
+        ' 'wstar' - delayed effective water content for desiccation recovery  [g g\ :sup:`-1`]
     Returns:
-         rphoto, rrd - relative photosynthetic capacity and dark respiration rate
+         - 'rphoto' (float): photosynthetic capacity relative to well-hydrated state [-]
+         ' 'rrd' (float): dark respiration rate relative to well-hydrated state [-]
     """
     
     p = para['CAP_desic']
@@ -136,7 +175,7 @@ def relative_capacity(para, w, wstar):
     # r = para['CAP_rewet']
     
     # drying phase is function of w
-    cap_dec = np.maximum(0.0, np.minimum(1.0 + p[0]*np.log(w/p[1]), 1.0))
+    cap_dec = np.maximum(0.0, np.minimum(1.0 + p[0]*np.log(w/p[1]), 1.0)) # [0...cap_dec...1]
     
     # recovery from desiccation is a function of wstar; now assume reversible
     cap_rw = 1.0
@@ -153,26 +192,38 @@ def relative_capacity(para, w, wstar):
     rrd = rphoto # assume to behave as photo
     return rphoto, rrd
 
-def photo_farquhar(photop, Qp, ci, T, co_limi=False):
+def photo_farquhar(photop, Qp, Ci, T, co_limi=False):
     """
-    Calculates leaf net CO2 exchange and dark respiration rate (umol m-2 s-1).
-    INPUT:
-        photop - dict with keys:
-            Vcmax
-            Jmax
-            Rd
-            qeff
-            alpha
-            theta
-            beta
-        Qp - incident Par (umolm-2s-1)
-        ci - leaf internal CO2 mixing ratio (ppm)
-        T - leaf temperature (degC)
-    OUTPUT:
-        An - leaf net CO2 exchange (umol m-2 s-1)
-        Rd - leaf dark respiration rate (umol m-2 s-1)
-        Av - rubisco limited photo (umol m-2 s-1)
-        Aj - RuBP -regeneration limited photo (umol m-2 s-1)
+    Calculates moss photosynthesis, dark respiration and net CO2 exhange.
+    
+    Args:
+        - 'photop' (dict):
+        - 'Vcmax' (float): maximum carboxylation velocity at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+        - 'Jmax' (float): maximim electron transport rate at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+        - 'Rd' (float): dark respiration rate at 25 C [mol m\ :sup:`-2` (ground) s\ :sup:`-1`]
+        - 'alpha' (float): quantum efficiency [-]
+        - 'theta' (float): curvature parameter [-]
+        - 'beta' (float): co-limitation parameter [-]
+        - 'tresp' (dict): parameters of photosynthetic temperature response curve
+            - 'Vcmax' (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                             deactivation energy [kJ  mol\ :sup:`-1`]
+                             entropy factor [kJ  mol\ :sup:`-1`]]
+                            ]
+            - 'Jmax' (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                             deactivation energy [kJ  mol\ :sup:`-1`]
+                             entropy factor [kJ  mol\ :sup:`-1`]]
+                            ]
+            - 'Rd' (list): [activation energy [kJ  mol\ :sup:`-1`]]
+                
+        - 'Qp' (float): incident PAR [umol m-2 s-1]
+        - 'Ci' (float): intercellular CO2 [ppm]
+        - 'T' (float): temperature [degC]
+
+    Returns:
+       - 'An' (float): net CO2 exchange rate, An = A - Rd [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] >0 is uptake
+       - 'Rd' (float): dark respiration rate [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\]
+       - 'Av' (float): rubisco limited rate [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+       - 'Aj' (float): RuBP -regeneration limited rate [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
         
     """
     Tk = T + 273.15  # K
@@ -183,14 +234,15 @@ def photo_farquhar(photop, Qp, ci, T, co_limi=False):
     R = 8.314427  # gas constant, J mol-1 K-1
 
     # --- params ----
-    Vcmax = photop['Vcmax']
-    Jmax = photop['Jmax']
-    Rd = photop['Rd']
+    # lai = photop['LAI']
+    Vcmax = photop['Vcmax'] 
+    Jmax = photop['Jmax'] 
+    Rd = photop['Rd'] 
     alpha = photop['alpha']
     theta = photop['theta']
     beta = photop['beta']  # co-limitation parameter
 
-    # --- CO2 compensation point -------
+    # --- CO2 compensation point (in absence of mitochondrial respiration)-------
     Tau_c = 42.75 * np.exp(37830*(Tk - TN) / (TN * R * Tk))
 
     # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
@@ -203,46 +255,60 @@ def photo_farquhar(photop, Qp, ci, T, co_limi=False):
         Jmax_T = tresp['Jmax']
         Rd_T = tresp['Rd']
         Vcmax, Jmax, Rd, Tau_c = photo_temperature_response(Vcmax, Jmax, Rd, Vcmax_T, Jmax_T, Rd_T, Tk)
-
+    
     Km = Kc*(1.0 + Coa / Ko)
     J = (Jmax + alpha*Qp -((Jmax + alpha*Qp)**2.0 - (4.0*theta*Jmax*alpha*Qp))**0.5) / (2.0*theta)
 
-    # -- rubisco -limited rate
-    Av = Vcmax * (ci - Tau_c) / (ci + Km)
-    # -- RuBP -regeneration limited rate
-    Aj = J/4 * (ci - Tau_c) / (ci + 2.0*Tau_c)
+    # -- rubisco -limited rate (CO2 limitation)
+    Av = Vcmax * (Ci - Tau_c) / (Ci + Km)
+    # -- RuBP -regeneration limited rate (light limitation)
+    Aj = J/4 * (Ci - Tau_c) / (Ci + 2.0*Tau_c)
 
     # An = np.minimum(Av, Aj) - Rd  # single limiting rate
     x = Av + Aj
     y = Av * Aj
-    An = (x - (x**2 - 4*beta*y)**0.5) / (2*beta) - Rd  # co-limitation
+    An = np.maximum((x - (x**2 - 4*beta*y)**0.5) / (2*beta), 0) - Rd  # co-limitation
+    
     return An, Rd, Av, Aj
 
 
-def photo_temperature_response(Vcmax0, Jmax0, Rd0, Vcmax_T, Jmax_T, Rd_T, T):
+def photo_temperature_response(Vcmax25, Jmax25, Rd25, Vcmax_T, Jmax_T, Rd_T, T):
     """
-    Adjusts Farquhar / co-limitation optimality model parameters for temperature
-    INPUT:
-        Vcmax0, Jmax0, Rd0 - parameters at ref. temperature 298.15 K
-        Vcmax_T, Jmax_T, Rd_T - temperature response parameter lists
-        T - leaf temperature (K)
-    OUTPUT: Nx1-arrays
-        Vcmax, Jmax,Rd (umol m-2(leaf) s-1)
-        Gamma_star - CO2 compensation point (ppm)
-    CALLED from Farquhar()
-    REFERENCES:
+    Adjusts Farquhar-parameters for temperature
+    
+    Args:
+        - 'Vcmax25' (float): maximum carboxylation velocity at 25 degC (298 K)  [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Jmax25' (float): maximum electron transport rate at 25 degC  [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Rd25' (float): dark respiration rate at 25 degC  [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Vcmax_T' (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                           deactivation energy [kJ  mol\ :sup:`-1`]
+                           entropy factor [kJ  mol\ :sup:`-1`]]
+                         ]
+        - 'Jmax_T' (list): [activation energy [kJ  mol\ :sup:`-1`], 
+                          deactivation energy [kJ  mol\ :sup:`-1`]
+                          entropy factor [kJ  mol\ :sup:`-1`]]
+                         ]
+       - 'Rd_T' (list): [activation energy [kJ  mol\ :sup:`-1`]]
+       - 'T' (float or array): temperature [K]
+    Returns:
+        - 'Vcmax' (float or array): at temperature T [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Jmax' (float or array): at temperature T  [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Rd' (float or array): at temperature T  [umol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] 
+        - 'Gamma_star' (float or array): CO2 compensation point at T [ppm]
+   
+    Reference:
         Medlyn et al., 2002.Plant Cell Environ. 25, 1167-1179; based on Bernacchi
         et al. 2001. Plant Cell Environ., 24, 253-260.
-    Samuli Launiainen, Luke, 28.3.2017
+
     """
 
     # ---constants
-    NT = 273.15
-    TN = 298.15  # reference temperature 298.15 K = 25degC
+    #NT = 273.15
+    T0 = 298.15  # reference temperature 298.15 K = 25degC
     R = 8.314427  # gas constant, J mol-1 K-1
 
     # --- CO2 compensation point -------
-    Gamma_star = 42.75 * np.exp(37830*(T - TN) / (TN * R * T))
+    Gamma_star = 42.75 * np.exp(37830*(T - T0) / (T0 * R * T))
 
     # # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
     # Kc = 404.9 * np.exp(79430.0*(T - TN) / (TN * R * T))
@@ -253,9 +319,9 @@ def photo_temperature_response(Vcmax0, Jmax0, Rd0, Vcmax_T, Jmax_T, Rd_T, T):
     Hd = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
 
-    NOM = np.exp(Ha * (T - TN) / (R*NT*T)) * (1.0 + np.exp((NT*Sd - Hd) / (NT*R)))
+    NOM = np.exp(Ha * (T - T0) / (R*T0*T)) * (1.0 + np.exp((T0*Sd - Hd) / (T0*R)))
     DENOM = (1.0 + np.exp((T*Sd - Hd) / (T*R)))
-    Vcmax = Vcmax0 * NOM / DENOM
+    Vcmax = Vcmax25 * NOM / DENOM
 
     del Ha, Hd, Sd, DENOM, NOM
 
@@ -264,54 +330,42 @@ def photo_temperature_response(Vcmax0, Jmax0, Rd0, Vcmax_T, Jmax_T, Rd_T, T):
     Hd = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
 
-    NOM = np.exp(Ha * (T - TN) / (R*NT*T)) * (1.0 + np.exp((NT*Sd - Hd) / (NT*R)))
+    NOM = np.exp(Ha * (T - T0) / (R*T0*T)) * (1.0 + np.exp((T0*Sd - Hd) / (T0*R)))
     DENOM = (1.0 + np.exp((T*Sd - Hd) / (T*R)))
-    Jmax = Jmax0*NOM / DENOM
+    Jmax = Jmax25*NOM / DENOM
 
     del Ha, Hd, Sd, DENOM, NOM
 
     # --- Rd (umol m-2(leaf)s-1) -------
     Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
-    Rd = Rd0 * np.exp(Ha*(T - TN) / (TN * R * T))
+    Rd = Rd25 * np.exp(Ha*(T - T0) / (T0 * R * T))
 
     return Vcmax, Jmax, Rd, Gamma_star
 
 
-def apparent_photocapacity(b, psi_leaf):
-    """
-    computes relative photosynthetic capacity as a function of leaf water potential
-    Function shape from Kellomäki & Wang, adjustments for Vcmax and Jmax
-    IN:
-       beta - parameters, 2x1 array
-       psi - leaf water potential (MPa)
-    OUT:
-       f - relative value [0.2 - 1.0]
-    """
-    psi_leaf = np.array(np.size(psi_leaf), ndmin=1)
-    f = (1.0 + np.exp(b[0] * b[1])) / (1.0 + np.exp(b[0] * (b[1] - psi_leaf)))
-    f[f < 0.2] = 0.2
 
-    return f
-
-
-def topt_deltaS_conversion(xin, Ha, Hd, var_in='deltaS'):
+def topt_deltaS_conversion(Ha, Hd, dS=None, Topt=None):
     """
-    Converts between entropy factor Sv (J mol-1) and temperature optimum
-    Topt (K). Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
-    INPUT:
-        xin, Ha(J mol-1), Hd(J mol-1)
-        input:'deltaS' [Jmol-1] or 'Topt' [K]
-    OUT:
-        xout - Topt or Sv
-    Farquhar parameters temperature sensitivity
+    Converts between entropy factor Sd [kJ mol \ :sup:`-1`\] and temperature optimum
+    Topt [k]. Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
+    
+    Args:
+        - 'Ha' (float): activation energy [kJ  mol\ :sup:`-1`]
+        - 'Hd' (float): deactivation energy [kJ  mol\ :sup:`-1`]
+        - 'dS' (float): entropy factor [kJ  mol\ :sup:`-1`]
+        - 'Topt' (float): temperature optimum [K]
+    Returns:
+        - 'Topt' or 'dS' (float)
+
     """
     R = 8.314427  # gas constant, J mol-1 K-1
     
-    if var_in.lower() == 'deltas':  # Sv --> Topt
-        xout = Hd / (xin - R * np.log(Ha / (Hd - Ha)))
-    else:  # Topt -->Sv
+    if dS:  # Sv --> Topt
+        xout = Hd / (dS - R * np.log(Ha / (Hd - Ha)))
+    elif Topt:  # Topt -->Sv
         c = R * np.log(Ha / (Hd - Ha))
-        xout = (Hd + xin * c) / xin
+        xout = (Hd + Topt * c) / Topt
+    
     return xout
 
 
@@ -319,8 +373,8 @@ def draw_farquhar_curves():
     Vcmax = 30.0
     Jmax = 1.9*Vcmax
     Rd = 0.15*Vcmax
-    tresp = {'Vcmax': [69.83, 200.0, 27.56],
-             'Jmax': [100.28, 147.92, 19.8],
+    tresp = {'Vcmax': [69.83, 200.0, 650.],
+             'Jmax': [100.28, 147.92,650],
              'Rd': [33.0], 'include': 'y'}
     
     photop = {'Vcmax': Vcmax, 'Jmax': Jmax, 'Rd': Rd, # umolm-2s-1
@@ -350,8 +404,8 @@ def test():
     Vcmax = 15.0
     Jmax = 1.9*Vcmax
     Rd = 0.05*Vcmax
-    tresp = {'Vcmax': [69.83, 200.0, 27.56],
-             'Jmax': [100.28, 147.92, 19.8],
+    tresp = {'Vcmax': [69.83, 200.0, 650.],
+             'Jmax': [100.28, 147.92, 650.],
              'Rd': [33.0], 'include': 'y'}
     
     # pleurozium type
@@ -377,7 +431,7 @@ def test():
     #Qp = np.linspace(0.0, 100, 100)
     Qp = 500.0
     T = 20.0
-    fig, (ax) = plt.subplots(ncols=2, nrows=2)
+    fig, ax = plt.subplots(ncols=2, nrows=2)
     
     style=['-', '--', '-.']
     k = 0
@@ -401,5 +455,6 @@ def test():
     ax[0,1].set_title('"Sphagnum"');
     ax[0,1].set_xlabel('w (g/g)')
     ax[1,1].set_xlabel('w (g/g)')
-    #ax[0].legend(ncol=1)
+    ax[0,0].legend()
+    ax[0,1].legend()
     

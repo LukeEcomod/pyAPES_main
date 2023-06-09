@@ -1,39 +1,36 @@
 # -*- coding: utf-8 -*-
-"""
+r"""
 .. module: rootzone
-    :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+    :synopsis: pyAPES-model planttype component
+.. moduleauthor:: Kersti Leppä
 
-Describes roots of planttype.
-Based on MatLab implementation by Samuli Launiainen.
+Describes root water uptake of planttype.
 
-Created on Tue Jul 24 10:49:59 2018
+Adapted from: 
 
-Note:
-    migrated to python3
-    - nothing changed
-
-References: --- SHOULD WE USE THIS??? Do we need to solve hroot???
-Volpe, V., Marani, M., Albertson, J.D. and Katul, G., 2013. Root controls
-on water redistribution and carbon uptake in the soil–plant system under
-current and future climate. Advances in Water resources, 60, pp.110-120.
+    Volpe, V., Marani, M., Albertson, J.D. and Katul, G., 2013. Root controls
+    on water redistribution and carbon uptake in the soil - plant system under current and future climate. 
+    Advances in Water resources, 60, pp.110-120.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from typing import List, Dict, Tuple
 
-from canopy.constants import EPS
+from pyAPES.utils.constants import EPS
 
 class RootUptake(object):
-    r""" Describes roots of planttype.
+    r""" 
+    Describes roots & water uptake of planttype.
     """
-    def __init__(self, p, dz_soil, LAImax):
-        r""" Initializes rootuptake object.
+    def __init__(self, p: Dict, dz_soil: np.ndarray, LAImax: float):
+        r"""
+        Initializes rootuptake object.
 
         Args:
             p (dict):
                 'root_depth': depth of rooting zone [m]
-                'beta': shape parameter for root distribution model
+                'beta': shape parameter for root distribution model [-]
                 'RAI_LAI_multiplier': multiplier for total fine root area index (RAI = 2*LAImax)
                 'fine_radius': fine root radius [m]
                 'radial_K': maximum bulk root membrane conductance in radial direction [s-1]
@@ -54,13 +51,17 @@ class RootUptake(object):
         # state variables
         self.h_root = 0.0
 
-    def wateruptake(self, transpiration, h_soil, kh_soil):
-        r""" Root wateruptake based on root water potential (Volpe et al 2013)
+    def wateruptake(self, transpiration_rate: float, h_soil: np.ndarray, kh_soil: np.ndarray) -> np.ndarray:
+        r""" 
+        Distributes root wateruptake to layers based on relative bulk-soil to root zylem conductance
 
         Agrs:
-
+            self (object)
+            transpiration_rate (float): whole plant [m s-1]
+            h_soil (array): soil water potential [m]
+            kh_soil (array): soil hydraulic conductivity [m s-1]
         Returns:
-
+            rootsink (array)
         """
 
         # conductance from soil to root-soil interface [s-1]
@@ -74,24 +75,23 @@ class RootUptake(object):
         g_sr = ks * kr / (ks + kr + EPS)
 
         # assume total root uptake equals transpiration rate and solve uniform root pressure [m]
-        self.h_root = -(transpiration - sum(g_sr * h_soil[self.ix])) / sum(g_sr)
+        self.h_root = -(transpiration_rate - sum(g_sr * h_soil[self.ix])) / sum(g_sr)
 
         # root uptake [m s-1]
         rootsink = g_sr * (h_soil[self.ix] - self.h_root)
 
         return rootsink
 
-def RootDistribution(beta, dz, root_depth):
-    r""" Computes normalized root area density distribution with depth.
-    (sum(dz*R) = 1)
-
+def RootDistribution(beta: float, dz: np.ndarray, root_depth: float) -> np.ndarray:
+    r"""
+    Computes normalized root area density distribution
     Args:
-        beta: shape parameter for root distribution model
+        beta (float): shape parameter for root distribution model [-]
         dz (array):  thickness soil layers from top to bottom [m]
         root_depth: depth of rooting zone [m]
     Returns:
         R (array): normalized root area density distribution with depth,
-            extends only to depth of rooting zone
+            extends only to depth of rooting zone. Integrates to unity: sum(dz*R) = 1
 
     Reference:
         Gale and Grigal, 1987 Can. J. For.Res., 17, 829 - 834.
@@ -103,7 +103,8 @@ def RootDistribution(beta, dz, root_depth):
 
     Y = 1.0 - beta**d  # cumulative distribution (Gale & Grigal 1987)
     R = Y[1:] - Y[:-1]  # root area density distribution
-# TESTI, SET FIRST LAYER WITH NO ROOTS
+    
+    # Test: SET FIRST LAYER WITH NO ROOTS
     if len(R) > 1:
         R[0] = 0.0
 
@@ -111,3 +112,5 @@ def RootDistribution(beta, dz, root_depth):
     R = R / sum(R) / dz[:len(R)]
 
     return R
+
+# EOF
