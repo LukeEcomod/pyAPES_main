@@ -1,64 +1,63 @@
 # -*- coding: utf-8 -*-
 """
 .. module: soil
-    :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+    :synopsis: pyAPES soil component
+.. moduleauthor:: Kersti Leppä & Samuli Launiainen
 
-Note:
-    migrated to python3
-    - absolute imports
-    - dict.keys are not wrapped in list()
-
-Soilprofile
-
-Created on Tue Oct 02 09:04:05 2018
+Main module for soil water and heat budget.
 """
 
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from matplotlib import pyplot as plt
-from .constants import EPS
+from typing import Dict, List, Tuple
 
-from .water import Water
-from .heat import Heat
+from pyAPES.utils.constants import EPS
+from pyAPES.soil.water import Water
+from pyAPES.soil.heat import Heat
+
+#from .constants import EPS
+#from .water import Water
+#from .heat import Heat
 
 class Soil(object):
 
-    def __init__(self, p):
-        r""" Initializes soilprofile for 1D solutions of water and heat balance
+    def __init__(self, p: Dict):
+        r""" 
+        Initializes soil profile for 1D solutions of water and heat balance
 
         Args:
             p (dict):
                 'grid' (dict):
-                    'zh' (list/array?): bottom elevation of layers with different parametrizations [m], soil surface = 0.0
-                    'dz' (list/array): thickness of computational layers [m]
-                'profile_properties' (dict): all parameters given as list/array of len(zh)
+                    'zh' (list|array): [m] bottom elevation of layers with different parametrizations, soil surface = 0.0
+                    'dz' (list|array): [m], thickness of layers
+                'soil_properties' (dict):
                     'pF' (dict): water retention parameters (van Genuchten)
-                        'ThetaS' (list/array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                        'ThetaR' (list/array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                        'alpha' (list/array): air entry suction [cm\ :sup:`-1`]
-                        'n' (list/array): pore size distribution [-]
-                    'saturated_conductivity_vertical' (list/array): [m s-1]
-                    'saturated_conductivity_horizontal' (list/array): [m s-1]
-                    'dry_heat_capacity'  (list/array or None): [J m-3 (total volume) K-1]
+                        'ThetaS' (list|array): [m3 m-3] saturated water content
+                        'ThetaR' (list|array): [m3 m-3] residual water content
+                        'alpha' (list|array): [cm-1] air entry suction
+                        'n' (list|array): [-]pore size distribution parameter
+                    'saturated_conductivity_vertical' (list|array): [m s-1]
+                    'saturated_conductivity_horizontal' (list|array): [m s-1]
+                    'dry_heat_capacity'  (list|array or None): [J m-3 (total volume) K-1]
                         ! if None, estimated from organic/mineral composition
                     'solid_composition' (dict): volume fractions of solid volume [-]
-                        'organic' (list/array)
-                        'sand' (list/array)
-                        'silt' (list/array)
-                        'clay' (list/array)
-                    'freezing_curve' (list/array): freezing curve parameter [-]
+                        'organic' (list|array)
+                        'sand' (list|array)
+                        'silt' (list|array)
+                        'clay' (list|array)
+                    'freezing_curve' (list|array): [-], freezing curve parameter
                     'bedrock' (dict):
                         'heat_capacity' (float): [J m-3 (total volume) K-1]
                         'thermal_conductivity' (float): [W m-1 K-1]
                 'water_model':
-                    'solve': True/False
-                    'type': 'Richards',  # solution approach 'Equilibrium' for equilibrium approach else solves flow using Richards equation
-                    'pond_storage_max': 0.01,  #  maximum pond depth [m]
+                    'solve' (bool): True/False
+                    'type' (str): 'Richards' or 'Equilibrium'
+                    'pond_storage_max' (float): [m], maximum pond depth
                     'initial_condition' (dict): initial conditions
-                        'ground_water_level' (float): groundwater depth [m]
-                        'pond_storage' (float): pond depth at surface [m]
+                        'ground_water_level' (float): [m]
+                        'pond_storage' (float): [m] pond depth at surface
                     'lower_boundary (dict)': lower boundary condition
                                   'type' (str): 'impermeable', 'flux', 'free_drain' or 'head'
                                   'value' (float or None): give for 'head' [m] and 'flux' [m s-1]
@@ -113,10 +112,12 @@ class Soil(object):
         self.heat = Heat(self.grid, profile_properties, p['heat_model'],
                                    self._fill(self.water.Wtot, 0.0))
 
-    def run(self, dt, forcing, water_sink=None, heat_sink=None, lbc_water=None, lbc_heat=None, state=None):
-        r""" Runs soil model for one timestep.
+    def run(self, dt: float, forcing: dict, water_sink: np.ndarray=None, heat_sink: np.ndarray=None,
+            lbc_water: Dict=None, lbc_heat: Dict=None, state: Dict=None) -> Tuple:
+        r"""
+        Runs soil model for one timestep
         Args:
-            dt: time step [s]
+            dt: [s], time step
             forcing (dict):
                 'potential_infiltration': [m s-1]
                 'potential_evaporation': [m s-1]
@@ -124,14 +125,14 @@ class Soil(object):
                 'atmospheric_pressure_head': [m]
                 'ground_heat_flux' (float): heat flux from soil surface [W m-2]
                     OR 'temperature' (float): soil surface temperature [degC]
-                'state_water': if water model is not solved this allows state can be changed over time
+                'state_water': if water model is not solved, this allows state can be changed over time
                     'ground_water_level' OR 'volumetric_water_content'
-                'state_heat': if heat model is not solved this allows state can be changed over time
+                'state_heat': if heat model is not solved, this allows state can be changed over time
                     'temperature'
             water_sink (array or None): water sink from layers, e.g. root sink [m s-1]
                 ! array length can be only root zone or whole soil profile
                 ! if None set to zero
-            heat_sink (array or None): heat sink from layers [??????]
+            heat_sink (array or None): heat sink from layers [W m-3??]
             lbc_water (dict or None): allows boundary to be changed in time
                 'type': 'impermeable', 'flux', 'free_drain', 'head'
                 'value': give for 'head' [m] and 'flux' [m s-1]
@@ -140,7 +141,7 @@ class Soil(object):
                 '':
 
         Returns:
-            fluxes (dict):[m s-1]
+            fluxes (dict): all in [m s-1]
                 'infiltration'
                 'evaporation'
                 'drainage'
@@ -150,12 +151,12 @@ class Soil(object):
             state
                 'temperature' [degC]
                 'water_potential' [m]
-                'volumetric_water_content' [m3m-3]
-                'ice_content' [m3m-3]
+                'volumetric_water_content' [m3 m-3]
+                'ice_content' [m3 m-3]
                 'pond_storage' [m]
                 'ground_water_level' [m]
-                'hydraulic_conductivity' [ms-1]
-                'thermal_conductivity [Wm-1s-1]
+                'hydraulic_conductivity' [m s-1]
+                'thermal_conductivity [W m-1 s-1]
         """
         fluxes = {}
 
@@ -199,8 +200,9 @@ class Soil(object):
 
         return fluxes, state
 
-    def _fill(self, x, value=np.nan):
-        r""" Fills arrays to entire soil profile.
+    def _fill(self, x:np.ndarray, value: float=np.nan) -> np.ndarray:
+        r"""
+        Fills arrays to entire soil profile.
         Args:
             x (array): array to change to len(z)
             value (float): value used to fill array
@@ -214,40 +216,38 @@ class Soil(object):
         else:
             return x
 
-def form_profile(z, zh, p, lbc_water):
-    r""" Forms dictonary of soil profile parameters (all computational nodes)
+def form_profile(z: np.ndarray, zh: List, p: Dict, lbc_water: Dict) -> Dict:
+    r"""
+    Forms dictonary of soil profile parameters for all computational nodes
     Args:
         z (array): node elevations, soil surface = 0.0 [m]
         zh (list): bottom elevation of layers with different parametrizations [m]
         p (dict): all parameters given as list/array of len(zh)
             'pF' (dict): water retention parameters (van Genuchten)
-                'ThetaS' (list/array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                'ThetaR' (list/array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                'alpha' (list/array): air entry suction [cm\ :sup:`-1`]
-                'n' (list/array): pore size distribution [-]
-            'saturated_conductivity_vertical' (list/array): [m s-1]
-            'saturated_conductivity_horizontal' (list/array): [m s-1]
-            'dry_heat_capacity'  (list/array or None): [J m-3 (total volume) K-1]
-                ! if None, estimated from organic/mineral composition
-            'solid_composition' (dict): fractions of solid volume [-]
-                'organic' (list/array)
-                'sand' (list/array)
-                'silt' (list/array)
-                'clay' (list/array)
-            'freezing_curve' (list/array): freezing curve parameter [-]
-            'bedrock' (dict):
-                'heat_capacity' (float): [J m-3 (total volume) K-1]
-                'thermal_conductivity' (float): [W m-1 K-1]
-        lbc_water (dict):
-            'type' (str): 'impermeable', 'flux', 'free_drain' or 'head'
-            'depth' (float): depth of impermeable boundary (=bedrock) [m]
+                    'ThetaS' (list|array): [m3 m-3] saturated water content
+                    'ThetaR' (list|array): [m3 m-3] residual water content
+                    'alpha' (list|array): [cm-1] air entry suction
+                    'n' (list|array): [-] pore size distribution parameter
+            'saturated_conductivity_vertical' (list|array): [m s-1]
+            'saturated_conductivity_horizontal' (list|array): [m s-1]
+            'dry_heat_capacity'  (list|array or None): [J m-3 (total volume) K-1]
+                 ! if None, estimated from organic/mineral composition
+            'solid_composition' (dict): volume fractions of solid volume [-]
+                  'organic' (list|array)
+                     'sand' (list|array)
+                    'silt' (list|array)
+                    'clay' (list|array)
+                'freezing_curve' (list|array): [-], freezing curve parameter
+                'bedrock' (dict):
+                    'heat_capacity' (float): [J m-3 (total volume) K-1]
+                    'thermal_conductivity' (float): [W m-1 K-1]
     Returns:
         prop (dict): all parameters given as arrays of len(z)
             'pF' (dict): water retention parameters (van Genuchten)
-                'ThetaS' (array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                'ThetaR' (array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-                'alpha' (array): air entry suction [cm\ :sup:`-1`]
-                'n' (array): pore size distribution [-]
+                'ThetaS' (list|array): [m3 m-3] saturated water content
+                'ThetaR' (list|array): [m3 m-3] residual water content
+                'alpha' (list|array): [cm-1] air entry suction
+                'n' (list|array): [-] pore size distribution parameter
             'saturated_conductivity_vertical' (array): [m s-1]
             'saturated_conductivity_horizontal' (array): [m s-1]
             'porosity' (array): soil porosity (=ThetaS) [m\ :sup:`3` m\ :sup:`-3`\ ]
@@ -261,8 +261,10 @@ def form_profile(z, zh, p, lbc_water):
             'freezing_curve' (array): freezing curve parameter [-]
             'bedrock_thermal_conductivity' (array): nan above bedrock depth[W m-1 K-1]
     """
+    
     if p['solid_heat_capacity'] is None:
         p['solid_heat_capacity'] = [np.nan] * len(zh)
+    
     N = len(z)
     prop = {}
     # horizons to computational nodes
@@ -293,3 +295,5 @@ def form_profile(z, zh, p, lbc_water):
         prop['bedrock_thermal_conductivity'][ixx] = p['bedrock']['thermal_conductivity']
 
     return prop
+
+# EOF

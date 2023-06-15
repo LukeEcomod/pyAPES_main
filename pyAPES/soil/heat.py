@@ -1,33 +1,34 @@
 # -*- coding: utf-8 -*-
 """
 .. module: soil.heat
-    :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+    :synopsis: pyAPES soil component
+.. moduleauthor:: Kersti Leppä, Samuli Launiainen
 
-Note:
-    migrated to python3
-    - absolute imports
+Heat balance and phase-changes in 1D soil profile.
 
-Represents soil heat balance.
+References:
 
-Created on Thu Oct 04 09:04:05 2018
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-from .water import wrc
-from tools.utilities import tridiag as thomas, spatial_average
-from .constants import K_WATER, K_ICE, K_AIR, K_ORG, K_SAND, K_SILT, K_CLAY
-from .constants import CV_AIR, CV_WATER, CV_ICE, CV_ORGANIC, CV_MINERAL
-from .constants import LATENT_HEAT_FREEZING, FREEZING_POINT_H2O, ICE_DENSITY
-
 import logging
+from typing import Dict, Tuple, List
+
+from pyAPES.soil.water import wrc
+from pyAPES.utils.utilities import tridiag as thomas, spatial_average
+
+from pyAPES.utils.constants import K_WATER, K_ICE, K_AIR, K_ORG, K_SAND, K_SILT, K_CLAY,\
+    CV_AIR, CV_WATER, CV_ICE, CV_ORGANIC, CV_MINERAL, \
+    LATENT_HEAT_FREEZING, FREEZING_POINT_H2O, ICE_DENSITY
+
 logger = logging.getLogger(__name__)
 
 class Heat(object):
 
-    def __init__(self, grid, profile_propeties, model_specs, volumetric_water_content):
-        r""" Initializes soil heat balance model.
+    def __init__(self, grid: Dict, profile_propeties: Dict, model_specs: Dict, volumetric_water_content: np.ndarray):
+        r"""
+        Soil heat balance model.
 
         Args:
             grid (dict):
@@ -36,16 +37,16 @@ class Heat(object):
                 'dzu': distance to upper node [m]
                 'dzl': distance to lower node [m]
             profile_propeties (dict): arrays of len(z)
-                'porosity' (array): soil porosity (=ThetaS) [m\ :sup:`3` m\ :sup:`-3`\ ]
+                'porosity' (array): soil porosity (=ThetaS) [m3 m-3]
                 'solid_heat_capacity' (array): [J m-3 (solid volume) K-1]
-                    ! if nan, estimated from organic/mineral composition
+                    ! if None/NaN, estimated from organic/mineral composition
                 'solid_composition' (dict): fractions of solid volume [-]
                     'organic' (array)
                     'sand' (array)
                     'silt' (array)
                     'clay' (array)
                 'freezing_curve' (array): freezing curve parameter [-]
-                'bedrock_thermal_conductivity' (array): nan above bedrock depth [W m-1 K-1]
+                'bedrock_thermal_conductivity' (array): must be NaN above bedrock depth [W m-1 K-1]
             model_specs (dict):
                 'solve': True/False
                 'initial_condition' (dict):
@@ -86,7 +87,8 @@ class Heat(object):
 
         logger.info(info)
 
-    def run(self, dt, forcing, volumetric_water_content, heat_sink=None, lower_boundary=None):
+    def run(self, dt: float, forcing: Dict, volumetric_water_content: np.ndarray, 
+            heat_sink: np.ndarray=None, lower_boundary: Dict=None):
         r""" Runs soil heat balance.
 
         Args:
@@ -97,7 +99,7 @@ class Heat(object):
             volumetric_water_content (array):  [m3 m-3]
             heat_sink (array or None): layerwise sink term [W m-3]
                 ! if None set to zero
-            lower_boundary (dict or None): allows boundary to be changed in time
+            lower_boundary (dict or None): allows boundary condition type and alue to be changed during simulations
                 'type' (str): 'flux' or 'temperature'
                 'value' (float): value of flux [W m-2] or temperature [degC]
         Returns:
@@ -137,14 +139,15 @@ class Heat(object):
 
         return fluxes
 
-    def update_state(self, state={}, Wtot=0.0):
-        r""" Updates state to HeatModel object.
+    def update_state(self, state: Dict={}, Wtot: np.ndarray=0.0):
+        r"""
+        Updates object state
 
         Args:
             state (dict):
                 'temperature' (float):  [degC]
         Returns:
-            updates .T, .Wice, .Wliq, .Wair, .thermal_conductivity
+            None, updates .T, .Wice, .Wliq, .Wair, .thermal_conductivity
         """
         if 'temperature' in state:
             if isinstance(state['temperature'], float):
@@ -164,14 +167,19 @@ class Heat(object):
                                                          solid_composition=self.solid_composition,
                                                          bedrockL=self.bedrock_thermal_conductivity)
 
-""" Soil heat transfer in 1D """
+# ---- SAMULI HERE 12/6/23
 
-def heatflow1D(t_final, grid, T_ini, Wtot, poros, solid_composition, cs, bedrockL, fp,
-               sink, ubc, lbc, steps=10, date=None):
-    r""" Solves soil heat conduction in 1-D using implicit finite difference solution
-    of heat equation. Neglects heat convection (heat transfer with water flow).
+#%%
+# Soil heat transfer in 1D profile
 
-    Solution adapted from method presented by Van Dam and Feddes (2000).
+def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray, poros: np.ndarray, 
+               solid_composition: Dict, cs: np.ndarray, bedrockL: np.ndarray, fp: np.ndarray,
+               sink: np.ndarray, ubc: Dict, lbc: Dict, steps: int=10, date: str=None)-> Tuple:
+    r"""
+    Solves soil heat conduction in 1-D using implicit finite difference solution
+    of heat (Fourier) equation. Neglects heat transfer (heat convection) with water flow.
+
+    Solution adapted from method presented by Van Dam and Feddes (2000) and Hansson et al., 200x
 
     Args:
         t_final (float): solution timestep [s]
@@ -199,8 +207,10 @@ def heatflow1D(t_final, grid, T_ini, Wtot, poros, solid_composition, cs, bedrock
             'type' (str): 'flux' or 'temperature'
             'value' (float): value of flux [W m-2] or temperature [degC]
         steps (int or float): initial number of subtimesteps used to proceed to 't_final'
+        date (str): for logger
+    
     Returns:
-        fluxes (dict): [W]
+        fluxes (dict): [units!]
             'energy_closure'
         state (dict):
             'temperature': [degC]
@@ -214,7 +224,9 @@ def heatflow1D(t_final, grid, T_ini, Wtot, poros, solid_composition, cs, bedrock
             still problems with convergence around zero temperatures.
             Check heat balance error to see problematic periods
     Notes:
-        Heat convection within column and from/to column neglected
+        Heat convection within column and from/to column neglected. 
+        Some problems with convergence can occur around zero temperatures (freeze/thaw). Check energy closure
+        to identify those periods if exist.
     """
 
     # grid
@@ -424,7 +436,7 @@ def heatflow1D(t_final, grid, T_ini, Wtot, poros, solid_composition, cs, bedrock
 
     return fluxes, state, dto
 
-""" utility functions """
+# ---utility functions
 
 def frozen_water(T, wtot, fp=2.0, To=0.0):
     r""" Approximates ice content from soil temperature and total water content.

@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-Created on Mon Oct  1 13:30:51 2018
+.. module: pyAPES.utils.constants
+    :synopsis: constants used in pyAPES 
+.. moduleauthor:: Kersti Leppä, Samuli Launiainen, Antti-Jussi Kieloaho
 
-Constants used in the model calculations.
-
-Note:
-    migrated to python3
-    - nothing to change
-
-@author: ajkieloaho
 """
 
 import numpy as np
@@ -63,3 +59,30 @@ PAR_TO_UMOL = 4.56
 DEG_TO_RAD = 3.14159 / 180.0
 #: [umol m\ :sup:`-1`], O2 concentration in air
 O2_IN_AIR = 2.10e5
+
+#%% for pyAPES.soil
+
+#: [J kg-1], latent heat of freezing
+LATENT_HEAT_FREEZING = 333700.0
+#: [degC], freezing point of water
+FREEZING_POINT_H2O = 0.0
+#: [kg m-3], densities
+ICE_DENSITY = 917.0
+
+#: [J m-1 K-1], thermal condutivities
+K_WATER = 0.57
+K_ICE = 2.2
+K_AIR = 0.025
+K_ORG = 0.25
+K_SAND = 7.7  # Tian et al. 2016
+K_SILT = 2.74  # Tian et al. 2016
+K_CLAY = 1.93  # Tian et al. 2016
+
+#: volumetric heat capacieties  [J m-3 -1]
+CV_AIR = 1297.0  # air at 101kPa
+CV_WATER = 4.18e6  # water
+CV_ICE = 1.93e6  # ice
+CV_ORGANIC = 2.50e6  # dry organic matter
+CV_MINERAL = 2.31e6  # soil minerals
+
+# EOF

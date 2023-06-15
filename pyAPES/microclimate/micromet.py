@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
 .. module: micromet
-    :synopsis: pyAPES-model component
+    :synopsis: pyAPES-model microclimate component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä, Gaby Katul
 
-Describes turbulent flow and momentum & scalar profiles within canopy.
+Describes turbulent flow and momentum & scalar transport within canopy.
 
 References:
-Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
-forest CO2, H2O and energy flows by a vertically structured forest canopy –
-Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
+    Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
+    forest CO2, H2O and energy flows by a vertically structured forest canopy –
+    Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
+
+    Juang, J.-Y., Katul, G.G., Siqueira, M.B., Stoy, P.C., McCarthy, H.R., 2008.
+    Investigating a hierarchy of Eulerian closure models for scalar transfer inside
+    forested canopies. Boundary-Layer Meteorology 128, 1–32.
+    
+    Campbell, S.C., and J.M. Norman. 1998. An introduction to Environmental Biophysics, 
+    Springer, 2nd edition.
 """
 import numpy as np
 from typing import Dict, List, Tuple
@@ -23,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class Micromet(object):
     r""" 
-    Mean flow and scalar profiles within horizontally homogeneous multi-layer canopy.
+    Horizontal mean flow and scalar profiles within horizontally homogeneous multi-layer canopy
     """
     def __init__(self, z: np.ndarray, lad: np.ndarray, hc: float, p: Dict):
         r""" 
@@ -60,15 +67,16 @@ class Micromet(object):
 
     def normalized_flow_stats(self, z: np.ndarray, lad: np.ndarray, hc: float, Utop: float=None):
         r"""
-        Computes normalized mean velocity, shear stress and
-        eddy diffusivity profiles within and above horizontally homogenous plant
-        canopies using 1st order closure.
+        Computes normalized mean velocity, shear stress and eddy diffusivity profiles within and above 
+        horizontally homogenous plant canopies using 1st order closure schemes.
 
         Args:
             z (array): canopy model nodes, height from soil surface (= 0.0) [m]
             lad (array): leaf area density [m2 m-3]
             hc (float): canopy heigth [m]
             Utop (float): U/ustar [-], if None, set to self.Utop
+        Returns:
+            None: updates self.U, self.Km_n, self.tau
         """
         if Utop is None:
             Utop = self.Utop
@@ -83,7 +91,7 @@ class Micromet(object):
             self.Km_n = Km_n.copy()
             self.tau = tau.copy()
 
-    def update_state(self, ustaro: float):
+    def update_state(self, ustaro: float) -> Tuple:
         r""" 
         Updates mean wind speed, ustar and eddy-diffusivity profile.
         Args:
@@ -107,7 +115,7 @@ class Micromet(object):
     def scalar_profiles(self, gam: float, H2O: np.ndarray, CO2: np.ndarray, T: np.ndarray, 
                         P: float, source: Dict, lbc: Dict, Ebal: bool) -> Tuple:
         r""" 
-        Solves scalar profiles (H2O, CO2 and T) within the canopy using 1st order closure
+        Solves scalar profiles (H2O, CO2 and T) within the canopy using 1st order closure scheme.
 
         Args:
             gam (float): weight for new value in iterations
@@ -200,7 +208,7 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
                       Utop: float, Ubot: float, dPdx: float=0.0, lbc_flux: bool=None, 
                       U_ini: np.array=None) -> Tuple:
     """
-    Computes normalized mean velocity profile, shear stress and eddy diffusivity
+    Computes mean velocity profile, shear stress and eddy diffusivity
     within and above horizontally homogenous plant canopies using 1st order closure.
     Accounts for horizontal pressure gradient force dPdx, assumes neutral diabatic stability.
     Solves displacement height as centroid of drag force.
@@ -247,13 +255,11 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
         d = sum(z*Fd) / (sum(Fd) + EPS)  # displacement height
         l_mix = mixing_length(z, hc, d)  # m
 
-        # --- dU/dz (m-1)
+        # --- dU/dz [m-1]
         y = central_diff(U, dz)
-        # y = smooth(y, nn1)
 
         # --- eddy diffusivity & shear stress
         Km = l_mix**2*abs(y)
-        # Km = smooth (Km, nn1)
         tau = -Km * y
 
         # ------ Set the elements of the Tri-diagonal Matrix
@@ -282,7 +288,6 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
             dia[0] = 1.
             lod[0] = 0.
             rhs[0] = 0.  # zero-flux bc
-            # how to formulate prescribed flux bc?
             # rhs[0] = lbc_flux
 
         # --- call tridiagonal solver
@@ -314,23 +319,24 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
 
     return tau, U, Km, l_mix, d, zo
 
-def closure_1_model_scalar(dz, Ks, source, ubc, lbc, scalar,
-                           T=20.0, P=101300.0, lbc_dirchlet=False):
-    r""" Solves stationary scalar profiles in 1-D grid
+def closure_1_model_scalar(dz: float, Ks: np.ndarray, source: np.ndarray, ubc: float, lbc: float, 
+                           scalar: str, T: float=20.0, P: float=101300.0, lbc_dirchlet=False) -> np.ndarray:
+    r""" 
+    Solves stedy-state scalar profiles in 1-D grid using 1st order closure.
     Args:
         dz (float): grid size (m)
         Ks (array): eddy diffusivity [m2 s-1]
         source (array): sink/source term
-            CO2 [umolm-3s-1], H2O [mol m-3 s-1], T [Wm-3]
+            CO2 [umol m-3 s-1], H2O [mol m-3 s-1], T [W m-3]
         ubc (float):upper boundary condition
             value: CO2 [ppm], H2O [mol mol-1], T [degC]
         lbc (float): lower boundary condition, flux or value:
-            flux: CO2 [umol m-2 s-1], H2O [mol m-2 s-1], T [Wm-2].
+            flux: CO2 [umol m-2 s-1], H2O [mol m-2 s-1], T [W m-2].
             value: CO2 [ppm], H2O [mol mol-1], T [degC]
         scalar (str): 'CO2', 'H2O', 'T'
-        T (float/array?): air temperature [degC]
-        P (float/array?): pressure [Pa]
-        lbc_dirchlet - True for Dirchlet lower boundary
+        T (float): air temperature [degC], for computing air molar density
+        P (float): pressure [Pa]
+        lbc_dirchlet - True for Dirchlet (fixed value) lower boundary condition
     OUT:
         x (array): mixing ratio profile
             CO2 [ppm], H2O [mol mol-1], T [degC]
@@ -341,8 +347,7 @@ def closure_1_model_scalar(dz, Ks, source, ubc, lbc, scalar,
     Code:
         Gaby Katul & Samuli Launiainen, 2009 - 2017
         Kersti: code condensed, discretization simplified (?)
-    Note:
-        assumes constant dz and Dirchlet upper boundary condition
+    Note: assumes constant dz and Dirchlet upper boundary condition
     """
 
     dz = float(dz)
@@ -399,17 +404,18 @@ def closure_1_model_scalar(dz, Ks, source, ubc, lbc, scalar,
 
     return x
 
-def mixing_length(z, h, d, l_min=None):
+def mixing_length(z: np.ndarray, h: float, d: float, l_min: float=None) -> np.ndarray:
     """
-    computes mixing length: linear above the canopy, constant within and
+    Computes turbulend mixing length.
+    l_mix is assumed linear above the canopy, constant within and
     decreases linearly close the ground (below z< alpha*h/VON_KARMAN)
-    IN:
-        z - computation grid, m
-        h - canopy height, m
-        d - displacement height, m
-        l_min - intercept at ground, m
+    Args:
+        z (array): [m], computation grid, constant increment
+        h (float): [m], canopy height
+        d (float): [m], displacement height
+        l_min (float): [m], set to finite value at ground
     OUT:
-        lmix - mixing length, m
+        lmix (array): [m], turbulent mixing length
     """
     dz = z[1] - z[0]
 
@@ -427,34 +433,38 @@ def mixing_length(z, h, d, l_min=None):
 
     return l_mix
 
-def leaf_boundary_layer_conductance(u, d, Ta, dT, P=101300.):
+def leaf_boundary_layer_conductance(u: np.ndarray, d: float, Ta: np.ndarray, 
+                                    dT:np.ndarray, P: float=101300.0) -> Tuple:
     """
     Computes 2-sided leaf boundary layer conductance assuming mixed forced and free
-    convection form two parallel pathways for transport through leaf boundary layer.
-    INPUT: u - mean velocity (m/s)
-           d - characteristic dimension of the leaf (m)
-           Ta - ambient temperature (degC)
-           dT - leaf-air temperature difference (degC)
-           P - pressure(Pa)
-    OUTPUT: boundary-layer conductances (mol m-2 s-1)
-        gb_h - heat (mol m-2 s-1)
-        gb_c- CO2 (mol m-2 s-1)
-        gb_v - H2O (mol m-2 s-1)
-        r - ratio of free/forced convection
-    Reference: Campbell, S.C., and J.M. Norman (1998),
-    An introduction to Environmental Biophysics, Springer, 2nd edition, Ch. 7
-    Gaby Katul & Samuli Launiainen
-    Note: the factor of 1.4 is adopted for outdoor environment, see Campbell and Norman, 1998, p. 89, 101.
+    convection form two parallel transport mechanisma through the leaf boundary layer.
+    
+    Args: u (float|array): [m s-1], mean velocity
+           d (float|array): [m], characteristic dimension of the leaf
+           Ta (float|array): [degC], ambient temperature
+           dT (float|array): [degC], leaf-air temperature difference, for free convection
+           P (float): [Pa], air pressure
+
+    Returns: boundary-layer conductances (mol m-2 s-1)
+        gb_h (float|array): [mol m-2 (leaf) s-1] boundary-layer conductance for heat
+        gb_c (float|array): [mol m-2 (leaf) s-1] boundary-layer conductance for CO2
+        gb_v (float|array): [mol m-2 (leaf) s-1] boundary-layer conductance for H2O
+    
+    Reference: 
+        Campbell, S.C., and J.M. Norman (1998), An introduction to Environmental Biophysics, 
+        Springer, 2nd edition, Ch. 7
+    Note: the factor of 1.4 is adopted for outdoor environment, see Campbell and Norman, 1998
+        p. 89, 101.
     """
 
     u = np.maximum(u, EPS)
 
-    # print('U', u, 'd', d, 'Ta', Ta, 'P', P)
     factor1 = 1.4*2  # forced conv. both sides, 1.4 is correction for turbulent flow
     factor2 = 1.5  # free conv.; 0.5 comes from cooler surface up or warmer down
 
-    # -- Adjust diffusivity, viscosity, and air density to pressure/temp.
+    # -- Adjust diffusivity, viscosity, and air density to current pressure/temp.
     t_adj = (101300.0 / P)*((Ta + 273.15) / 293.16)**1.75
+
     Da_v = MOLECULAR_DIFFUSIVITY_H2O*t_adj
     Da_c = MOLECULAR_DIFFUSIVITY_CO2*t_adj
     Da_T = THERMAL_DIFFUSIVITY_AIR*t_adj
@@ -489,17 +499,17 @@ def leaf_boundary_layer_conductance(u, d, Ta, dT, P=101300.):
     return gb_h, gb_c, gb_v#, r
 
 
-def e_sat(T):
+def e_sat(T: float) -> Tuple:
     """
-    Computes saturation vapor pressure (Pa), slope of vapor pressure curve
-    [Pa K-1]  and psychrometric constant [Pa K-1]
-    IN:
-        T - air temperature (degC)
-    OUT:
-        esa - saturation vapor pressure in Pa
-        s - slope of saturation vapor pressure curve (Pa K-1)
-    SOURCE:
-        Campbell & Norman, 1998. Introduction to Environmental Biophysics. (p.41)
+    Computes saturation vapor pressure [Pa]and the slope of vapor pressure curve
+    [Pa K-1]
+    Args:
+        T (float|array): [degC], air temperature
+    Returns:
+        esa (float|array): [Pa], saturation vapor pressure over water film
+        s (float|array): [Pa K-1], slope of saturation vapor pressure curve
+    Reference:
+        Campbell & Norman, 1998. Introduction to Environmental Biophysics. Springer
     """
 
     esa = 611.0 * np.exp((17.502 * T) / (T + 240.97))  # Pa
@@ -507,17 +517,20 @@ def e_sat(T):
 
     return esa, s
 
-def latent_heat(T):
+def latent_heat(T: float) -> float:
     """
-    Computes latent heat of vaporization or sublimation [J/kg]
+    Computes latent heat of vaporization or sublimation.
     Args:
-        T: ambient air temperature [degC]
+        T (float|array): [degC], temperature
     Returns:
-        L: latent heat of vaporization or sublimation depending on 'type'[J/kg]
+        L (float|array): [J kg-1], latent heat of vaporization or sublimation depending
     """
     # latent heat of vaporizati [J/kg]
     Lv = 1e3 * (3147.5 - 2.37 * (T + DEG_TO_KELVIN))
     # latent heat sublimation [J/kg]
     Ls = Lv + 3.3e5
+
     L = np.where(T < 0, Ls, Lv)
     return L
+
+# EOF
