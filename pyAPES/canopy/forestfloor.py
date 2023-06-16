@@ -41,83 +41,85 @@ class ForestFloor(object):
         Initializes forestfloor object
         
         Args:
-             - para (dict):
-             - bottom_layer_types (list of dicts)
-                - name (str)
-                - layer_type (str), 'bryophyte' or 'litter'
-                - coverage (float): [-]
-                - height (float): [m]
-                - roughness_height(float): [m], for moss-air conductance
-                - bulk_density (float): [kg m-3]
-                - max_water_content (float): [g g-1]
-                - max_symplast_water_content (float): [g g-1]
-                - min_water_content (float): [g g-1]
-                - water_retention (dict), micropore system
-                    - # theta_s [m3 m-3], saturated water content; computed from max_symplast_water_content & bulk_density
-                    - # theta_r [m3 m-3], residual water content; computed from min_water_content & bulk_density
-                    - alpha [cm-1] air entry suction
-                    - n [-], pore size distribution
-                    - saturated conductivity': [m s-1]
-                    - pore connectivity': (l) [-]
-                - porosity (float): [m3 m-3], macroporosity
-                - photosynthesis (dict): community-level photosyntesis model, only if layer_type == 'bryophyte'
-                    - Vcmax (float): [umol m-2 (ground) s-1], maximum carboxylation velocity at 25 C
-                    - Jmax (float): [umol m-2 (ground) s-1], maximum electron transport rate at 25 C
-                    - Rd (float): [umol m-2 (ground) s-1], dark respiration rate at 25 C
-                    - alpha (float): [mol mol-1], quantum efficiency
-                    - theta (float): [-], curvature parameter
-                    - beta (float): [-], co-limitation parameter
+             para (dict):
+             bottom_layer_types (list of dicts)
+                name (str)
+                layer_type (str), 'bryophyte' or 'litter'
+                coverage (float): [-]
+                height (float): [m]
+                roughness_height(float): [m], for moss-air conductance
+                bulk_density (float): [kg m-3]
+                max_water_content (float): [g g-1]
+                max_symplast_water_content (float): [g g-1]
+                min_water_content (float): [g g-1]
+                water_retention (dict), micropore system
+                    # theta_s [m3 m-3], saturated water content; computed from max_symplast_water_content & bulk_density
+                    # theta_r [m3 m-3], residual water content; computed from min_water_content & bulk_density
+                    alpha [cm-1] air entry suction
+                    n [-], pore size distribution
+                    saturated conductivity': [m s-1]
+                    pore connectivity': (l) [-]
+                porosity (float): [m3 m-3], macroporosity
+                photosynthesis (dict): community-level photosyntesis model, only if layer_type == 'bryophyte'
+                    Vcmax (float): [umol m-2 (ground) s-1], maximum carboxylation velocity at 25 C
+                    Jmax (float): [umol m-2 (ground) s-1], maximum electron transport rate at 25 C
+                    Rd (float): [umol m-2 (ground) s-1], dark respiration rate at 25 C
+                    alpha (float): [mol mol-1], quantum efficiency
+                    theta (float): [-], curvature parameter
+                    beta (float): [-], co-limitation parameter
                     
-                    - gopt (float): [mol m-2 (ground) s-1], conductance for CO2 at optimum water content
-                    - wopt (float): [g g-1], parameter of conductance - water content relationship
-                    - a0 (float): [-], parameter of conductance - water content curve
-                    - a1 (float): [-] parameter of conductance - water content curve
-                    - CAP_desic (list) [-], parameters of desiccation curve
-                    - tresp (dict): parameters of temperature response curve
-                        - Vcmax (list): [activation energy [kJ mol-1], 
-                                         deactivation energy [kJ mol-1],
-                                         entropy factor [kJ mol-1]
+                    gopt (float): [mol m-2 (ground) s-1], conductance for CO2 at optimum water content
+                    wopt (float): [g g-1], parameter of conductance - water content relationship
+                    a0 (float): [-], parameter of conductance - water content curve
+                    a1 (float): [-] parameter of conductance - water content curve
+                    CAP_desic (list) [-], parameters of desiccation curve
+                    tresp (dict): parameters of temperature response curve
+                        Vcmax (list): [activation energy [kJ mol-1], 
+                                     deactivation energy [kJ mol-1],
+                                     entropy factor [kJ mol-1]]
                                         
-                        - Jmax (list): [activation energy [kJ mol-1], 
-                                         deactivation energy [kJ mol-1],
-                                         entropy factor [kJ mol-1]
-                        - Rd (list): [activation energy [kJ mol-1]
+                        Jmax (list): [activation energy [kJ mol-1], 
+                                     deactivation energy [kJ mol-1],
+                                     entropy factor [kJ mol-1]]
+                        Rd (list): [activation energy [kJ mol-1]]
                 
-                - respiration (dict): only if layer_type == 'litter'
-                    - q10 (float): [-], temperature sensitivity
-                    - r10 (float): [umol m-1 (ground) s-1], base respiration at 10 C
+                respiration (dict): only if layer_type == 'litter'
+                    q10 (float): [-], temperature sensitivity
+                    r10 (float): [umol m-1 (ground) s-1], base respiration at 10 C
                 
-                - optical_properties (dict)
-                    - albedo (dict)
-                        - PAR [-]
-                        - NIR [-]
-                        - emissivity [-]
+                optical_properties (dict):
+                    albedo (dict):
+                        PAR [-];
+                        NIR [-];
+                        emissivity [-]
          
-                - initial_conditions (dict)
-                    - temperature (float): [degC]
-                    - water_content (float): [g g-1]
+                initial_conditions (dict)
+                    temperature (float): [degC]
+                    water_content (float): [g g-1]
                 
-            - snowpack (dict)
-                - kmelt (float): [m K-1 s-1], melting coefficient
-                - kfreeze (float): [m K-1 s-1], freezing  coefficient 
-                - retention (float): [-], max fraction of liquid water in snow
-                - Tmelt (float): [degC], melting temperature
-                - optical_properties (dict):
-                    - albedo (dict)
-                        - PAR [-]
-                        - NIR [-]
-                    - emissivity [-]
-                - initial_conditions (dict):
-                    - temperature (float): [degC]
-                    - snow_water_equivalent (float): [kg m-2 == mm]
+            snowpack (dict):
+                kmelt (float): [m K-1 s-1], melting coefficient
+                kfreeze (float): [m K-1 s-1], freezing  coefficient 
+                retention (float): [-], max fraction of liquid water in snow
+                Tmelt (float): [degC], melting temperature
+                optical_properties (dict):
+                    albedo (dict):
+                        PAR [-]
+                        NIR [-]
+                    emissivity [-]
+                initial_conditions (dict):
+                    temperature (float): [degC]
+                    snow_water_equivalent (float): [kg m-2 == mm]
                     
-            - soil_respiration (dict)
-                - r10 (float): [umol m-2 (ground) s-1], base respiration rate
-                - q10 (float): [-] temperature sensitivity [-]
-                - moisture_coeff (list), moisture response parameters
+            soil_respiration (dict)
+                r10 (float): [umol m-2 (ground) s-1], base respiration rate
+                q10 (float): [-] temperature sensitivity [-]
+                moisture_coeff (list), moisture response parameters
+        
         Returns:
             
-            - self (object)
+            self (object)
+        
         """
 
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
