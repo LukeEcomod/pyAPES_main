@@ -4,9 +4,10 @@
     :synopsis: APES-model component
 .. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
-Degree-day snow pack model
+*Degree-day snow pack model*
 
-Future development(s): include energy-balance based snow model
+Future development(s): 
+    include energy-balance based snow model
 
 """
 
@@ -16,25 +17,27 @@ from typing import Dict, List, Tuple
 EPS = np.finfo(float).eps  # machine epsilon
 
 class DegreeDaySnow(object):
-    def __init__(self, properties):
+    def __init__(self, properties) -> object:
         """
         Zero-dimensional snowpack model based on degree-day approach.
         
         Args:
-            - properties (dict)
-                - 'kmelt' melting coefficient [m degC-1 s-1]
-                - 'kfreeze' (float): freezing coefficient coefficient [m degC-1 s-1]
-                - 'retention' (float): max fraction of liquid water in snow [-]
-                - 'Tmelt' (float): melting temperature (~0.0 degC) [degC]
-                - 'optical_properties' (dict):
-                    - 'albedo' (dict):
-                        - 'PAR' (float): snow Par-albedo [-]
-                        - 'NIR' (float): snow NIR-albedo [-]
-                    - 'emissivity': [-]
+            properties (dict)
+                kmelt melting coefficient [m degC-1 s-1]
+                kfreeze (float): freezing coefficient coefficient [m degC-1 s-1]
+                retention (float): max fraction of liquid water in snow [-]
+                Tmelt (float): melting temperature (~0.0 degC) [degC]
+                optical_properties (dict):
+                    albedo (dict):
+                        PAR (float): snow Par-albedo [-]
+                        NIR (float): snow NIR-albedo [-]
+                    emissivity (float): [-]
        
-                - 'initial_conditions' (dict):
-                    - 'temperature' (float): [degC]
-                    - 'snow_water_equivalent' (float): [kg m\ :sup:`-2`\ == mm]
+                initial_conditions (dict):
+                    temperature (float): [degC]
+                    snow_water_equivalent (float): [kg m\ :sup:`-2`\ == mm]
+        Returns:
+            self (object)
         """
 
         #self.properties = properties
@@ -67,24 +70,25 @@ class DegreeDaySnow(object):
         self.liq = self.iteration_state['liq']
         self.swe = self.iteration_state['swe']
 
-    def run(self, dt: float, forcing: Dict) -> Tuple(Dict, Dict):
+    def run(self, dt: float, forcing: Dict) -> Tuple:
         """
         Calculates one timestep and updates snowpack state
 
         Args:
-            - 'dt' (float): timestep [s]
-            - 'forcing' (dict):
-                - 'air_temperature': [degC]
-                - 'precipitation_rain': [kg m-2 s-1]
-                - 'precipitation_snow': [kg m-2 s-1]
+            dt (float): timestep [s]
+            forcing' (dict):
+                air_temperature: [degC]
+                precipitation_rain: [kg m-2 s-1]
+                precipitation_snow: [kg m-2 s-1]
 
-        Returns:
-            - 'fluxes' (dict):
-               - 'potential_infiltration': [kg m-2 s-1]
-               - 'water_closure': [kg m-2 s-1]
-            - 'states' (dict):
-               - 'snow_water_equivalent': [kg m-2 s-1]
-               - 'temperature': [degC]
+        Returns
+            (tuple):
+            fluxes (dict):
+               potential_infiltration: [kg m-2 s-1]
+               water_closure: [kg m-2 s-1]
+            states (dict):
+               snow_water_equivalent: [kg m-2 s-1]
+               temperature: [degC]
         """
 
         """ --- melting and freezing in snopack --- """

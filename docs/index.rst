@@ -3,120 +3,49 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pyAPES's documentation!
+pyAPES - modular SVAT model toolkit in Pure Python
 ==================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 5
+   :caption: pyAPES packages, modules and functions:
 
-pyAPES packages, modules and functions
----------------
+Microclimate and radiation
+--------------------------
 
-microclimate
-^^^^^^^^^^^^
+microclimate.microclimate
+^^^^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: pyAPES.microclimate.micromet
    :members:
    :special-members:
    :exclude-members: __weakref__
 
+microclimate.radiation
+^^^^^^^^^^^^^^^^^^^^^^
 .. automodule:: pyAPES.microclimate.radiation
    :members:
    :special-members:
    :exclude-members: __weakref__
 
-leaf
-^^^^^^^^^^^^
-.. automodule:: pyAPES.leaf.photo
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-planttype
-^^^^^^^^^^^^
-.. automodule:: pyAPES.planttype.planttype
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-.. automodule:: pyAPES.planttype.phenology
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-.. automodule:: pyAPES.planttype.rootzone
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-bottomlayer
-^^^^^^^^^^^^
-.. automodule:: pyAPES.bottomlayer.organiclayer
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-organiclayer carbon balance
-^^^^^^^^^^^^
-.. automodule:: pyAPES.bottomlayer.carbon
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-bare soil surface temperature
-^^^^^^^^^^^^
-.. automodule:: pyAPES.bottomlayer.baresoil
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-   
-canopy
-^^^^^^^^^^^^
+Multi-layer canopy model
+------------------------
+canopy.canopy
+^^^^^^^^^^^^^
 .. automodule:: pyAPES.canopy.canopy
    :members:
    :special-members:
    :exclude-members: __weakref__
 
-interception
-^^^^^^^^^^^^
-.. automodule:: pyAPES.canopy.interception
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-forestfloor
-^^^^^^^^^^^^
+canopy.forestfloor
+^^^^^^^^^^^^^^^^^^
 .. automodule:: pyAPES.canopy.forestfloor
    :members:
    :special-members:
    :exclude-members: __weakref__
 
-soil
-^^^^^^^^^^^^
-.. automodule:: pyAPES.soil.soil
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-heat
-^^^^^^^^^^^^
-.. automodule:: pyAPES.soil.heat
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-water
-^^^^^^^^^^^^
-.. automodule:: pyAPES.soil.water
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-
-.. automodule:: pyAPES.soil.constants
-   :members:
-   :special-members:
-   :exclude-members: __weakref__
-   
-snow
-^^^^^^^^^^^^
-.. automodule:: pyAPES.snow.snowpack
+canopy.interception
+^^^^^^^^^^^^^^^^^^^  
+.. automodule:: pyAPES.canopy.interception
    :members:
    :special-members:
    :exclude-members: __weakref__

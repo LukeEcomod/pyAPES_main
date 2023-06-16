@@ -5,6 +5,8 @@
     :synopsis: pyAPES-model component to calculate carbon exchange in moss / litter layer and soil
 .. moduleauthor:: Samuli Launiainen & Antti-Jussi Kieloaho
 
+*Moss and litter carbon exchange (photosynthesis and respiration)* 
+
 """
 
 import numpy as np
@@ -134,7 +136,7 @@ def conductance(para: Dict, w: float) -> float:
     return g
 
 
-def relative_capacity(para: Dict, w: float, wstar: float=None) -> Tuple(float, float):
+def relative_capacity(para: Dict, w: float, wstar: float=None) -> Tuple:
     """
     Relative photosynthetic capacity and dark respiration rates as a function of water content.
     
@@ -171,7 +173,7 @@ def relative_capacity(para: Dict, w: float, wstar: float=None) -> Tuple(float, f
     rrd = rphoto # assume to behave as photo
     return rphoto, rrd
 
-def photo_farquhar(photop: Dict, Qp: float, Ci: float, T: float) -> Tuple(float, float, float, float):
+def photo_farquhar(photop: Dict, Qp: float, Ci: float, T: float) -> Tuple:
     """
     Calculates moss photosynthesis, dark respiration and net CO2 exhange using Farquhar-model.
     
@@ -252,7 +254,7 @@ def photo_farquhar(photop: Dict, Qp: float, Ci: float, T: float) -> Tuple(float,
 
 
 def photo_temperature_response(Vcmax25: float, Jmax25: float, Rd25: float,
-                               Vcmax_T: List, Jmax_T: List, Rd_T: List, T: float) -> Tuple(float, float, float, float):
+                               Vcmax_T: List, Jmax_T: List, Rd_T: List, T: float) -> Tuple:
     """
     Adjusts Farquhar-parameters for temperature
     

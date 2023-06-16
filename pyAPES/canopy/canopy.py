@@ -5,10 +5,9 @@
     :synopsis: pyAPES-model component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä, Olli-Pekka Tikkasalo
 
-Describes H2O, CO2, energy transfer in multilayer canopy.
+* Radiation, energy, water and carbon exchange in multi-layer, multi-species canopy and forest floor*
 
 References:
-
     Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
     forest CO2, H2O and energy flows by a vertically structured forest canopy
     Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
@@ -30,60 +29,48 @@ from pyAPES.canopy.forestfloor import ForestFloor
 logger = logging.getLogger(__name__)
 
 class CanopyModel(object):
-    """ 
+    r""" 
     Describes radiation, momentum, CO2, water and energy exchange inside 
     multi-layer, multi-species plant canopies and forest floor.
     """
 
-    def __init__(self, cpara: Dict[str, Dict], dz_soil: np.ndarray):
+    def __init__(self, cpara: Dict, dz_soil: np.ndarray):
         r""" Initializes canopy object and submodel objects using given parameters.
 
         Args:
-            cpara (dict):
-                - 'ctr' (dict): switches and specifications for computation
-                    - Eflow (bool): ensemble flow assumption (False solves U_normed on daily timestep)
-                    - 'WMA' (bool): well-mixed assumption (False solves H2O, CO2, T)
-                    - 'Ebal' (bool): True solves energy balance
-                    - 'WaterStress' (str): account for water stress in planttypes via 'Rew', 'PsiL' or None omits
-                    - 'seasonal_LAI' (bool): account for seasonal LAI dynamics
-                    - 'pheno_cycle' (bool): account for phenological cycle
-                - 'grid' (dict):
-                    - 'zmax': heigth of grid from ground surface [m]
-                    - 'Nlayers': number of layers in grid [-]
-                - 'radiation' (dict): radiation model parameters
-                - 'micromet' (dict): micromet model parameters
-                - 'interception' (dict): interception model parameters
-                - 'planttypes' (list):
-                    - i. (dict): properties of planttype i
-                - 'forestfloor': forestfloor parameters
-                    - 'bryophytes'(list):
-                        - i. (dict): properties of bryotype i
-                    - 'baresoil' (dict): baresoil parameters
-                    - 'snowpack' (dict): smow model parameters
-                    - 'initial_conditions': initial conditions for forest floor
-            - dz_soil (array): thickness of soilprofile layers, needed for rootzone
+            cpara (dict): with keys:
+                ctr (dict): switches and specifications for computation
+                    Eflow (bool): ensemble flow assumption (False solves U_normed on daily timestep)
+                    WMA (bool): well-mixed assumption (False solves H2O, CO2, T)
+                    Ebal (bool): True solves energy balance
+                    WaterStress (str): account for water stress in planttypes via 'Rew', 'PsiL' or None omits
+                    seasonal_LAI (bool): account for seasonal LAI dynamics
+                    pheno_cycle (bool): account for phenological cycle
+                grid (dict):
+                    zmax (float): heigth of grid from ground surface [m]
+                    Nlayers (int): number of layers in grid [-]
+                    radiation (dict): radiation model parameters
+                    micromet (dict): micromet model parameters
+                    interception (dict): interception model parameters
+                    planttypes (list):
+                        i. (dict): properties of planttype i
+                    forestfloor (dict): forestfloor parameters
+                        bryophytes'(list):
+                        i. (dict): properties of bryotype i
+                    baresoil (dict): baresoil parameters
+                    snowpack (dict): smow model parameters
+                    initial_conditions (dict): initial conditions for forest floor
+            dz_soil (array): thickness of soilprofile layers, needed for rootzone
 
         Returns:
-            self (object): CanopyModel object with following properties
-                - location (dict):
-                    - 'lat': latitude [deg]
-                    - 'lon': longitude [deg]
-                - z (array): canopy model nodes, height from soil surface (= 0.0) [m]
-                - dz (float): thickness of canopy layers [m]
-                - ones (array): dummy of len(z)
-                - Switch_Eflow (bool): ensemble flow assumption
-                - Switch_WMA (bool): well-mixed assumption (H2O, CO2, T)
-                - Switch_Ebal (bool): solve energy balance
-                - LAI (array): total leaf area index [m2 m-2]
-                - lad (array): total leaf area density [m2 m-3]
-                - hc (float): canopy heigth [m]
-                - rad (array): normalized total fine root density distribution [-]
-                - planttypes (list):
-                    - i. (object): planttype object i
-                - radiation (object): radiation model (SW, LW)
-                - micromet (object): micromet model (U, H2O, CO2, T)
-                - interception (object): interception model
-                - forestfloor (object): forest floor object (bryotype/baresoil/snow)
+            self (object): CanopyModel, including following sub-models:
+                planttypes (list):
+                    i. (object): planttype object i
+                radiation (object): radiation model (SW, LW)
+                micromet (object): micromet model (U, H2O, CO2, T)
+                interception (object): interception model
+                forestfloor (object): forestfloor object (bryotype/baresoil/snow)
+
         """
 
         # --- grid ---
@@ -153,7 +140,9 @@ class CanopyModel(object):
                                        respiration_profile=self.root_distr)
 
     def run_daily(self, doy: float, Ta: float, Rew: float=1.0) -> None:
-        r""" Computatations at daily timestep.
+        """
+        Computatations occurring once per day.
+
         Updates planttypes and total canopy leaf area index and phenological state.
         Recomputes normalize flow statistics with new leaf area density profile.
 
@@ -162,6 +151,10 @@ class CanopyModel(object):
             Ta (float): mean daily air temperature [degC]
             PsiL (float): leaf water potential [MPa] --- CHECK??
             Rew (float): relatively extractable water (-)
+        
+        Returns
+            (none)
+    
         """
         # update physiology and leaf area of planttypes and canopy
         for pt in self.planttypes:
@@ -180,37 +173,39 @@ class CanopyModel(object):
         if self.Switch_Eflow and self.planttypes[0].Switch_lai:
             self.micromet.normalized_flow_stats(self.z, self.lad, self.hc)
 
-    def run(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple(Dict, Dict, Dict, Dict):
-        r""" Calculates one timestep and updates state of CanopyModel object.
+    def run(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
+        r"""
+        Calculates one timestep and updates state of CanopyModel object.
 
         Args:
             dt: timestep [s]
             forcing (dict): meteorological forcing at ubc and soil state at uppermost soil layer.
-                - 'precipitation': precipitation rate [kg m-2 s-1]
-                - 'air_temperature': air temperature [degC]
-                - 'wind_speed': wind speed [m s-1]
-                - 'friction_velocity': friction velocity [m s-1]
-                - 'co2': ambient CO2 mixing ratio [ppm]
-                - 'h2o': ambient H2O mixing ratio [mol mol-1]
-                - 'air_pressure': pressure [Pa]
-                - 'zenith_angle': solar zenith angle [rad]
-                - 'PAR' (dict): with keys 'direct', 'diffuse' [W m-2]
-                - 'NIR' (dict): with keys 'direct', 'diffuse' [W m-2]
-
-                - 'soil_temperature': [degC] properties of first soil node
-                - 'soil_water_potential': [m] properties of first soil node
-                - 'soil_volumetric_water': [m m-3] properties of first soil node
-                - 'soil_volumetric_air': [m m-3] properties of first soil node
-                - 'soil_pond_storage': [kg m-2] properties of first soil node
+                precipitation (float): precipitation rate [kg m-2 s-1]
+                air_temperature (float): air temperature [degC]
+                wind_speed (float): wind speed [m s-1]
+                friction_velocity (float): friction velocity [m s-1]
+                co2 (float): ambient CO2 mixing ratio [ppm]
+                h2o (float): ambient H2O mixing ratio [mol mol-1]
+                air_pressure (float): pressure [Pa]
+                zenith_angle (float): solar zenith angle [rad]
+                PAR' (dict): with keys 'direct', 'diffuse' [W m-2]
+                NIR' (dict): with keys 'direct', 'diffuse' [W m-2]
+                soil_temperature (float): [degC] properties of first soil node
+                soil_water_potential (float): [m] properties of first soil node
+                soil_volumetric_water (float): [m m-3] properties of first soil node
+                soil_volumetric_air (float): [m m-3] properties of first soil node
+                soil_pond_storage(float): [kg m-2] properties of first soil node
             parameters (dict):
-                - date
-                - thermal_conductivity: [W m-1 K-1] properties of first soil node
-                - hydraulic_conductivity: [m s-1] properties of first soil node
-                - depth: [m] properties of first soil node
+                - date (str)
+                - thermal_conductivity (float): [W m-1 K-1] properties of first soil node
+                - hydraulic_conductivity (float): [m s-1] properties of first soil node
+                - depth (float): [m] properties of first soil node
 
         Returns:
-            fluxes (dict)
-            states (dict)
+            (tuple):
+                fluxes (dict)
+                states (dict)
+
         """
         logger = logging.getLogger(__name__)
 

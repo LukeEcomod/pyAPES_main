@@ -185,7 +185,7 @@ class OrganicLayer(object):
                                   max_water_content=self.max_water_content,
                                   albedo=self.optical_properties['albedo'])
 
-    def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple(Dict, Dict):
+    def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple:
         r""" Runs one timestep and updates state of OrganicLayer instance.
 
         Args:
@@ -443,7 +443,7 @@ class OrganicLayer(object):
         return fluxes, states
 
 
-    def water_heat_tendencies(self, y: np.ndarray, dt: float, forcing: Dict, parameters: Dict) -> Tuple(np.ndarray, float):
+    def water_heat_tendencies(self, y: np.ndarray, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
         """
         Solves coupled water and heat balance over timestep dt.
         Returns temperature and water storage tendensies (du/dt) and water & energy fluxes.
@@ -760,7 +760,7 @@ class OrganicLayer(object):
         
         return dudt, Ts
 
-    def water_exchange(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple(Dict, Dict):
+    def water_exchange(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
         """
         Computes water exchange and water balance assuming moss is at air temperature.
         Thus, neglects energy balance.
@@ -1317,7 +1317,8 @@ def moss_atm_conductance(wind_speed: float, roughness_height: float, dT: float=0
         'heat': conductance_heat
         }
 
-def soil_boundary_layer_conductance(u: float, z: float, zo: float, Ta: float, dT: float, P: float=101300.):
+def soil_boundary_layer_conductance(u: float, z: float, zo: float, 
+                                    Ta: float, dT: float, P: float=101300.) -> Tuple:
     """
     Computes soil surface boundary layer conductance assuming logarithmic velocity profile between z and z0.
     
@@ -1367,7 +1368,7 @@ def soil_boundary_layer_conductance(u: float, z: float, zo: float, Ta: float, dT
 #     Returns temperature and water storage tendensies and
 #     water & energy fluxes.
 
-#     NOTE: solves layer bulk temperature directly from the energy balance!
+#     Note: solves layer bulk temperature directly from the energy balance!
 
 #     Args:
 #         y (array): initial values: returns derivatives

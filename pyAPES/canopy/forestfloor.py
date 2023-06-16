@@ -4,6 +4,8 @@
     :synopsis: pyAPES-model canopy component
 .. moduleauthor:: Antti-Jussi Kieloaho, Samuli Launiainen, Kersti Leppä
 
+*Forest bottom layer combined water, energy and carbon balance*
+
 In pyAPES, canopy.forestfloor is used to compute energy balance, water and carbon exchange
 of the forestfloor or peatland ground layer. It handles fractional tiling of different 
 bottomlayer (moss, litter, bare soil) types (pyAPES.bottomlayer -package), and
@@ -30,11 +32,11 @@ from pyAPES.bottomlayer.carbon import SoilRespiration
 logger = logging.getLogger(__name__)
 
 class ForestFloor(object):
-    """
-    ForestFloor class computes energy balance, water and carbon exchange
+    r"""
+    ForestFloor computes energy balance, water and carbon exchange
     of forestfloor or peatland ground layer.
    """
-    def __init__(self, para: Dict, respiration_profile: np.ndarray=None):
+    def __init__(self, para: Dict, respiration_profile: np.ndarray=None) -> object:
         """
         Initializes forestfloor object
         
@@ -43,33 +45,33 @@ class ForestFloor(object):
              - bottom_layer_types (list of dicts)
                 - name (str)
                 - layer_type (str), 'bryophyte' or 'litter'
-                - coverage [-]
-                - height [m]
-                - roughness_height [m], for moss-air conductance
-                - bulk_density [kg m-3]
-                - max_water_content [g g-1]
-                - max_symplast_water_content [g g-1]
-                - min_water_content': [g g-1]
+                - coverage (float): [-]
+                - height (float): [m]
+                - roughness_height(float): [m], for moss-air conductance
+                - bulk_density (float): [kg m-3]
+                - max_water_content (float): [g g-1]
+                - max_symplast_water_content (float): [g g-1]
+                - min_water_content (float): [g g-1]
                 - water_retention (dict), micropore system
-                    - # theta_s [m3 m-3], saturated water content
-                    - # theta_r [m3 m-3], residual water content
+                    - # theta_s [m3 m-3], saturated water content; computed from max_symplast_water_content & bulk_density
+                    - # theta_r [m3 m-3], residual water content; computed from min_water_content & bulk_density
                     - alpha [cm-1] air entry suction
                     - n [-], pore size distribution
                     - saturated conductivity': [m s-1]
                     - pore connectivity': (l) [-]
-                - porosity [m3 m-3], macroporosity
+                - porosity (float): [m3 m-3], macroporosity
                 - photosynthesis (dict): community-level photosyntesis model, only if layer_type == 'bryophyte'
-                    - Vcmax [umol m-2 (ground) s-1], maximum carboxylation velocity at 25 C
-                    - Jmax [umol m-2 (ground) s-1], maximum electron transport rate at 25 C
-                    - Rd [umol m-2 (ground) s-1], dark respiration rate at 25 C
-                    - alpha [mol mol-1], quantum efficiency
-                    - theta [-], curvature parameter
-                    - beta [-], co-limitation parameter
+                    - Vcmax (float): [umol m-2 (ground) s-1], maximum carboxylation velocity at 25 C
+                    - Jmax (float): [umol m-2 (ground) s-1], maximum electron transport rate at 25 C
+                    - Rd (float): [umol m-2 (ground) s-1], dark respiration rate at 25 C
+                    - alpha (float): [mol mol-1], quantum efficiency
+                    - theta (float): [-], curvature parameter
+                    - beta (float): [-], co-limitation parameter
                     
-                    - gmax [mol m-2 (ground) s-1], conductance for CO2 at optimum water content
-                    - wopt [g g-1], parameter of conductance - water content relationship
-                    - a0 [-], parameter of conductance - water content curve
-                    - a1 [-] parameter of conductance - water content curve
+                    - gopt (float): [mol m-2 (ground) s-1], conductance for CO2 at optimum water content
+                    - wopt (float): [g g-1], parameter of conductance - water content relationship
+                    - a0 (float): [-], parameter of conductance - water content curve
+                    - a1 (float): [-] parameter of conductance - water content curve
                     - CAP_desic (list) [-], parameters of desiccation curve
                     - tresp (dict): parameters of temperature response curve
                         - Vcmax (list): [activation energy [kJ mol-1], 
@@ -81,9 +83,9 @@ class ForestFloor(object):
                                          entropy factor [kJ mol-1]
                         - Rd (list): [activation energy [kJ mol-1]
                 
-                - respiration' (dict): only if layer_type == 'litter'
-                    - q10 [-], temperature sensitivity
-                    - r10 [umol m-1 (ground) s-1], base respiration at 10 C
+                - respiration (dict): only if layer_type == 'litter'
+                    - q10 (float): [-], temperature sensitivity
+                    - r10 (float): [umol m-1 (ground) s-1], base respiration at 10 C
                 
                 - optical_properties (dict)
                     - albedo (dict)
@@ -92,26 +94,26 @@ class ForestFloor(object):
                         - emissivity [-]
          
                 - initial_conditions (dict)
-                    - temperature [degC]
-                    - water_content [g g-1]
+                    - temperature (float): [degC]
+                    - water_content (float): [g g-1]
                 
             - snowpack (dict)
-                - kmelt [m K-1 s-1], melting coefficient
-                - kfreeze [m K-1 s-1], freezing  coefficient 
-                - retention [-], max fraction of liquid water in snow
-                - Tmelt [degC], melting temperature
+                - kmelt (float): [m K-1 s-1], melting coefficient
+                - kfreeze (float): [m K-1 s-1], freezing  coefficient 
+                - retention (float): [-], max fraction of liquid water in snow
+                - Tmelt (float): [degC], melting temperature
                 - optical_properties (dict):
                     - albedo (dict)
                         - PAR [-]
                         - NIR [-]
                     - emissivity [-]
                 - initial_conditions (dict):
-                    - temperature [degC]
-                    - snow_water_equivalent [kg m-2 == mm]
+                    - temperature (float): [degC]
+                    - snow_water_equivalent (float): [kg m-2 == mm]
                     
             - soil_respiration (dict)
-                - r10 [umol m-2 (ground) s-1], base respiration rate
-                - q10 [-] temperature sensitivity [-]
+                - r10 (float): [umol m-2 (ground) s-1], base respiration rate
+                - q10 (float): [-] temperature sensitivity [-]
                 - moisture_coeff (list), moisture response parameters
         Returns:
             
@@ -192,83 +194,84 @@ class ForestFloor(object):
             self.water_storage = sum([bt.coverage * bt.water_storage
                                       for bt in self.bottomlayer_types])
 
-    def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple[Dict[str, float], Dict[str, float], List[Dict[str, float]]]:
+    def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple:
         """
         Computes water, energy and CO2 balance at the forestfloor over timestep dt.
         Handles tiled OrganicLayer types at forest floor, and averages fluxes and state.
 
         Args:
-            - forcing (dict of floats):
-                - precipitation_rain [kg m-2 s-1 ]
-                - precipitation_snow [kg m-2 s-1 ]
-                - par [W m-2]
-                - nir [W m-2] if energy_balance is True
-                - lw_dn [W m-2] if energy_balance is True
-                - h2o [mol mol-1]
-                - co2 [ppm]
-                - air_temperature [degC]
-                - air_pressure [Pa]
-                - soil_temperature': [degC]
-                - soil_water_potential [Pa]
-                - soil_volumetric_water [m3 m-3]
-                - soil_volumetric_air [m3 m-3]
-                - soil_pond_storage [kg m-2]
+            forcing (dict):
+                precipitation_rain [kg m-2 s-1 ]
+                precipitation_snow [kg m-2 s-1 ]
+                par [W m-2]
+                nir [W m-2] if energy_balance is True
+                lw_dn [W m-2] if energy_balance is True
+                h2o [mol mol-1]
+                co2 [ppm]
+                air_temperature [degC]
+                air_pressure [Pa]
+                soil_temperature': [degC]
+                soil_water_potential [Pa]
+                soil_volumetric_water [m3 m-3]
+                soil_volumetric_air [m3 m-3]
+                soil_pond_storage [kg m-2]
             
-            - parameters (dict of floats):
-                - soil_thermal_conductivity [W m-1 K-1] (if controls['energy balance'] = True)
-                - soil_hydraulic_conductivity [m s-1]
-                - depth [m] of first soil calculation node
-                - reference_height [m] of first canopy calculation node
+            parameters (dict):
+                soil_thermal_conductivity [W m-1 K-1] (if controls['energy balance'] = True)
+                soil_hydraulic_conductivity [m s-1]
+                depth [m] of first soil calculation node
+                reference_height [m] of first canopy calculation node
            
-            - controls (dict):
-                - energy_balance (bool)
-                - logger_info (str)
+            controls (dict):
+                energy_balance (bool)
+                logger_info (str)
         
-        Returns (dicts of floats):    
-            
-            - fluxes: forestfloor aggregated fluxes
-                - net_radiation [W m-2]
-                - sensible_heat [W m-2]
-                - latent_heat [W m-2]
-                - ground_heat [W m-2]
-                - energy_closure [W m-2]
-                - evaporation [kg m-2 s-1],  tiles + soil below
-                - soil_evaporation [kg m-2 s-1], from soil
-                - throughfall [kg m-2 s-1], to soil profile
-                - capillary_rise [kg m-2 s-1], from soil profile
-                - pond_recharge [kg m-2 s-1], flux to/from pond storage
-                - water_closure [kg m-2 s-1], mass-balance error
-                - co2_flux [umolm m-2 (ground) s-1], forest-floor NEE
-                - photosynthesis [umolm m-2 (ground) s-1], bottomlayer types GPP
-                - respiration [umolm m-2 (ground) s-1], bottomlayer types + soil
-                - soil_respiration [umolm m-2 (ground) s-1], soil
+        Returns:
+            (tuple):    
+                fluxes (dict): forestfloor aggregated fluxes
+                    net_radiation [W m-2]
+                    sensible_heat [W m-2]
+                    latent_heat [W m-2]
+                    ground_heat [W m-2]
+                    energy_closure [W m-2]
+                    evaporation [kg m-2 s-1],  tiles + soil below
+                    soil_evaporation [kg m-2 s-1], from soil
+                    throughfall [kg m-2 s-1], to soil profile
+                    capillary_rise [kg m-2 s-1], from soil profile
+                    pond_recharge [kg m-2 s-1], flux to/from pond storage
+                    water_closure [kg m-2 s-1], mass-balance error
+                    co2_flux [umolm m-2 (ground) s-1], forest-floor NEE
+                    photosynthesis [umolm m-2 (ground) s-1], bottomlayer types GPP
+                    respiration [umolm m-2 (ground) s-1], bottomlayer types + soil
+                    soil_respiration [umolm m-2 (ground) s-1], soil
                 
-            - state: forestfloor aggregated state
-                - temperature [degC]
-                - surface_temperature [degC]
-                - water_storage [kg m-2]
-                - snow_water_equivalent [kg m-2]
+                state (dict): forestfloor aggregated state
+                    temperature [degC]
+                    surface_temperature [degC]
+                    water_storage [kg m-2]
+                    snow_water_equivalent [kg m-2]
 
-            - blt_outputs: bottomlayer_type -specific fluxes and state: list of Dicts
-                - net_radiation [W m-2]
-                - latent_heat [W m-2]
-                - sensible_heat [W m-2]
-                - ground_heat [W m-2] (negative towards soil)
-                - heat_advection [W m-2]
-                - water_closure [kg m-2 s-1]
-                - energy_closure [W m-2]
-                - evaporation [kg m-2 s-1]
-                - interception [kg m-2 s-1]
-                - pond_recharge [kg m-2 s-1]
-                - capillary_rise [kg m-2 s-1]
-                - throughfall [kg m-2 s-1]
-                - temperature [degC]
-                - volumetric_water [m3 m-3]
-                - water_potential [m]
-                - water_content [g g-1]
-                - water_storage [kg m-2]
-                - hydraulic_conductivity [m s-1]
-                - thermal_conductivity [W m-1 K-1]
+            blt_outputs (list): bottomlayer_type -specific fluxes and state: list of Dicts with keys
+                net_radiation [W m-2]
+                latent_heat [W m-2]
+                sensible_heat [W m-2]
+                ground_heat [W m-2] (negative towards soil)
+                heat_advection [W m-2]
+                water_closure [kg m-2 s-1]
+                energy_closure [W m-2]
+                evaporation [kg m-2 s-1]
+                interception [kg m-2 s-1]
+                pond_recharge [kg m-2 s-1]
+                capillary_rise [kg m-2 s-1]
+                throughfall [kg m-2 s-1]
+                temperature [degC]
+                volumetric_water [m3 m-3]
+                water_potential [m]
+                water_content [g g-1]
+                water_storage [kg m-2]
+                hydraulic_conductivity [m s-1]
+                thermal_conductivity [W m-1 K-1]
+
         """
         
         # initialize fluxes and states

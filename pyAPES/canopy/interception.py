@@ -4,7 +4,7 @@
     :synopsis: pyAPES-model canopy component
 .. moduleauthor:: Kersti Leppä & Samuli Launiainen
 
-Describes rainfall interception and wet-canopy energy balance in a multi-layer canopy.
+*Rainfall interception and wet-canopy energy balance in a multi-layer canopy*
 
 References:
     Tanaka, K., 2002. Multi-layer model of CO2 exchange in a plant community
@@ -28,17 +28,19 @@ class Interception(object):
     r"""
     Describes interception in multilayer canopy.
     """
-    def __init__(self, p: Dict, LAIz: np.ndarray):
+    def __init__(self, p: Dict, LAIz: np.ndarray) -> object:
         r"""
-        Initializes Interception model.
+        Interception model
+
         Args:
             p (dict):
-                'wmax': maximum interception storage capacity for rain [kg water m-2 per unit of LAI]
-                'wmaxsnow': maximum interception storage capacity for snow [kg water m-2 per unit of LAI]
-                'Tmin': temperature below which all is snow [degC]
-                'Tmax': temperature above which all is water [degC]
-                'w_ini': initial canopy storage [kg water in model layer m-2 (ground)]
+                wmax (float): maximum interception storage capacity for rain [kg water m-2 per unit of LAI]
+                wmaxsnow (float): maximum interception storage capacity for snow [kg water m-2 per unit of LAI]
+                Tmin (float): temperature below which all is snow [degC]
+                Tmax (float): temperature above which all is water [degC]
+                w_ini (array): initial canopy storage [kg water in model layer m-2 (ground)]
             LAIz (array): leaf area index per canopy layer [m2 m-2]
+        
         Returns:
             self (object)
         """
@@ -60,8 +62,9 @@ class Interception(object):
         self.update()
 
     def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Dict:
-        r"""
-        Computes interception and unloading of rain and snow. Evaporation and condensation are computed based on wet leaf water balance.
+        """
+        Computes interception and unloading of rain and snow.
+        Evaporation and condensation are computed based on wet leaf water balance.
 
         Rate of change of water stored at each canopy layer (W) is as in Tanaka, 2002:
             (1) dW(z)/dt = F(1-W(z)/Wmax(z))I(z) - (W(z)/Wmax(z))E(z), I(z)=dPrec/dz=Fa(z)dz(1-W(z)/Wmax(z))Prec(z+dz) when E>0 (evaporation)
@@ -70,39 +73,40 @@ class Interception(object):
         perpendicular to Prec and Wmax(z) maximum water storage (mm) at each layer.
 
         Args:
-            dt: timestep [s]
+            dt (float): timestep [s]
             forcing (dict):
-                'net_lw_leaf' (array): net radiation balance at each layer [W m-2 (leaf)]
-                'sw_absorbed' (array): absorbed shortwave radiation at each layer [W m-2 (leaf)]
-                'precipitation' (float): precipitation rate above canopy [kg as-1]
-                'air_pressure' (float): ambient pressure [Pa]
-                'leaf_temperature' (array): average leaf temperature used in LW computation [degC]
-                'radiative_conductance' (array): radiative conductance [mol m-2 s-1]
-                'h2o' (array): [mol mol-1]
-                'wind_speed' (array): [m s-1]
-                'air_temperature' (array): [degC]
+                net_lw_leaf (array): net radiation balance at each layer [W m-2 (leaf)]
+                sw_absorbed (array): absorbed shortwave radiation at each layer [W m-2 (leaf)]
+                precipitation (float): precipitation rate above canopy [kg as-1]
+                air_pressure (float): ambient pressure [Pa]
+                leaf_temperature (array): average leaf temperature used in LW computation [degC]
+                radiative_conductance (array): radiative conductance [mol m-2 s-1]
+                h2o (array): [mol mol-1]
+                wind_speed (array): [m s-1]
+                air_temperature (array): [degC]
             parameters (dict):
                 LAIz (array): leaf area index per canopy layer [m2 m-2]
                 leaf_length (array): leaf length scale for aerodynamic resistance [m]
             controls (dict):
-                'energy_balance': bool
+                energy_balance (bool)
 
-        Returns (dict):
-            'throughfall' (float): total (rain + snow) throughfall at ground level [kg m-2 s-1]
-            'throughfall_rain' (float): rain throughfall at ground level[kg m-2 s-1]
-            'throughfall_snow' (float): snow throughfall at ground level[kg m-2 s-1]
-            'interception' (float): total interception rate in the canopy [kg m-2 s-1]
-            'evaporation'(float): total evaporation rate in the canopy [kg m-2 s-1]
-            'condensation' (float): total condensation rate in the canopy[kg m-2 s-1]
-            'condensation_drip' (float): condensation drip (like trhoughfall) [kg m-2 s-1]
-            'water_closure' (float): [kg m-2 s-1]
-            'sources': {'h2o': dqsource, [mol m-2 (ground) s-1]
-                        'sensible_heat': Heat / dt, [W m-2 (ground)]
-                        'fr': Fr / dt, [W m-2 (ground)]
-                        'latent_heat': dqsource * L}, [W m-2 (ground)]
-            'evaporation_ml' (array): evaporation/condensation rate in layers [kg m-2 s-1]
-            'throughfall_ml' (array): throughfall rate in layers [kg m-2 s-1]
-            'condensation_drip_ml' (array): condensation drip rate in layers [kg m-2 s-1]
+        Returns: 
+            (dict):
+                throughfall (float): total (rain + snow) throughfall at ground level [kg m-2 s-1]; 
+                throughfall_rain (float): rain throughfall at ground level[kg m-2 s-1]; 
+                throughfall_snow (float): snow throughfall at ground level[kg m-2 s-1]; 
+                interception (float): total interception rate in the canopy [kg m-2 s-1]; 
+                evaporation (float): total evaporation rate in the canopy [kg m-2 s-1]; 
+                condensation (float): total condensation rate in the canopy[kg m-2 s-1]; 
+                condensation_drip (float): condensation drip (like trhoughfall) [kg m-2 s-1]; 
+                water_closure (float): [kg m-2 s-1]; 
+                sources (dict): {'h2o': dqsource, [mol m-2 (ground) s-1]; 
+                        'sensible_heat': Heat / dt, [W m-2 (ground)]; 
+                        'fr': Fr / dt, [W m-2 (ground)]; 
+                        'latent_heat': dqsource * L}, [W m-2 (ground)]}; 
+                evaporation_ml (array): evaporation/condensation rate in layers [kg m-2 s-1]; 
+                throughfall_ml (array): throughfall rate in layers [kg m-2 s-1]; 
+                condensation_drip_ml (array): condensation drip rate in layers [kg m-2 s-1]
 
         """
         lt = np.maximum(EPS, parameters['leaf_length'])

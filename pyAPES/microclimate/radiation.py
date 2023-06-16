@@ -4,7 +4,7 @@
     :synopsis: pyAPES microclimate component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä
 
-Shortwave and longwave radiation transfer in multi-layer canopies.
+#Shortwave and longwave radiation transfer in multi-layer canopies#
 
 References:
     Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
@@ -23,6 +23,7 @@ References:
 
     NOAA solar calculator: https://www.esrl.noaa.gov/gmd/grad/solcalc/
     NOAA solar calculator equations: https://www.esrl.noaa.gov/gmd/grad/solcalc/solareqns.PDF
+
 """
 
 from builtins import range
@@ -37,21 +38,23 @@ from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, 
 logger = logging.getLogger(__name__)
 
 class Radiation(object):
-    r""" 
-    Radiation transfer (SW & LW) within horizontally homogeneous multi-layer canopy.
+    """
+    Short-wave (SW) & long-wave (LW) radiation transfer within horizontally homogeneous multi-layer canopy.
     """
     def __init__(self, p: Dict, Ebal: bool):
-        """
+        """ 
         Args:
             p (dict):
-                'clump': clumping index [-]
-                'leaf_angle': leaf-angle distribution [-]
-                'Par_alb': shoot Par-albedo [-]
-                'Nir_alb': shoot NIR-albedo [-]
-                'leaf_emi': 0.98
+                clump: [-], clumping index
+                leaf_angle: [-], leaf-angle distribution parameter
+                Par_alb: [-], shoot Par-albedo [-]
+                Nir_alb: [-], shoot NIR-albedo [-]
+                leaf_emi: [-], shoot emissivity
             Ebal (bool): True solves LW radiation
         Returns:
-            self (object)
+            (object):
+                self
+
         """
 
         # parameters
@@ -69,34 +72,37 @@ class Radiation(object):
         if Ebal:
             logger.info('Longwave radiation model: %s', self.LWmodel)
 
-    def shortwave_profiles(self, forcing, parameters):
-        r""" 
-        Computes distribution of within canopy shortwave radiation
-        using specified model.
+    def shortwave_profiles(self, forcing: Dict, parameters: Dict) -> Dict:
+        """ 
+        Computes distribution of within canopy shortwave radiation using specified model.
+        
+        Reference:
+            Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
+            to simulate shortwave radiation distribution within a homogenous plant
+            canopy. Water Resources Res. 41, W08409, 1-16.
+        
+        Note: The sunlit fraction at the ground should be computed as: f_sl[0] / clump
 
         Args:
             forcing (dict):
-                'zenith_angle': solar zenith angle [rad]
-                'dir_par'/'dir_nir': direct Par [Wm-2]
-                'diffSW': diffuse Par [Wm-2]
+                zenith_angle: solar zenith angle [rad]
+                radtype (dict): keys PAR | NIR 
+                        direct [W m-2]
+                        diffuse [W m-2]
             parameters (dict):
                 'LAIz': layewise one-sided leaf-area index [m2m-2]
                 'radiation_type': 'NIR' or 'PAR'
 
         Returns:
-            Q_sl (array): incident SW normal to sunlit leaves [W m-2]
-            Q_sh (array): incident SW normal to shaded leaves [W m-2]
-            q_sl (array): absorbed SW by sunlit leaves [W m-2(leaf)]
-            q_sh (array): absorbed SW by shaded leaves [W m-2(leaf)]
-            q_soil (array): absorbed SW by soil surface [W m-2(ground)]
-            f_sl (array): sunlit fraction of leaves [-]: Note: to get sunlit fraction below
-                all vegetation f_sl[0] / clump
-            SW_gr (float): incident SW at ground level [W m-2]
+            (tuple):
+                Q_sl (array): incident SW normal to sunlit leaves [W m-2]
+                Q_sh (array): incident SW normal to shaded leaves [W m-2]
+                q_sl (array): absorbed SW by sunlit leaves [W m-2(leaf)]
+                q_sh (array): absorbed SW by shaded leaves [W m-2(leaf)]
+                q_soil (array): absorbed SW by soil surface [W m-2(ground)]
+                f_sl (array): sunlit fraction of leaves [-]                
+                SW_gr (float): incident SW at ground level [W m-2]
 
-        References:
-            Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
-            to simulate shortwave radiation distribution within a homogenous plant
-            canopy. Water Resources Res. 41, W08409, 1-16.
         """
 
         radtype = parameters['radiation_type'].upper()
@@ -125,24 +131,9 @@ class Radiation(object):
         else:
             raise ValueError("Radiation type is not 'PAR' or 'NIR'")
 
-    def longwave_profiles(self, forcing, parameters):
-        r""" Computes distribution of within canopy longwave radiation
-        using specified model.
-
-        Args:
-            forcing (dict):
-                'leaf_temperature' (array): leaf temperature [degC]
-                'lw_in' (float): downwelling longwave raditiona above uppermost gridpoint [W m-2(ground)]
-                'lw_up' (float): upwelling longwave radiation below canopy (forest floor) [W m-2(ground)]
-            parameters (dict):
-                'LAIz' (array): layewise one-sided leaf-area index [m2 m-2]
-                'ff_emissivity' (float):
-        Returns:
-            profiles (dict):
-                'net_leaf_lw' (array): leaf net longwave radiation [W m-2(leaf)]
-                'lw_dn' (array): downwelling LW [W m-2]
-                'lw_up' (array): upwelling LW [W m-2]
-                'radiative_conductance' (array): radiative conductance [mol m-2 s-1]
+    def longwave_profiles(self, forcing: Dict, parameters: Dict) -> Dict:
+        """ 
+        Computes distribution of within canopy longwave radiation using specified model.
 
         References:
             Flerchinger et al. 2009. Simulation of within-canopy radiation exchange,
@@ -150,6 +141,23 @@ class Radiation(object):
             Zhao, W. and Qualls, R.J., 2006. Modeling of long‐wave and net radiation
             energy distribution within a homogeneous plant canopy via multiple scattering
             processes. Water resources research, 42(8).
+        
+        Args:
+            forcing (dict):
+                leaf_temperature (array): leaf temperature [degC]
+                lw_in (float): downwelling longwave raditiona above uppermost gridpoint [W m-2(ground)]
+                lw_up (float): upwelling longwave radiation below canopy (forest floor) [W m-2(ground)]
+            parameters (dict):
+                LAIz (array): layewise one-sided leaf-area index [m2 m-2]
+                ff_emissivity (float):
+
+        Returns:
+            (dict): profiles:
+                net_leaf_lw (array): leaf net longwave radiation [W m-2(leaf)]; 
+                lw_dn (array): downwelling LW [W m-2]; 
+                lw_up (array): upwelling LW [W m-2]; 
+                radiative_conductance (array): radiative conductance [mol m-2 s-1]; 
+
         """
 
 
@@ -193,22 +201,26 @@ class Radiation(object):
 def solar_angles(lat: float, lon: float, jday: float, timezone: float=+2.0) -> Tuple:
     """
     Zenith, azimuth and declination angles for given location and time
+
+    Reference: 
+        Algorithm based on NOAA solar calculator: https://www.esrl.noaa.gov/gmd/grad/solcalc/
+        Equations: https://www.esrl.noaa.gov/gmd/grad/solcalc/solareqns.PDF
+    
     Args:
         lat (float): decimal latitude [deg]
         lon (float): decimal longitude [deg]
         jday (float|array): decimal day of year
         timezone (float): >0 when east from Greenwich UTC
-    Returns:
-        zen (float|array): [rad], zenith angle
-        azim (float|array): [rad], azimuth angle
-        decl (float|array): [rad], declination angle
-        sunrise (float_array): [minutes of day], time of sunrise 
-        sunset (float|array): [minutes of day], time of sunset
-        daylength (float|array): [minutes]
 
-    Reference: 
-        Algorithm based on NOAA solar calculator: https://www.esrl.noaa.gov/gmd/grad/solcalc/
-        Equations: https://www.esrl.noaa.gov/gmd/grad/solcalc/solareqns.PDF
+    Returns:
+        (tuple):
+            zen (float|array): [rad], zenith angle
+            azim (float|array): [rad], azimuth angle
+            decl (float|array): [rad], declination angle
+            sunrise (float_array): [minutes of day], time of sunrise 
+            sunset (float|array): [minutes of day], time of sunset
+            daylength (float|array): [minutes]
+
     """
     lat0 = lat * DEG_TO_RAD
     jday = np.array(jday, ndmin=1)
@@ -264,6 +276,10 @@ def kbeam(zen: float, x: float=1.0) -> float:
     """
     Attenuation coefficient for direc beam Kb [-] for given solar zenith angle zen [rad]
     and leaf angle distribution x [-]
+
+    Reference: 
+        Campbell & Norman. 1998., Introduction to environmental biophysics
+
     Args:
         zen (float|array): [rad], solar zenith angle
         x (float): [-], leaf-angle distr. parameter
@@ -273,8 +289,6 @@ def kbeam(zen: float, x: float=1.0) -> float:
     Returns:
         Kb (float|aray): [-], beam attenuation coefficient
 
-    Reference: 
-        Campbell & Norman. 1998., Introduction to environmental biophysics
     """
 
     zen = np.array(zen)
@@ -288,10 +302,13 @@ def kbeam(zen: float, x: float=1.0) -> float:
 
     return Kb
 
-def kdiffuse(LAI: float, x: float=1.0):
+def kdiffuse(LAI: float, x: float=1.0) -> float:
     """
     Attenuation coefficient for isotropic diffuse ratioan Kd [-] obtained by integrating
-    beam attenuation coefficient over hemispherre
+    beam attenuation coefficient over hemisphere
+
+    Reference:
+        Campbell & Norman. 1998. Introduction to environmental biophysics, eq. 15.5
     Args:
         LAI (float): [m2 m-2], stand leaf (or plant) area index
         x (float): [-] leaf-angle distr. parameter
@@ -299,11 +316,9 @@ def kdiffuse(LAI: float, x: float=1.0):
                 x = 0 : vertical leaf-angle distr.
                 x = inf. : horizontal leaf-angle distr.
     Returns:
+        (float):
         Kd (float): [-], diffuse attenuation coefficient
-    USES:
-        kbeam(zen, x) for computing beam attenuation coeff.
-    Reference:
-        Campbell & Norman. 1998. Introduction to environmental biophysics, eq. 15.5
+
     """
 
     LAI = float(LAI)
@@ -330,6 +345,20 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     Computes short-wave (SW) radiation transfer inside horizontally homogeneous multi-layer canopy. Includes
     multiple reflections between foliage layers and soil surface.
 
+    Reference:
+        Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
+        to simulate shortwave radiation distribution within a homogenous plant
+        canopy. Water Resources Res. 41, W08409, 1-16.
+
+    Note: 
+        To get sunlit fraction below all vegetation: f_sl[0] / Clump.
+
+        At least for conifers NIR LeafAlbedo has to be decreased from leaf-scale  values to correctly 
+        model canopy albedo of clumped canopies. Adjustment from ~0.7 to 0.55 seems to be sufficient.
+        This corresponds roughlty to a=a_needle*[4*STAR / (1- a_needle*(1-4*STAR))], where a_needle is needle albedo
+        and STAR silhouette to total area ratio of a conifer shoot. STAR ~0.09-0.21 (mean 0.14)
+        for Scots pine (Smolander, Stenberg et al. -papers)
+
     Args:
         LAIz (array): [m2 m-2 (ground)], layewise one-sided leaf-area index
         Clump (float): [-], element clumping index
@@ -342,30 +371,18 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
         PlotFigs (bool): plot figures
 
     Returns:
-        SWbo (array): [W m-2 (ground)], direct radiation
-        SWdo (array): [W m-2 (ground)], downwelling diffuse radiation
-        SWuo (array): [W m-2 (ground)], upwelling diffuse
-        Q_sl (array): [W m-2 (leaf)] incident SW radiation normal to sunlit leaves
-        Q_sh: (array): [W m-2 (leaf)] incident SW radiation normal to shaded leaves
-        q_sl: (array): [W m-2 (leaf)], absorbed SW by sunlit leaves
-        q_sh: (array): [W m-2 (leaf)], absorbed SW by shaded leaves
-        q_soil (float): [W m-2 (ground)], absorbed SW by ground
-        f_sl: (array): [-] sunlit fraction of leaves: Note: to get sunlit fraction
-            below all vegetation: f_sl[0] / Clump
-        alb (array): [-] ecosystem SW albedo
-    USES:
-        kbeam(Zen,x), kdiffuse(LAI,x=1) for computing beam and diffuse attenuation coeff
+        (tuple):
+            SWbo (array): [W m-2 (ground)], direct radiation; 
+            SWdo (array): [W m-2 (ground)], downwelling diffuse radiation; 
+            SWuo (array): [W m-2 (ground)], upwelling diffuse; 
+            Q_sl (array): [W m-2 (leaf)] incident SW radiation normal to sunlit leaves; 
+            Q_sh: (array): [W m-2 (leaf)] incident SW radiation normal to shaded leaves; 
+            q_sl: (array): [W m-2 (leaf)], absorbed SW by sunlit leaves; 
+            q_sh: (array): [W m-2 (leaf)], absorbed SW by shaded leaves; 
+            q_soil (float): [W m-2 (ground)], absorbed SW by ground; 
+            f_sl: (array): [-] sunlit fraction of leaves; 
+            alb (array): [-] ecosystem SW albedo; 
     
-    Reference:
-        Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
-        to simulate shortwave radiation distribution within a homogenous plant
-        canopy. Water Resources Res. 41, W08409, 1-16.
-
-    NOTE: At least for conifers NIR LeafAlbedo has to be decreased from leaf-scale  values to correctly 
-        model canopy albedo of clumped canopies. Adjustment from ~0.7 to 0.55 seems to be sufficient.
-        This corresponds roughlty to a=a_needle*[4*STAR / (1- a_needle*(1-4*STAR))], where a_needle is needle albedo
-        and STAR silhouette to total area ratio of a conifer shoot. STAR ~0.09-0.21 (mean 0.14)
-        for Scots pine (Smolander, Stenberg et al. -papers)
     """
     # --- check inputs and create local variables
     IbSky = max(IbSky, 0.0001)
@@ -601,6 +618,20 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     """
     Computes profiles of incident and absorbed SW within horizontally homogeneous plant canopies
     using the analytic model of Spitters (1986) without explicit treatment of upward and downward scattering
+
+    Reference:
+        Spitters C.T.J. (1986): Separating the diffuse and direct component of global radiation
+        and its implications for modeling canopy photosynthesis part II: Calculation of canopy photosynthesis.
+        Agric. For. Meteorol. 38, 231-242.
+        Attenuation coefficients and canopy reflectance based on Campbell & Norman (1998): An introduction to environmental
+        biophysics, Springer.
+
+    Note:
+        At least for conifers NIR LeafAlbedo has to be decreased from leaf-scale values to correctly model canopy albedo of clumped canopies.
+        Adjustment from ~0.7 to 0.55 seems to be sufficient. This corresponds to a=a_needle*[4*STAR / (1- a_needle*(1-4*STAR))],
+        where a_needle is needle albedo and STAR silhouetteto total area ratio of a conifer shoot. STAR ~0.09-0.21 (mean 0.14) for
+        Scots pine. Still then overestimates NIR absorption in upper canopy layers, compared to canopy_sw_ZhaoQualls with explicit multiple scattering.
+        Assumes isotropic scattering and does not explicitly compute upward reflected SW.
     
     Args:
         LAIz (array): [m2 m-2 (ground)], layewise one-sided leaf-area index
@@ -614,32 +645,16 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
         PlotFigs (bool): plot figures
 
     Returns:
-        SWb (array): [W m-2 (ground)], direct radiation
-        SWd (array): [W m-2 (ground)], downwelling diffuse radiation
-        Q_sl (array): [W m-2 (leaf)] incident SW radiation normal to sunlit leaves
-        Q_sh: (array): [W m-2 (leaf)] incident SW radiation normal to shaded leaves
-        q_sl: (array): [W m-2 (leaf)], absorbed SW by sunlit leaves
-        q_sh: (array): [W m-2 (leaf)], absorbed SW by shaded leaves
-        q_soil (float): [W m-2 (ground)], absorbed SW by ground
-        f_sl: (array): [-] sunlit fraction of leaves: Note: to get sunlit fraction
-            below all vegetation: f_sl[0] / Clump
-        alb (array): [-] ecosystem SW albedo
-    
-    USES:
-        kbeam(Zen,x), kdiffuse(LAI,x=1) for computing beam and diffuse attenuation coeff
-
-    Reference:
-        Spitters C.T.J. (1986): Separating the diffuse and direct component of global radiation
-        and its implications for modeling canopy photosynthesis part II: Calculation of canopy photosynthesis.
-        Agric. For. Meteorol. 38, 231-242.
-        Attenuation coefficients and canopy reflectance based on Campbell & Norman (1998): An introduction to environmental
-        biophysics, Springer.
-    NOTE:
-        At least for conifers NIR LeafAlbedo has to be decreased from leaf-scale values to correctly model canopy albedo of clumped canopies.
-        Adjustment from ~0.7 to 0.55 seems to be sufficient. This corresponds to a=a_needle*[4*STAR / (1- a_needle*(1-4*STAR))],
-        where a_needle is needle albedo and STAR silhouetteto total area ratio of a conifer shoot. STAR ~0.09-0.21 (mean 0.14) for
-        Scots pine. Still then overestimates NIR absorption in upper canopy layers, compared to canopy_sw_ZhaoQualls with explicit multiple scattering.
-        Assumes isotropic scattering and does not explicitly compute upward reflected SW.
+        (tuple):
+            SWb (array): [W m-2 (ground)], direct radiation; 
+            SWd (array): [W m-2 (ground)], downwelling diffuse radiation; 
+            Q_sl (array): [W m-2 (leaf)] incident SW radiation normal to sunlit leaves; 
+            Q_sh: (array): [W m-2 (leaf)] incident SW radiation normal to shaded leaves; 
+            q_sl: (array): [W m-2 (leaf)], absorbed SW by sunlit leaves; 
+            q_sh: (array): [W m-2 (leaf)], absorbed SW by shaded leaves; 
+            q_soil (float): [W m-2 (ground)], absorbed SW by ground; 
+            f_sl: (array): [-] sunlit fraction of leaves; 
+            alb (array): [-] ecosystem SW albedo; 
 
     """
     # --- check inputs and create local variables
@@ -747,7 +762,15 @@ def compute_clouds_rad(doy: float, Zen: float, Rg: float, H2O: float, Tair: floa
     """
     Estimates atmospheric transmissivity, cloud cover fraction and fraction of 
     diffuse to total SW radiation from surface observations at a given location and time.
-    
+
+    References:
+        Cloudiness estimate is based on Song et al. 2009 JGR 114, 2009, Appendix A & C
+        Clear-sky emissivity as in Niemelä et al. 2001 Atm. Res 58: 1-18.
+        eq. 18 and cloud correction as Maykut & Church 1973.
+        Reasonable fit against Hyytiälä data (tested 20.6.13)
+
+    Note: values for Rg < 100 W/m2 linearly interpolated
+
     Args:
         doy (float|array): julian day
         Zen (float|array): [rad], sun zenith angle
@@ -755,18 +778,10 @@ def compute_clouds_rad(doy: float, Zen: float, Rg: float, H2O: float, Tair: floa
         H2O (float|array): [Pa], partial pressure of water vapor in the air
 
     Returns:
-        f_cloud (float|array): [-], cloud cover fraction
-        f_diff (float|array): [-], fraction of diffuse to total radiation
-        emi_sky (float|array): [-], atmospheric emissivity
+        f_cloud (float|array): [-], cloud cover fraction; 
+        f_diff (float|array): [-], fraction of diffuse to total radiation; 
+        emi_sky (float|array): [-], atmospheric emissivity; 
 
-    References:
-
-        Cloudiness estimate is based on Song et al. 2009 JGR 114, 2009, Appendix A & C
-        Clear-sky emissivity as in Niemelä et al. 2001 Atm. Res 58: 1-18.
-        eq. 18 and cloud correction as Maykut & Church 1973.
-        Reasonable fit against Hyytiälä data (tested 20.6.13)
-
-    Note: values for Rg < 100 W/m2 linearly interpolated
     """
 
     # solar constant at top of atm.
@@ -821,7 +836,10 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
     """
     Estimates long-wave (LW) radiation budget and net isothermal LW radiation within horizontally 
     homogeneous canopy. Assumes canopy elements as black bodies (es=1.0) at local air temperature
-    T(z). Neglects scattering etc.
+    T(z), i.e. neglects scattering.
+
+    Reference:
+       Adapted from Flerchinger et al. 2009. Simulation of within-canopy radiation exchange, NJAS 57, 5-15.
 
     Args:
        LAIz (array): [m2 m2(ground)], layer 1-sided leaf-area index
@@ -831,14 +849,12 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
        LWup0 (float): [W m-2 (ground)], upward LW at ground. LWup0=esurf*b*Tsurf^4
     
     Returns:
-       LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance
-       LWdn (array): [W m-2 (ground), downward LW profile in the canopy
-       LWup (array): [W m-2 (ground), upward LW profile in the canopy
-       gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance.
+        (tuple):
+            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance;
+            LWdn (array): [W m-2 (ground), downward LW profile in the canopy;
+            LWup (array): [W m-2 (ground), upward LW profile in the canopy;
+            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance.
     
-    Reference:
-       Adapted from Flerchinger et al. 2009. Simulation of within-canopy radiation exchange, NJAS 57, 5-15.
-       Assumes Tcan(z) = T(z) and neglects scattering (canopy elements treated as black bodies).
     """
 
     N = len(LAIz)  # Node 0 = ground
@@ -919,32 +935,31 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     """
     Long-wave (LW) radiation transfer within horizontally homogeneous plant canopies, accounting for 
     multiple scattering among the canopy layers and soil surface.
-    Estimates incident and absorbed LW profiles.
-
-     Args:
-       LAIz (array): [m2 m2(ground)], layer 1-sided leaf-area index. LAIz[-1] MUST be 0, i.e. domain expand above the canopy!
-       CLUMP (float): [-], clumping factor
-       x (float): [-] leaf-agle distribution parameter (1=spherical, 0=vertical, ->inf = horizontal)
-       Tleaf (array): [degC], leaf temperature
-       LWdn0 (float): [W m-2 (ground)], downward LW above canopy. LWdn0=eatm*b*Tatm^4
-       LWup0 (float): [W m-2 (ground)], upward LW at ground. LWup0=esurf*b*Tsurf^4
-       leaf_emi (float): [-], leaf emissivity 
-       soil_emi (float): [-], soil emissivity
-       PlotFigs (bool): plots profiles
-    
-    Returns:
-       LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance
-       LWdn (array): [W m-2 (ground), downward LW profile in the canopy
-       LWup (array): [W m-2 (ground), upward LW profile in the canopy
-       gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance.
-    Uses:
-      kdiffuse(LAI, x)
 
     Reference:
-      Zhao, W. and Qualls, R.J., 2006. Modeling of long‐wave and net radiation energy distribution 
-      within a homogeneous plant canopy via multiple scattering processes. Water resources research, 42(8).
+        Zhao, W. and Qualls, R.J., 2006. Modeling of long‐wave and net radiation energy distribution 
+        within a homogeneous plant canopy via multiple scattering processes. Water resources research, 42(8).
 
-      Flerchinger et al. 2009. NJAS 57, 5-15
+        Flerchinger et al. 2009. NJAS 57, 5-15
+
+    Args:
+        LAIz (array): [m2 m2(ground)], layer 1-sided leaf-area index. LAIz[-1] MUST be 0, i.e. domain expand above the canopy!
+        CLUMP (float): [-], clumping factor
+        x (float): [-] leaf-agle distribution parameter (1=spherical, 0=vertical, ->inf = horizontal)
+        Tleaf (array): [degC], leaf temperature
+        LWdn0 (float): [W m-2 (ground)], downward LW above canopy. LWdn0=eatm*b*Tatm^4
+        LWup0 (float): [W m-2 (ground)], upward LW at ground. LWup0=esurf*b*Tsurf^4
+        leaf_emi (float): [-], leaf emissivity 
+        soil_emi (float): [-], soil emissivity
+        PlotFigs (bool): plots profiles
+    
+    Returns:
+        (tuple):
+            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance;
+            LWdn (array): [W m-2 (ground), downward LW profile in the canopy;
+            LWup (array): [W m-2 (ground), upward LW profile in the canopy;
+            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance;
+
     """
     # original and computational grid
     LAI = Clump*sum(LAIz)  # effective LAI, corrected for clumping (m2 m-2)
@@ -1145,6 +1160,7 @@ def test_radiation_functions(LAIz: np.ndarray, Clump: float, Zen: float, x: floa
 
     Returns:
         None, plots figures
+
     """
 
     # define setup for testing models
