@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-.. module: canopy
-    :synopsis: pyAPES-model component
+.. module: mlm_canopy
+    :synopsis: pyAPES_MLM component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä, Olli-Pekka Tikkasalo
 
 * Radiation, energy, water and carbon exchange in multi-layer, multi-species canopy and forest floor*
@@ -162,14 +162,15 @@ class CanopyModel(object):
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
                 pt.update_daily(doy, Ta, PsiL=PsiL, Rew=Rew)  # updates pt properties
 
-        # total leaf area index [m2 m-2]
+        # canopy leaf area index [m2 m-2]
         self.LAI = sum([pt.LAI for pt in self.planttypes])
-        # total leaf area density [m2 m-3]
+        # canopy leaf area density [m2 m-3]
         self.lad = sum([pt.lad for pt in self.planttypes])
-         # layerwise mean leaf characteristic dimension [m]
-        self.leaf_length = sum([pt.leafp['lt'] * pt.lad for pt in self.planttypes]) / (self.lad + EPS)
-
-        """ normalized flow statistics in canopy with new lad """
+        # layerwise mean leaf characteristic dimension [m]
+        self.leaf_length = sum([pt.leafp['lt'] * pt.lad for pt in self.planttypes]) / (self.lad + EPS) 
+        # interception model vertical leaf-area [m2 m-2]
+        self.interception.LAIz = self.lad * self.dz
+        # normalized enselble flow statistics with new lad
         if self.Switch_Eflow and self.planttypes[0].Switch_lai:
             self.micromet.normalized_flow_stats(self.z, self.lad, self.hc)
 

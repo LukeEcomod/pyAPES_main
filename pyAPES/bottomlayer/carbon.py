@@ -29,7 +29,7 @@ class BryophyteFarquhar(object):
             - alpha [-], quantum efficiency
             - theta [-], curvature parameter
             - beta [-], co-limitation parameter
-            - gmax [mol m-2 (ground) s-1], conductance for CO2 at water content 'wref'
+            - gref [mol m-2 (ground) s-1], conductance for CO2 at water content 'wref'
             - wref [g g-1], parameter of conductance - water content relationship
             - a0 [-], parameter of conductance - water content curve
             - a1 [-], parameter of conductance - water content curve
@@ -126,13 +126,13 @@ def conductance(para: Dict, w: float) -> float:
         -- g [mol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] conductance for CO2
     """
  
-    gmax = para['gmax']
+    gref = para['gref']
     a0 = para['a0']
     a1 = para['a1']
-    wopt = para['wopt']
+    wref = para['wref']
     
     #g = gmax * np.minimum(1.0, a0*np.exp(a1*(w-wopt)) + (1.0 - a0))
-    g = gmax * (a0*np.exp(a1*(w-wopt)) + (1.0 - a0)) # this allows g to go above gmax in dry moss
+    g = gref * (a0*np.exp(a1*(w - wref)) + (1.0 - a0)) # this allows g to go above gmax in dry moss
     return g
 
 

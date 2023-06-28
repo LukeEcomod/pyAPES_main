@@ -3,7 +3,7 @@
 """
 .. module: constants
     :synopsis: APES-model component
-.. moduleauthor:: Kersti Haahti
+.. moduleauthor:: Kersti Leppä
 
 Constants used in soil module.
 

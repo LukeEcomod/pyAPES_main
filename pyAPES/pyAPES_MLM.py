@@ -41,9 +41,10 @@ import logging
 from pandas import date_range
 from typing import List, Tuple, Dict
 
-from tools.iotools import initialize_netcdf,  write_ncf
+from utils.iotools import initialize_netcdf,  write_ncf
 from canopy.mlm_canopy import CanopyModel
 from soil.soil import Soil
+
 from utils.constants import WATER_DENSITY
 
 def driver(parameters,

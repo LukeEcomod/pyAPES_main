@@ -1,50 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-I/O tools for handling CCFPeat simulations.
+.. module: utils.iotools
+    :synopsis: pyAPES component for data input/outputs
+.. moduleauthor:: Kersti Leppä, Antti-Jussi Kieloaho & Samuli Launiainen
 
-Created on Fri Jun 08 10:32:44 2018
-
-Note:
-    migrated to python3
-    - print >>out to print(file=out)
-
-@author: Kersti Haahti
 """
 
 import sys
 import os
 import pandas as pd
+import xarray as xr
 import numpy as np
 import json
-
-
-def write_ncf(nsim=None, results=None, ncf=None):
-    """ Writes model simultaion results in netCDF4-file
-
-    Args:
-        index (int): model loop index
-        results (dict): calculation results from group
-        ncf (object): netCDF4-file handle
-    """
-
-    keys = results.keys()
-    variables = ncf.variables.keys()
-
-    for key in keys:
-
-        if key in variables and key != 'time':
-            length = np.asarray(results[key]).ndim
-            # if key == 'canopy_planttypes':
-            #     print(key, length, type(results[key]), results[key], np.shape(ncf[key]))
-            if length > 1:
-                ncf[key][:, nsim, :] = results[key]
-            elif key == 'soil_z' or key == 'canopy_z' or \
-                 key == 'canopy_planttypes' or key == 'ffloor_groundtypes':
-                if nsim == 0:
-                    ncf[key][:] = results[key]
-            else:
-                ncf[key][:, nsim] = results[key]
-
+from typing import Dict, Tuple, List
 
 def initialize_netcdf(variables,
                       sim,
@@ -54,18 +22,20 @@ def initialize_netcdf(variables,
                       groundtypes,
                       time_index,
                       filepath='results/',
-                      filename='climoss.nc',
-                      description='Simulation results'):
-    """ Climoss netCDF4 format output file initialization
+                      filename='test.nc',
+                      description='pyAPES_MLM results'):
+    r"""
+    Creates pyAPES_MLM NetCDF4 format output file
 
     Args:
         variables (list): list of variables to be saved in netCDF4
         sim (int): number of simulations
         soil_nodes (int): number of soil calculation nodes
         canopy_nodes (int): number of canopy calculation nodes
-        time_index: time_index of default forcing data (pd.DataSeries)
-        filepath: path for saving results
-        filename: filename
+        time_index (np.datetimeindex): time_index of default forcing data (pd.DataSeries)
+        filepath (str): path for saving results
+        filename (str): filename
+        description (str): info
     """
     from netCDF4 import Dataset, date2num
     from datetime import datetime
@@ -115,27 +85,56 @@ def initialize_netcdf(variables,
 
     return ncf, ff
 
+def write_ncf(nsim=None, results=None, ncf=None):
+    r"""
+    Writes pyAPES_MLM results into NetCDF4-file
 
-def read_forcing(forc_filename, start_time, end_time,
-                 dt=1800.0, na_values='NaN', sep=';'):
-    """
-    Reads forcing data from to dataframe
     Args:
-        forc_filename (str): forcing file name
+        nsim (int): simulation index
+        results (dict): calculation results from group
+        ncf (object): netCDF4-file handle
+    """
+
+    keys = results.keys()
+    variables = ncf.variables.keys()
+
+    for key in keys:
+
+        if key in variables and key != 'time':
+            length = np.asarray(results[key]).ndim
+            # if key == 'canopy_planttypes':
+            #     print(key, length, type(results[key]), results[key], np.shape(ncf[key]))
+            if length > 1:
+                ncf[key][:, nsim, :] = results[key]
+            elif key == 'soil_z' or key == 'canopy_z' or \
+                 key == 'canopy_planttypes' or key == 'ffloor_groundtypes':
+                if nsim == 0:
+                    ncf[key][:] = results[key]
+            else:
+                ncf[key][:, nsim] = results[key]
+
+
+def read_forcing(forc_fp: str, start_time: str, end_time: str,
+                 dt: float=1800.0, na_values: str='NaN', sep: str=';') -> pd.DataFrame:
+    """
+    Reads model forcing data from csv-file to pd.DataFrame
+
+    Args:
+        forc_fp (str): forcing file path
         start_time (str): starting time [yyyy-mm-dd], if None first date in
             file used
         end_time (str): ending time [yyyy-mm-dd], if None last date
             in file used
         dt (float): time step [s], if given checks
             that dt in file is equal to this
-        na_values (str/float): nan value representation in file
+        na_values (str|float): nan value representation in file
         sep (str): field separator
     Returns:
-        Forc (dataframe): dataframe with datetime as index and cols read from file
+        Forc (pd.DataFrame): dataframe with datetimeindex and columns read from file
     """
 
     # filepath
-    forc_fp = "forcing/" + forc_filename
+    #forc_fp = "forcing/" + forc_filename
     dat = pd.read_csv(forc_fp, header='infer', na_values=na_values, sep=sep)
 
     # set to dataframe index
@@ -151,13 +150,14 @@ def read_forcing(forc_filename, start_time, end_time,
 
     cols = ['doy', 'Prec', 'P', 'Tair', 'Tdaily', 'U', 'Ustar', 'H2O', 'CO2', 'Zen',
             'LWin', 'diffPar', 'dirPar', 'diffNir', 'dirNir']
-    # these for phenology model initialization
+    
+    # these needed for phenology model initialization
     if 'X' in dat:
         cols.append('X')
     if 'DDsum' in dat:
         cols.append('DDsum')
 
-    # Forc dataframe from specified columns
+    # Create dataframe from specified columns
     Forc = dat[cols].copy()
 
     # Check time step if specified
@@ -168,9 +168,23 @@ def read_forcing(forc_filename, start_time, end_time,
 
     return Forc
 
-def read_data(ffile, start_time=None, end_time=None, na_values='NaN', sep=';'):
-
+def read_data(ffile: str, start_time: str=None, end_time: str=None, na_values: str='NaN', sep: str=';') -> pd.DataFrame:
+    r"""
+    Reads csv-datafile into pd.DataFrame
+    Args:
+        ffile (str): filepath
+        start_time (str): starting time [yyyy-mm-dd], if None first date in
+            file used
+        end_time (str): ending time [yyyy-mm-dd], if None last date
+            in file used
+        na_values (str|float): nan value representation in file
+        sep (str): field separator
+    Returns:
+        dat (pd.DataFrame): dataframe with datetimeindex and columns read from file
+    """
+    
     dat = pd.read_csv(ffile, header='infer', na_values=na_values, sep=sep)
+    
     # set to dataframe index
     tvec = pd.to_datetime(dat[['year', 'month', 'day', 'hour', 'minute']])
     tvec = pd.DatetimeIndex(tvec)
@@ -188,17 +202,13 @@ def read_data(ffile, start_time=None, end_time=None, na_values='NaN', sep=';'):
 
 def read_results(outputfiles):
     """
-    Opens simulation results netcdf4 dataset in xarray
-    (or multiple in list of xarrays)
+    Opens simulation results from NetCDF4 dataset(s) in xr dataset(s)
     Args:
-        outputfiles (str or list of str):
-            outputfilename or list of outputfilenames
+        outputfiles (str|list):
     Returns:
-        results (xarray or list of xarrays):
+        results (xarray|list of xarrays):
             simulation results from given outputfile(s)
     """
-
-    import xarray as xr
 
     if type(outputfiles) != list:
         outputfiles = [outputfiles]

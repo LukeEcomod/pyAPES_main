@@ -29,11 +29,10 @@ class RootUptake(object):
 
         Args:
             p (dict):
-                'root_depth': depth of rooting zone [m]
-                'beta': shape parameter for root distribution model [-]
-                'RAI_LAI_multiplier': multiplier for total fine root area index (RAI = 2*LAImax)
-                'fine_radius': fine root radius [m]
-                'radial_K': maximum bulk root membrane conductance in radial direction [s-1]
+                root_depth: depth of rooting zone [m]
+                beta: shape parameter for root distribution model [-]
+                root_to_leaf_ratio: multiplier for total fine root area index (RAI = 2*LAImax)
+                root_radius: fine root radius [m]
             dz_soil (array): thickness of soilprofile layers from top to bottom [m]
             LAImax (float): maximum leaf area index [m2 m-2]
         Returns:
@@ -41,9 +40,9 @@ class RootUptake(object):
         """
         # parameters
         self.root_depth = p['root_depth']
-        self.fine_radius = p['fine_radius']  # fine root radius [m]
-        self.root_cond = p['root_cond']  # [s]
-        self.RAI = p['RAI_LAI_multiplier']*LAImax  # total fine root area index (m2/m2)
+        self.fine_radius = p['root_radius']  # fine root radius [m]
+        self.root_cond = p['root_conductance']  # [s]
+        self.RAI = p['root_to_leaf_ratio']*LAImax  # total fine root area index (m2/m2)
         self.rad = self.RAI * RootDistribution(p['beta'], dz_soil, p['root_depth'])
         self.ix = np.where(np.isfinite(self.rad))
         self.dz = dz_soil[self.ix]

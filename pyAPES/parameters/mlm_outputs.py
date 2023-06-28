@@ -1,6 +1,8 @@
-# -*- coding: utf-8 -*-
 """
-GENERAL PARAMETERS FOR RUNNING pyAPES
+.. module: pyAPES.parameters.mlm_outputs
+    :synopsis: pyAPES_MLM NetCSF4 outputs and logger configuration
+.. moduleauthor:: Samuli Launiainen
+
 """
 
 output_variables = {'variables': [# variable name, description [units], (dimensions)
@@ -44,6 +46,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_SWnet', 'net shortwave radiation balance at canopy top [W m-2]', ('date', 'simulation')],
       ['canopy_LWnet', 'net longwave radiation balance at canopy top [W m-2]', ('date', 'simulation')],
       ['canopy_Rnet', 'net radiation balance at canopy top [W m-2]', ('date', 'simulation')],
+   
       # leaf scale, per m-2 leaf
       ['canopy_leaf_net_LW', 'net leaf longwave radiation [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_leaf_net_SW', 'net leaf shortwave radiation [W m-2]', ('date', 'simulation', 'canopy')],
@@ -51,6 +54,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_par_absorbed_shaded', 'absorbed PAR of shaded leaves [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_nir_absorbed_sunlit', 'absorbed NIR of sunlit leaves [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_nir_absorbed_shaded', 'absorbed NIR of shaded leaves [W m-2]', ('date', 'simulation', 'canopy')],
+   
       # vertical profiles, per m-2 ground
       ['canopy_par_down', 'downward PAR [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_par_up', 'upward PAR [W m-2]', ('date', 'simulation', 'canopy')],
@@ -84,10 +88,10 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_latent_heat_flux', 'latent heat flux [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_sensible_heat_flux', 'sensible heat flux [W m-2]', ('date', 'simulation', 'canopy')],
 
-      # root sink profile: Kersti - this should be taken out from Soil? Now len(rootsink) != len(Soil.z)
+      # root sink profile (all PlantTypes combined)
       #['canopy_root_sink', 'root water uptake profile [m s-1]', ('date', 'simulation', 'soil')],
 
-      # planttype -specific outputs: lists of length 'planttype'
+      # planttype -specific outputs
       ['pt_total_gpp', 'gross-primary productivity [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
 #      ['pt_total_dark_respiration', 'dark (or leaf + wood?) respiration [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_transpiration', 'transpiration [kg m-2 s-1]', ('date', 'simulation', 'planttype')],
@@ -95,7 +99,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
 #      ['pt_total_boundary_conductance_h2o', 'leaf boundary layer conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_root_water_potential', 'root water potential [m?]', ('date', 'simulation', 'planttype')], # CHECK UNITS!!!
 
-      # vertical profiles: lists of length 'planttype'; layers where lad == 0 are set to np.NaN
+      # vertical profiles: layers where planttype lad == 0 are set to np.NaN
       ['pt_leaf_temperature', 'leaf temperature mean [degC]', ('date', 'simulation', 'planttype', 'canopy')],
       ['pt_leaf_temperature_sunlit', 'leaf temperature, sunlit leaves [degC]', ('date', 'simulation', 'planttype', 'canopy')],
       ['pt_leaf_temperature_shaded', 'leaf temperature, shaded leaves [degC]', ('date', 'simulation', 'planttype', 'canopy')],
@@ -140,12 +144,14 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['soil_energy_closure', 'soil heat balance error [W m-2]', ('date', 'simulation')],
 
       # forest floor outputs
+      # energy fluxes
       ['ffloor_net_radiation', 'net radiation (forest floor) [W m-2]', ('date', 'simulation')],
       ['ffloor_sensible_heat', 'sensible heat flux (forest floor) [W m-2]', ('date', 'simulation')],
       ['ffloor_latent_heat', 'latent heat flux (forest floor) [W m-2]', ('date', 'simulation')],
       ['ffloor_ground_heat', 'ground heat flux (forest floor) [W m-2]', ('date', 'simulation')],
       ['ffloor_energy_closure', "energy balance error (forest floor) [W m-2]", ('date', 'simulation')],
 
+      # water fluxes
       ['ffloor_evaporation', 'evaporation (forest floor) [kg m-2 s-1]', ('date', 'simulation')],
       ['ffloor_soil_evaporation', 'evaporation (soil) [kg m-2 s-1]', ('date', 'simulation')],
       ['ffloor_throughfall', 'throughfall, potential infiltration (forest floor)) [kg m-2 s-1]', ('date', 'simulation')],
@@ -154,11 +160,13 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['ffloor_pond_recharge', 'recharge from pond storage (forest floor) [kg m-2 s-1]', ('date', 'simulation')],
       ['ffloor_water_closure', "water balance error (forest floor) [kg m-2 s-1]", ('date', 'simulation')],
 
+      # carbon fluxes
       ['ffloor_net_co2', 'net co2 flux (forest floor) [umol m-2(ground) s-1]', ('date', 'simulation')],
       ['ffloor_photosynthesis', 'photosynthesis rate (forest floor) [umol m-2(ground) s-1]', ('date', 'simulation')],
       ['ffloor_respiration', 'respiration rate (forest floor) [umol m-2(ground) s-1]', ('date', 'simulation')],
       ['ffloor_soil_respiration', 'soil respiration rate (below forest floor) [umol m-2(ground) s-1]', ('date', 'simulation')],
 
+      # forest floor state  
       ['ffloor_surface_temperature', 'temperature (forest floor) [deg C]', ('date', 'simulation')],
       ['ffloor_water_storage', 'water storage (forest floor) [kg m-2]', ('date', 'simulation')],
       ['ffloor_snow_water_equivalent', 'snow water equivalent (forest floor) [kg m-2]', ('date', 'simulation')],
@@ -167,6 +175,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['ffloor_groundtypes', 'forestfloor groundtype names', ('groundtype')],
 
       # ground-type specific outputs
+      # energy
       ['gt_net_radiation', 'net radiation [W m-2]', ('date', 'simulation', 'groundtype')],
       ['gt_sensible_heat', 'sensible heat flux [W m-2]', ('date', 'simulation', 'groundtype')],
       ['gt_latent_heat', 'latent heat flux [W m-2]', ('date', 'simulation', 'groundtype')],
@@ -174,7 +183,8 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['gt_conducted_heat', 'conducted heat flux to moss [W m-2]', ('date', 'simulation', 'groundtype')],
       ['gt_heat_advection', 'advected heat  [W m-2]', ('date', 'simulation', 'groundtype')],
       ['gt_energy_closure', "energy balance error [W m-2]", ('date', 'simulation', 'groundtype')],
-
+      
+      # water fluxes
       ['gt_evaporation', 'evaporation [kg m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_interception', 'interception rate [kg m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_capillary_rise', 'capillary rise [kg m-2 s-1]', ('date', 'simulation', 'groundtype')],
@@ -182,12 +192,14 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['gt_throughfall', 'throughfall  [kg m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_water_closure', 'water balance error  [kg m-2 s-1]', ('date', 'simulation', 'groundtype')],
 
+      # carbon fluxes  
       ['gt_net_co2', 'net co2 flux  [umol m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_photosynthesis', 'photosynthesis_rate [umol m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_respiration', 'respiration_rate [umol m-2 s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_internal_co2', 'internal co2 mixing ratio [ppm]]', ('date', 'simulation', 'groundtype')],
       ['gt_conductance_co2', 'air-moss conductance for co2 [mol m-2 s-1]', ('date', 'simulation', 'groundtype')],
 
+      # organic layer object's state  
       ['gt_temperature', 'temperature [degC]', ('date', 'simulation', 'groundtype')],
       ['gt_surface_temperature', 'surface temperature [degC]', ('date', 'simulation', 'groundtype')],
       ['gt_water_content', 'water content [g g-1]', ('date', 'simulation', 'groundtype')],
@@ -200,7 +212,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
 
 }
 
-# --- logger configuration. Antti / Kersti: add option to define logger output file name?
+# --- logger configuration. Note! add option to define logger output file name?
 logging_configuration = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -233,11 +245,36 @@ logging_configuration = {
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'soil':{
+                'microclimate':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': True,
+                        },                        
+                'planttype':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
+                'leaf':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': True,
+                        },
+                'snow':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': True,
+                        },
+                'bottomlayer':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': True,
+                        },
+                'soil':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': True,
+                        },                        
                 },
         }
 

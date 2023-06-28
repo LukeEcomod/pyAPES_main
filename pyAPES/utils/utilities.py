@@ -1,32 +1,43 @@
 # -*- coding: utf-8 -*-
 """
-General utility functions
+.. module: utils.utilities
+    :synopsis: pyAPES component
+.. moduleauthor:: Kersti Leppä, Samuli Launiainen
 
-Note:
-    migrated to python3
-    - nothing changed
-
-@author: Kersti Haahti
+General utility functions for numerical solutions of 1D ODE's and PDE's
 """
 
 import numpy as np
 
-def forward_diff(y, dx):
+def forward_diff(y: np.ndarray, dx: float) -> np.ndarray:
     """
-    computes gradient dy/dx using forward difference
-    assumes dx is constatn
+    Computes gradient dy/dx using forward difference method.
+    
+    Args:
+        y (array): variable
+        dx (float): grid size (must be constant)
+    Returns (array):
+        dy/dx: gradient
+
     """
     N = len(y)
     dy = np.ones(N) * np.NaN
     dy[0:-1] = np.diff(y)
     dy[-1] = dy[-2]
+
     return dy / dx
 
 
-def central_diff(y, dx):
+def central_diff(y, dx) -> np.ndarray:
     """
-    computes gradient dy/dx with central difference method
-    assumes dx is constant
+    Computes gradient dy/dx with central difference method
+
+    Args:
+        y (array): variable
+        dx (float): grid size (must be constant)
+    Returns (array):
+        dy/dx: gradient
+
     """
     N = len(y)
     dydx = np.ones(N) * np.NaN
@@ -39,9 +50,9 @@ def central_diff(y, dx):
 
     return dydx
 
-def tridiag(a, b, C, D):
+def tridiag(a: np.ndarray, b: np.ndarray, C: np.ndarray, D: np.ndarray) -> np.ndarray:
     """
-    tridiagonal matrix algorithm
+    Solves tridiagonal matrix using Thomas - algorithm
     a=subdiag, b=diag, C=superdiag, D=rhs
     """
     n = len(a)
@@ -65,10 +76,16 @@ def tridiag(a, b, C, D):
         x[i] = U[i] - G[i] * x[i + 1]
     return x
 
-def smooth(a, WSZ):
+def smooth(a: np.ndarray, WSZ: int) -> np.ndarray:
     """
-    smooth a by taking WSZ point moving average.
-    NOTE: even WSZ is converted to next odd number.
+    Smooths array by taking WSZ point moving average.
+    Note: even WSZ is converted to next odd number.
+    
+    Args: 
+        a (array): vector
+        WSZ (int): number of points for moving average
+    Returns
+        x (array): smoothed vector of len(a)
     """
     WSZ = int(np.ceil(WSZ) // 2 * 2 + 1)
     out0 = np.convolve(a, np.ones(WSZ, dtype=int), 'valid') / WSZ
@@ -78,19 +95,21 @@ def smooth(a, WSZ):
     x = np.concatenate((start, out0, stop))
     return x
 
-def spatial_average(y, x=None, method='arithmetic'):
+def spatial_average(y: np.ndarray, x: np.ndarray=None, method: str='arithmetic'):
     """
-    Calculates spatial average of quantity y, from node points to soil compartment edges
+    Calculates spatial average of quantity y, from node points to soil compartment edges.
+
     Args: 
         y (array): quantity to average
-        x (array): grid,<0, monotonically decreasing [m]
-        method (str): flag for method 'arithmetic', 'geometric','dist_weighted'
+        x (array): grid,<0, must be monotonically decreasing [m]
+        method (str): 'arithmetic', 'geometric','dist_weighted'
     Returns: 
         f (array): averaged y, note len(f) = len(y) + 1
     """
 
     N = len(y)
     f = np.empty(N+1)  # Between all nodes and at surface and bottom
+
     if method is 'arithmetic':
         f[1:-1] = 0.5*(y[:-1] + y[1:])
         f[0] = y[0]
@@ -101,36 +120,37 @@ def spatial_average(y, x=None, method='arithmetic'):
         f[0] = y[0]
         f[-1] = y[-1]
 
-    elif method is 'dist_weighted':                                             # En ymmärrä, ei taida olla käyttössä
-        a = (x[0:-2] - x[2:])*y[:-2]*y[1:-1]
-        b = y[1:-1]*(x[:-2] - x[1:-1]) + y[:-2]*(x[1:-1] - x[2:])
-
-        f[1:-1] = a / b
-        f[0] = y[0]
-        f[-1] = y[-1]
+    #elif method is 'dist_weighted':  # not in use
+    #    a = (x[0:-2] - x[2:])*y[:-2]*y[1:-1]
+    #    b = y[1:-1]*(x[:-2] - x[1:-1]) + y[:-2]*(x[1:-1] - x[2:])
+    #
+    #    f[1:-1] = a / b
+    #    f[0] = y[0]
+    #    f[-1] = y[-1]
 
     return f
 
-def lad_weibul(z, LAI, h, hb=0.0, b=None, c=None, species=None):
+def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float=0.0,
+               b: float=None, c: float=None, species: str=None) -> np.ndarray:
     """
-    Generates leaf-area density profile from Weibull-distribution
-    Args:
-        z: height array (m), monotonic and constant steps
-        LAI: leaf-area index (m2m-2)
-        h: canopy height (m), scalar
-        hb: crown base height (m), scalar
-        b: Weibull shape parameter 1, scalar
-        c: Weibull shape parameter 2, scalar
-        species: 'pine', 'spruce', 'birch' to use table values
-    Returns:
-        LAD: leaf-area density (m2m-3), array \n
+    Generates leaf-area density profile from Weibull-distribution.
+
     SOURCE:
         Teske, M.E., and H.W. Thistle, 2004, A library of forest canopy structure for 
         use in interception modeling. Forest Ecology and Management, 198, 341-350. 
-        Note: their formula is missing brackets for the scale param.
-        Here their profiles are used between hb and h
-    AUTHOR:
-        Gabriel Katul, 2009. Coverted to Python 16.4.2014 / Samuli Launiainen
+    Note: their formula is missing brackets for the scale param. Here their profiles are used between hb and h.
+    Args:
+        z (array): [m] monotonically increasing, constant step
+        LAI (float): [m2 m-2] leaf-area index
+        h (float): [m] canopy height
+        hb (float): [m] crown base height
+        b (float): Weibull shape parameter 1
+        c (float): Weibull shape parameter 2
+        species (str): 'pine', 'spruce', 'birch' to use table values for b, c
+
+    Returns:
+        LAD (array): [m2 m-3] leaf-area density
+
     """
     
     para = {'pine': [0.906, 2.145], 'spruce': [2.375, 1.289], 'birch': [0.557, 1.914]} 
@@ -165,18 +185,18 @@ def lad_weibul(z, LAI, h, hb=0.0, b=None, c=None, species=None):
     # plt.plot(LAD,z,'r-')      
     return LAD
 
-def lad_constant(z, LAI, h, hb=0.0):
+def lad_constant(z: np.ndarray, LAI: float, h: float, hb: float=0.0):
     """
-    creates constant leaf-area density distribution from ground to h.
+    Creates uniform leaf-area density distribution.
 
-    INPUT:
-        z: height array (m), monotonic and constant steps
-        LAI: leaf-area index (m2m-2)
-        h: canopy height (m), scalar
-        hb: crown base height (m), scalar
-     OUTPUT:
-        LAD: leaf-area density (m2m-3), array
-    Note: LAD must cover at least node 1
+    Args:
+        z (array): [m] monotonically increasing, constant step
+        LAI (float): [m2 m-2] leaf-area index
+        h (float): [m] canopy height
+        hb (float): [m] crown base height
+    Returns:
+        LAD (array): [m2 m-3] leaf-area density
+
     """
     if max(z) <= h:
         raise ValueError("h must be lower than uppermost gridpoint")
@@ -184,14 +204,6 @@ def lad_constant(z, LAI, h, hb=0.0):
     z = np.array(z)
     dz = abs(z[1]-z[0])
     N = np.size(z)
-    
-#    # dummy variables
-#    a = np.zeros(N)
-#    x = z[z <= h] / h  # normalized heigth
-#    n = np.size(x)
-#
-#    if n == 1: n = 2
-#    a[1:n] = 1.0
     
     # dummy variables
     a = np.zeros(N)
@@ -202,4 +214,7 @@ def lad_constant(z, LAI, h, hb=0.0):
     a[ix] = 1.0
     a = a / sum(a*dz)
     LAD = LAI * a
+
     return LAD
+
+# EOF

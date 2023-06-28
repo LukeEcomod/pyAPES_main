@@ -4,7 +4,7 @@
     :synopsis: pyAPES-model microclimate component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä, Gaby Katul
 
-#Turbulent and laminar flow, momentum & scalar transport within multi-layer canopies#
+#Turbulent and laminar flow, momentum & scalar transport within 1D multi-layer canopies#
 
 References:
     Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
@@ -59,7 +59,7 @@ class Micromet(object):
         self.Cd = p['Cd']  # drag coefficient
         self.Utop = p['Utop']  # ensemble U/ustar
         self.Ubot = p['Ubot']  # lower boundary
-        self.Sc = p['Sc']  # Schmidt numbers
+        self.Sc = p['Sc']  # turbulent Schmidt numbers
         self.dz = z[1] - z[0]
 
         # initialize state variables

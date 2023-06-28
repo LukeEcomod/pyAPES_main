@@ -48,17 +48,17 @@ def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
 
     Args:
         photop (dict): leaf gas-exchange parameters
-            'Vcmax': [umol m-2 s-1] maximum carboxylation velocity at 25C
-            'Jmax': [umol m-2 s-1] maximum rate of electron transport at 25C
-            'Rd': [umol m-2 s-1] dark respiration rate at 25C
-            'alpha': apparent quantum yield parameter
-            'theta': [-] co-limitation parameter of Farquhar-model
-            'La': stomatal parameter (Lambda, m [-], ...) depending on model
-            'g1': [kPa^0.5] stomatal slope parameter of USO -model
-            'g0': [mol m-2 s-1] residual conductance for CO2
-            #'kn': [-] nitrogen attenuation factor in canopy, Not used ??
-            'beta': [-] co-limitation parameter of Farquhar-model
-            'drp': drought response parameters of Medlyn stomatal model and apparent Vcmax
+            Vcmax: [umol m-2 s-1] maximum carboxylation velocity at 25C
+            Jmax: [umol m-2 s-1] maximum rate of electron transport at 25C
+            Rd: [umol m-2 s-1] dark respiration rate at 25C
+            alpha: apparent quantum yield parameter
+            theta: [-] co-limitation parameter of Farquhar-model
+            La: stomatal parameter (Lambda, m [-], ...) depending on model
+            g1: [kPa^0.5] stomatal slope parameter of USO -model
+            g0: [mol m-2 s-1] residual conductance for CO2
+            #kn: [-] nitrogen attenuation factor in canopy, Not used ??
+            beta: [-] co-limitation parameter of Farquhar-model
+            drp: drought response parameters of Medlyn stomatal model and apparent Vcmax
                  list: [Rew_crit_g1, slope_g1, Rew_crit_appVcmax, slope_appVcmax]
             tresp' (dict): parameters of photosynthetic temperature response curve
                 - Vcmax (list): [activation energy [kJ mol-1], 
@@ -72,47 +72,47 @@ def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
                 - Rd (list): [activation energy [kJ mol-1]
         
         leafp (dict): leaf properties
-            'lt': leaf lengthscale [m]
+            lt: leaf lengthscale [m]
         
         forcing (dict):
-            'h2o': water vapor mixing ratio [mol mol-1]
-            'co2': carbon dioxide mixing ratio [ppm]]
-            'air_temperature': ambient air temperature [degC]
-            'par_incident': incident PAR at leaves [umol m-2 s-1] 
-            'sw_absorbed': absorbed SW (PAR + NIR) at leaves [W m-2]
-            'lw_net': net isothermal long-wave radiation [W m-2]
-            'wind_speed': mean wind speed [m s-1]
-            'air_pressure': ambient pressure [Pa]
-            'leaf_temperature': initial guess for leaf temperature (optional) [degC]
-            'average_leaf_temperature': leaf temperature used for computing LWnet (optional) [degC]
-            'radiative_conductance': radiative conductance used in computing LWnet (optional) [degC]
+            h2o: water vapor mixing ratio [mol mol-1]
+            co2: carbon dioxide mixing ratio [ppm]]
+            air_temperature: ambient air temperature [degC]
+            par_incident: incident PAR at leaves [umol m-2 s-1] 
+            sw_absorbed: absorbed SW (PAR + NIR) at leaves [W m-2]
+            lw_net: net isothermal long-wave radiation [W m-2]
+            wind_speed: mean wind speed [m s-1]
+            air_pressure: ambient pressure [Pa]
+            leaf_temperature: initial guess for leaf temperature (optional) [degC]
+            average_leaf_temperature: leaf temperature used for computing LWnet (optional) [degC]
+            radiative_conductance: radiative conductance used in computing LWnet (optional) [degC]
 
         controls (dict):
-            'photo_model' (str): photosysthesis model
+            photo_model (str): photosysthesis model
                 CO_OPTI (Vico et al., 2014)
-                #MEDLYN (Medlyn et al., 2011 with co-limitation Farquhar)
+                # MEDLYN (Medlyn et al., 2011 with co-limitation Farquhar)
                 MEDLYN_FARQUHAR Medlyn et al., 2011 with co-limitation Farquhar)
                 BWB (Ball et al., 1987 with co-limitation Farquhar)
-            'energy_balance' (bool): True -> computes leaf temperature by solving energy balance
+            energy_balance (bool): True -> computes leaf temperature by solving energy balance
         dict_output (bool): True -> returns output as dict, False as separate arrays (optional)
         logger_info (str): optional
 
     OUTPUT:
         (dict):
-            'net_co2': net CO2 flux (umol m-2 leaf s-1)
-            'dark_respiration': CO2 respiration (umol m-2 leaf s-1)
-            'transpiration': H2O flux (transpiration) (mol m-2 leaf s-1)
-            'sensible_heat': sensible heat flux (W m-2 leaf)
-            'fr': non-isothermal radiative flux (W m-2)
-            'Tl': leaf temperature (degC)
-            'stomatal_conductance': stomatal conductance for H2O (mol m-2 leaf s-1)
-            'boundary_conductance': boundary layer conductance for H2O (mol m-2 leaf s-1)
-            'leaf_internal_co2': leaf internal CO2 mixing ratio (mol/mol)
-            'leaf_surface_co2': leaf surface CO2 mixing ratio (mol/mol)
+            net_co2: net CO2 flux (umol m-2 leaf s-1)
+            dark_respiration: CO2 respiration (umol m-2 leaf s-1)
+            transpiration: H2O flux (transpiration) (mol m-2 leaf s-1)
+            sensible_heat: sensible heat flux (W m-2 leaf)
+            fr: non-isothermal radiative flux (W m-2)
+            Tl: leaf temperature (degC)
+            stomatal_conductance: stomatal conductance for H2O (mol m-2 leaf s-1)
+            boundary_conductance: boundary layer conductance for H2O (mol m-2 leaf s-1)
+            leaf_internal_co2: leaf internal CO2 mixing ratio (mol/mol)
+            leaf_surface_co2: leaf surface CO2 mixing ratio (mol/mol)
 
-    NOTE: Vectorized code can be used in multi-layer sense where inputs are vectors of equal length
+    Note: Vectorized code can be used in multi-layer sense where inputs are vectors of equal length
     
-    NOTE: NOT currently used in pyAPES-MLM! There coupled leaf energy balance is solved in planttype.PlantType.leaf_gas_exchange()
+    Note: NOT currently used in pyAPES-MLM! There coupled leaf energy balance is solved in planttype.PlantType.leaf_gas_exchange()
 
     """
 

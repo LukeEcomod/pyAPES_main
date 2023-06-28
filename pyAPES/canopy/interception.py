@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 
 class Interception(object):
     r"""
-    Describes interception in multilayer canopy.
+    Describes rainfall and snow interception and evaporation in a multilayer canopy.
     """
     def __init__(self, p: Dict, LAIz: np.ndarray) -> object:
         r"""
-        Interception model
+        Multi-layer interception model
 
         Args:
             p (dict):
@@ -38,7 +38,7 @@ class Interception(object):
                 wmaxsnow (float): maximum interception storage capacity for snow [kg water m-2 per unit of LAI]
                 Tmin (float): temperature below which all is snow [degC]
                 Tmax (float): temperature above which all is water [degC]
-                w_ini (array): initial canopy storage [kg water in model layer m-2 (ground)]
+                w_ini (array): initial canopy storage, fraction of maximum [-]
             LAIz (array): leaf area index per canopy layer [m2 m-2]
         
         Returns:
@@ -49,6 +49,9 @@ class Interception(object):
         self.wmax = p['wmax']  # for rainfall
         self.wmaxsnow = p['wmaxsnow']  # for snowfall
 
+        # amount of leaves per layer [m2 m-2 (ground)]
+        self.LAIz = LAIz
+
         # quality of precipitation depends on temperature[degC]
         self.Tmin = p['Tmin']
         self.Tmax = p['Tmax']
@@ -56,9 +59,10 @@ class Interception(object):
         # Mean leaf orientation factor with respect to incident Prec (horizontal leaves -> 1)
         self.leaf_orientation = p['leaf_orientation']
 
-        # initial water storage [kg m-2 s-1]
-        self.W = np.minimum(p['w_ini'], p['wmax'] * LAIz)
-
+        # initial water storage [kg m-2]
+        #self.W = np.minimum(p['w_ini'], p['wmax'] * self.LAIz)
+        self.W = p['w_ini'] * p['wmax'] * self.LAIz
+        self.W = np.zeros(len)
         self.update()
 
     def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Dict:
@@ -85,7 +89,7 @@ class Interception(object):
                 wind_speed (array): [m s-1]
                 air_temperature (array): [degC]
             parameters (dict):
-                LAIz (array): leaf area index per canopy layer [m2 m-2]
+                #LAIz (array): leaf area index per canopy layer [m2 m-2]
                 leaf_length (array): leaf length scale for aerodynamic resistance [m]
             controls (dict):
                 energy_balance (bool)
@@ -109,15 +113,17 @@ class Interception(object):
                 condensation_drip_ml (array): condensation drip rate in layers [kg m-2 s-1]
 
         """
+        #LAIz = parameters['LAIz']
+        LAIz = self.LAIz
         lt = np.maximum(EPS, parameters['leaf_length'])
 
+        # unpack forcing
         Prec = forcing['precipitation']
         P = forcing['air_pressure']
         Tl_ave = forcing['leaf_temperature']
         H2O = forcing['h2o']
         U = forcing['wind_speed']
         T = forcing['air_temperature']
-        LAIz = parameters['LAIz']
 
         Ebal = controls['energy_balance']
 
