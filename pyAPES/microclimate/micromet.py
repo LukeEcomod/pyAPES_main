@@ -4,7 +4,7 @@
     :synopsis: pyAPES-model microclimate component
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä, Gaby Katul
 
-*Turbulent and laminar flow, momentum & scalar transport within multi-layer canopies*
+#Turbulent and laminar flow, momentum & scalar transport within multi-layer canopies#
 
 References:
     Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
