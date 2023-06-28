@@ -35,11 +35,11 @@ Todo:
       now see tools.iotools.read_forcing for documentation!
 
 """
+import numpy as np
 import time
 import logging
-
-import numpy as np
 from pandas import date_range
+from typing import List, Tuple, Dict
 
 from tools.iotools import initialize_netcdf,  write_ncf
 from canopy.mlm_canopy import CanopyModel
@@ -50,40 +50,44 @@ def driver(parameters,
            create_ncf=False,
            result_file=None):
     """
-    Reads parameters as argument, prepares output files, runs model.
+    Driver for pyAPES_MLM multi-layer model. Gets parameters as argument, prepares output files, runs model.
+    
     Args:
         parameters (dict/list): either single parameter dictionary or list of parameters
         create_ncf (bool): results saved to netCDF4 file
         result_file (str): name of result file
+    Returns:
+        output_file (str): file path
+        tasks[0] (object): model object from task[0], state corrensponds to end of simulation
     """
 
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
-    from parameters.outputs import output_variables, logging_configuration
+    from parameters.mlm_outputs import output_variables, logging_configuration
     from logging.config import dictConfig
 
-    # --- LOGGING ---
+    # --- Config logger
     dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
-    # --- CHECK PARAMETERS ---
+    # --- Check parameters
 
     if isinstance(parameters, dict):
-        Nsim = 1
+        Nsim = 1 # number of simulations
         parameters = [parameters]
     elif isinstance(parameters, list):
         Nsim = len(parameters)
     else:
         raise TypeError('Parameters should be either dict or list.')
 
-    logger.info('Simulation started. Number of simulations: {}'.format(Nsim))
+    logger.info('pyAPES_MLM simulation started. Number of simulations: {}'.format(Nsim))
 
-    # --- SIMULATIOS AND OUTPUTS ---
+    # --- Run simulations
 
     tasks = []
 
     for k in range(Nsim):
         tasks.append(
-            Model(
+                MLM_model(
                 parameters[k]['general']['dt'],
                 parameters[k]['canopy'],
                 parameters[k]['soil'],
@@ -100,9 +104,6 @@ def driver(parameters,
             filename = result_file
         else:
             filename = timestr + '_pyAPES_results.nc'
-
-        #freq = '{}S'.format(gpara['dt'])
-        #time_index = date_range(gpara['start_time'], gpara['end_time'], freq=freq, closed='left')
 
         time_index = parameters[0]['forcing'].index
 
@@ -143,21 +144,22 @@ def driver(parameters,
         return results, tasks[0] # this would return also 1st Model instance
 
 
-class Model(object):
+class MLM_model(object):
     """
-    pyAPES - main model class.
-    Combines submodels 'CanopyModel' and 'Soil' and handles data-transfer
-    between these model components and writing results.
+    pyAPES_MLM -model.
 
-    Last edit: SL 13.01.2020
+    Combines submodels 'CanopyModel' and 'Soil' and handles data-transfer
+    between these components and writing results.
+
     """
-    def __init__(self,
-                 dt,
-                 canopy_para,
-                 soil_para,
-                 forcing,
-                 outputs,
-                 nsim=0):
+    def __init__(self, 
+                 dt: float,
+                 canopy_para: Dict,
+                 soil_para: Dict,
+                 forcing: Dict, # or pd.DataFrame
+                 outputs: Dict,
+                 nsim: int=0
+                ):
 
         self.dt = dt
 
@@ -172,10 +174,12 @@ class Model(object):
         self.soil = Soil(soil_para)
 
         # create canopy model instance
+        
         # initial delayed temperature and degreedaysum for pheno & LAI-models
         if canopy_para['ctr']['pheno_cycle'] and 'X' in forcing:
             for pt in list(canopy_para['planttypes'].keys()):
                 canopy_para['planttypes'][pt]['phenop'].update({'Xo': forcing['X'].iloc[0]})
+        
         if canopy_para['ctr']['seasonal_LAI'] and 'DDsum' in forcing:
             for pt in list(canopy_para['planttypes'].keys()):
                 canopy_para['planttypes'][pt]['laip'].update({'DDsum0': forcing['DDsum'].iloc[0]})
@@ -185,7 +189,7 @@ class Model(object):
         self.Nplant_types = len(self.canopy_model.planttypes)
         self.Nground_types = len(self.canopy_model.forestfloor.bottomlayer_types)
 
-        # initialize structure to save results
+        # initialize temorary structure to save results
         self.results = _initialize_results(outputs,
                                        self.Nsteps,
                                        self.Nsoil_nodes,
@@ -195,22 +199,28 @@ class Model(object):
 
     def run(self):
         """
-        Loops through self.forcing and appends to self.results.
+        Loops through self.forcing timesteps and appends to self.results.
 
-        self.forcing variables and units; correspond to uppermost gridpoint:
+        self.forcing variables and units correspond to uppermost gridpoint:
             precipitation [kg m-2 s-1]
             air_pressure [Pa]
             air_temperature [degC]
-            wind_speed [m/s]
-            friction_velocity [m/s]
-            h2o [mol/mol]
+            wind_speed [m s-1]
+            friction_velocity [m s-1]
+            h2o [mol mol-1]
             co2 [ppm]
             zenith_angle [rad]
-            lw_in: Downwelling long wave radiation [W/m2]
-            diffPar: Diffuse PAR [W/m2]
-            dirPar: Direct PAR [W/m2]
-            diffNir: Diffuse NIR [W/m2]
-            dirNir: Direct NIR [W/m2]
+            lw_in: Downwelling long wave radiation [W m-2]
+            diffPar: Diffuse PAR [W m-2]
+            dirPar: Direct PAR [W m-2]
+            diffNir: Diffuse NIR [W m- 2]
+            dirNir: Direct NIR [W m-2]
+        
+        Args:
+            self (object)
+        
+        Returns:
+            self.results (dict)
         """
 
         logger = logging.getLogger(__name__)
@@ -318,6 +328,7 @@ class Model(object):
 
         print('100%')
 
+        # append plantype, groundtype and grid information
         ptnames = [pt.name for pt in self.canopy_model.planttypes]
 
         self.results = _append_results('canopy', None, {'z': self.canopy_model.z,
@@ -334,10 +345,18 @@ class Model(object):
         return self.results
 
 
-def _initialize_results(variables, Nstep, Nsoil_nodes, Ncanopy_nodes, Nplant_types, Nground_types):
+def _initialize_results(variables: Dict, 
+                        Nstep: int, 
+                        Nsoil_nodes: int, 
+                        Ncanopy_nodes: int, 
+                        Nplant_types: int,
+                        Nground_types: int):
     """
-    Creates temporary results dictionary to accumulate simulation results
-    SL 12.11.2019: removed if 'date' in dimensions and added option to save planttype profiles
+    Creates temporary dictionary to accumulate simulation results
+    Args:
+        see arguments
+    Returns:
+        results (dict)
     """
 
     results = {}
@@ -374,9 +393,18 @@ def _initialize_results(variables, Nstep, Nsoil_nodes, Ncanopy_nodes, Nplant_typ
     return results
 
 
-def _append_results(group, step, step_results, results):
+def _append_results(group: str, step: int, step_results: Dict, results: Dict):
     """
-    Adds results from each simulation steps to temporary results dictionary
+    Adds results from timestep to temporary dictionary
+    
+    Args:
+        group (str): group_id
+        step (int): timestep index
+        step_results (dict): results from 'step'
+        results (dict): simulation results to where step_results are appended
+
+    Returns:
+        results (dict): updated results
     """
 
     results_keys = results.keys()
@@ -393,6 +421,7 @@ def _append_results(group, step, step_results, results):
 
     return results
 
+# EOF
 #if __name__ == '__main__':
 #
 #    from parameters.parametersets import lettosuo_parameters

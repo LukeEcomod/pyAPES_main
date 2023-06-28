@@ -19,49 +19,54 @@ from pyAPES.soil.water import wrc
 from pyAPES.utils.utilities import tridiag as thomas, spatial_average
 
 from pyAPES.utils.constants import K_WATER, K_ICE, K_AIR, K_ORG, K_SAND, K_SILT, K_CLAY,\
-    CV_AIR, CV_WATER, CV_ICE, CV_ORGANIC, CV_MINERAL, \
-    LATENT_HEAT_FREEZING, FREEZING_POINT_H2O, ICE_DENSITY
+    CV_AIR, CV_WATER, CV_ICE, CV_ORGANIC, CV_MINERAL, LATENT_HEAT_FREEZING, FREEZING_POINT_H2O, ICE_DENSITY
 
 logger = logging.getLogger(__name__)
 
 class Heat(object):
 
-    def __init__(self, grid: Dict, profile_propeties: Dict, model_specs: Dict, volumetric_water_content: np.ndarray):
+    def __init__(self, 
+                 grid: Dict, 
+                 profile_propeties: Dict, 
+                 model_specs: Dict, 
+                 volumetric_water_content: np.ndarray) -> object:
         r"""
-        Soil heat balance model.
+        1D soil heat balance model
 
         Args:
             grid (dict):
-                'z': node elevations, soil surface = 0.0 [m]
-                'dz': thickness of computational layers [m]
-                'dzu': distance to upper node [m]
-                'dzl': distance to lower node [m]
-            profile_propeties (dict): arrays of len(z)
-                'porosity' (array): soil porosity (=ThetaS) [m3 m-3]
-                'solid_heat_capacity' (array): [J m-3 (solid volume) K-1]
+                z: node elevations, soil surface = 0.0 [m]
+                dz: thickness of computational layers [m]
+                dzu: distance to upper node [m]
+                dzl: distance to lower node [m]
+            profile_propeties (dict):
+                porosity (array): soil porosity (=ThetaS) [m3 m-3]
+                solid_heat_capacity (array): [J m-3 (solid volume) K-1]
                     ! if None/NaN, estimated from organic/mineral composition
-                'solid_composition' (dict): fractions of solid volume [-]
-                    'organic' (array)
-                    'sand' (array)
-                    'silt' (array)
-                    'clay' (array)
-                'freezing_curve' (array): freezing curve parameter [-]
-                'bedrock_thermal_conductivity' (array): must be NaN above bedrock depth [W m-1 K-1]
+                solid_composition (dict):
+                    organic (array): fraction [-] of solid volume
+                    sand (array)
+                    silt (array)
+                    clay (array)
+                freezing_curve (array): freezing curve parameter [-]
+                bedrock_thermal_conductivity (array): must be NaN above bedrock depth [W m-1 K-1]
             model_specs (dict):
-                'solve': True/False
-                'initial_condition' (dict):
-                    'temperature' (array?/list?/float): initial temperature [degC]
-                'lower_boundary' (dict):
-                    'type' (str): 'flux' or 'temperature'
-                    'value' (float): value of flux [W m-2] or temperature [degC]
+                solve (bool): solve heat balance
+                initial_condition (dict):
+                    temperature (array|float): initial temperature [degC]
+                lower_boundary (dict):
+                    type (str): 'flux' or 'temperature'
+                    value (float): value of flux [W m-2] or temperature [degC]
         Returns:
             self (object)
+
         """
         # lower boundary condition
         self.lbc = model_specs['lower_boundary']
 
         # grid
         self.grid = grid
+        
         # dummy
         self.zeros = np.zeros(len(self.grid['z']))
 
@@ -70,7 +75,10 @@ class Heat(object):
         self.bedrock_thermal_conductivity = profile_propeties['bedrock_thermal_conductivity']
         self.solid_composition = profile_propeties['solid_composition']
         self.freezing_curve = profile_propeties['freezing_curve']
+        
         self.solid_heat_capacity = profile_propeties['solid_heat_capacity']
+        
+        #.. if not as input, estimate from volumetric fractions
         ix = np.where(np.isnan(self.solid_heat_capacity))[0]
         self.solid_heat_capacity[ix] = solid_volumetric_heat_capacity(self.solid_composition['organic'][ix])
 
@@ -79,32 +87,39 @@ class Heat(object):
 
         # model specs
         if model_specs['solve']:
-            info = 'Heat balance in soil solved.'
+            info = 'Soil heat balance solved.'
             # Keep track of dt used in solution
             self.subdt = None
         else:
-            info = 'Heat balance in soil not solved.'
+            info = 'Soil heat balance not solved. Using prescribed (time-dependent) inputs'
 
         logger.info(info)
 
-    def run(self, dt: float, forcing: Dict, volumetric_water_content: np.ndarray, 
-            heat_sink: np.ndarray=None, lower_boundary: Dict=None):
-        r""" Runs soil heat balance.
+    def run(self, 
+            dt: float, 
+            forcing: Dict, 
+            volumetric_water_content: np.ndarray, 
+            heat_sink: np.ndarray=None, 
+            lower_boundary: Dict=None) -> Tuple:
+
+        r"""
+        Computes soil heat balance for timestep dt.
 
         Args:
-            dt: time step [s]
+            dt (float): time step [s]
             forcing (dict):
-                'ground_heat_flux' (float): heat flux from soil surface [W m-2]
-                    OR 'temperature' (float): soil surface temperature [degC]
+                ground_heat_flux (float): heat flux from soil surface [W m-2]. Give if ubc is flux-based
+                temperature (float): soil surface temperature [degC]. Give if ubc is soil surface temperature
             volumetric_water_content (array):  [m3 m-3]
-            heat_sink (array or None): layerwise sink term [W m-3]
-                ! if None set to zero
-            lower_boundary (dict or None): allows boundary condition type and alue to be changed during simulations
-                'type' (str): 'flux' or 'temperature'
-                'value' (float): value of flux [W m-2] or temperature [degC]
+            heat_sink (array or None): layerwise sink term [W m-3] ! if None set to zero
+            lower_boundary (dict or None): allows boundary condition type and value to be changed during simulations
+                type (str): 'flux' or 'temperature'
+                value (float): value of flux [W m-2] or temperature [degC]
         Returns:
-            fluxes (dict):[W m-2]
-                'energy_closure'
+            fluxes (dict):
+                energy_closure (float): [W m-2]
+                heat_flux (array): heat flux between layers [W m-2]
+        
         """
         if self.subdt is None:
             self.subdt = dt
@@ -139,15 +154,17 @@ class Heat(object):
 
         return fluxes
 
-    def update_state(self, state: Dict={}, Wtot: np.ndarray=0.0):
+    def update_state(self, state: Dict={}, Wtot: np.ndarray=0.0) -> None:
         r"""
-        Updates object state
+        Updates Heat-object state
 
         Args:
             state (dict):
-                'temperature' (float):  [degC]
+                temperature (array|float): [degC]
+                volumetric_ice_content (array|float): [m3 m-3]
+                volumetric_water_content (array|float): [m3 m-3]
         Returns:
-            None, updates .T, .Wice, .Wliq, .Wair, .thermal_conductivity
+            None
         """
         if 'temperature' in state:
             if isinstance(state['temperature'], float):
@@ -167,66 +184,63 @@ class Heat(object):
                                                          solid_composition=self.solid_composition,
                                                          bedrockL=self.bedrock_thermal_conductivity)
 
-# ---- SAMULI HERE 12/6/23
 
 #%%
-# Soil heat transfer in 1D profile
+#-- Soil heat transfer in 1D profile
 
-def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray, poros: np.ndarray, 
-               solid_composition: Dict, cs: np.ndarray, bedrockL: np.ndarray, fp: np.ndarray,
-               sink: np.ndarray, ubc: Dict, lbc: Dict, steps: int=10, date: str=None)-> Tuple:
+def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray, 
+               poros: np.ndarray, solid_composition: Dict, cs: np.ndarray, bedrockL: np.ndarray, 
+               fp: np.ndarray, sink: np.ndarray, 
+               ubc: Dict, lbc: Dict, steps: int=10, date: str=None)-> Tuple:
     r"""
     Solves soil heat conduction in 1-D using implicit finite difference solution
     of heat (Fourier) equation. Neglects heat transfer (heat convection) with water flow.
 
-    Solution adapted from method presented by Van Dam and Feddes (2000) and Hansson et al., 200x
+    References:
+        Adapted from method presented by Van Dam and Feddes (2000) and Hansson et al., 200x
 
-    Args:
-        t_final (float): solution timestep [s]
-        grid (dict):
-            'z': node elevations, soil surface = 0.0 [m]
-            'dz': thickness of computational layers [m]
-            'dzu': distance to upper node [m]
-            'dzl': distance to lower node [m]
-        T_ini (float): initial temperature [degC]
-        Wtot (float): volumetric_water_content [m3 m-3]
-        poros (float): porosity [m3 m-3]
-        solid_composition (dict): fractions of solid volume [-]
-            'organic' (list/array)
-            'sand' (list/array)
-            'silt' (list/array)
-            'clay' (list/array)
-        solid_heat_capacity (array): [J m-3 (solid volume) K-1]
-        bedrockL (array): bedrock thermal conductivity, nan above bedrock depth [W m-1 K-1]
-        fp (array): freezing curve parameter [-]
-        sink: sink term from layers [W m-3]
-        ubc (dict):
-            'type' (str): 'flux' or 'temperature'
-            'value' (float): value of flux [W m-2] or temperature [degC]
-        lbc (dict):
-            'type' (str): 'flux' or 'temperature'
-            'value' (float): value of flux [W m-2] or temperature [degC]
-        steps (int or float): initial number of subtimesteps used to proceed to 't_final'
-        date (str): for logger
-    
-    Returns:
-        fluxes (dict): [units!]
-            'energy_closure'
-        state (dict):
-            'temperature': [degC]
-            'volumetric_ic_content': [m3 m-3]
-        dto (float): timestep used for solving [s]
-
-    Code:
-        Samuli Launiainen, Luke 19.4.2016. Converted from Matlab (APES SoilProfile.Soil_HeatFlow)
-        Kersti Haahti, Luke 26.7.2018
-            edits to avoid computation getting stuck during freezing conditions,
-            still problems with convergence around zero temperatures.
-            Check heat balance error to see problematic periods
     Notes:
         Heat convection within column and from/to column neglected. 
         Some problems with convergence can occur around zero temperatures (freeze/thaw). Check energy closure
         to identify those periods if exist.
+
+    Args:
+        t_final (float): solution timestep [s]
+        grid (dict):
+            z: node elevations, soil surface = 0.0 [m]
+            dz: thickness of computational layers [m]
+            dzu: distance to upper node [m]
+            dzl: distance to lower node [m]
+        T_ini (array): initial temperature [degC]
+        Wtot (array): volumetric water (and ice) content [m3 m-3]
+        poros (array): porosity [m3 m-3]
+        solid_composition (dict): fractions of solid volume [-]
+            organic' (array)
+            sand (array)
+            silt (array)
+            clay (array)
+        solid_heat_capacity (array): [J m-3 (solid volume) K-1]
+        bedrockL (array): bedrock thermal conductivity, NaN above bedrock depth [W m-1 K-1]
+        fp (array): freezing curve parameter [-]
+        sink: heat sink term from layers [W m-3]
+        ubc (dict): upper boundary condition
+            type (str): 'flux' or 'temperature'
+            value (float): value of flux [W m-2] or temperature [degC]
+        lbc (dict): lower boundary condition
+            type (str): 'flux' or 'temperature'
+            value (float): value of flux [W m-2] or temperature [degC]
+        steps (int or float): initial number of subtimesteps used to proceed to 't_final'
+        date (str): for logger
+    
+    Returns:
+        fluxes (dict):
+            energy_closure (float): [W m-2]
+            heat_flux (array): heat flux between nodes [W m-2]
+        state (dict):
+            temperature (array): [degC]
+            volumetric_ice_content (array): [m3 m-3]
+        dto (float): internal timestep used [s]
+
     """
 
     # grid
@@ -438,23 +452,25 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray, 
 
 # ---utility functions
 
-def frozen_water(T, wtot, fp=2.0, To=0.0):
-    r""" Approximates ice content from soil temperature and total water content.
+def frozen_water(T: np.ndarray, wtot: np.ndarray, fp: float=2.0, To: float=0.0) -> Tuple:
+    r""" 
+    Approximates ice content from soil temperature and total water content.
 
-    Args:
-        T : soil temperature [degC]
-        wtot: total vololumetric water content [m3 m-3]
-        fp: parameter of freezing curve [-]
-            2...4 for clay and 0.5-1.5 for sandy soils
-            < 0.5 for peat soils (Nagare et al. 2012 HESS)
-        To: freezing temperature of soil water [degC]
-    Returns:
-        wliq: volumetric water content [m3 m-3]
-        wice: volumetric ice content [m3 m-3]
-        gamma: dwice/dT
     References:
         For peat soils, see experiment of Nagare et al. 2012:
         http://scholars.wlu.ca/cgi/viewcontent.cgi?article=1018&context=geog_faculty
+    Args:
+        T (array|float): soil temperature [degC]
+        wtot (array|float): total volumetric water content [m3 m-3]
+        fp (array|float): parameter of freezing curve [-]. 2...4 for clay and 0.5-1.5 for sandy soils; 
+            < 0.5 for peat soils (Nagare et al. 2012 HESS)
+        To (array|float): freezing temperature of soil water [degC]
+    
+    Returns:
+        wliq (array|float): volumetric water content [m3 m-3]
+        wice (array|float): volumetric ice content [m3 m-3]
+        gamma (array|float): dwice/dT
+
     """
 
     wtot = np.array(wtot)
@@ -473,12 +489,14 @@ def frozen_water(T, wtot, fp=2.0, To=0.0):
 
     return wliq, wice, gamma
 
-def solid_volumetric_heat_capacity(f_org):
-    r""" Computes volumetric heat capacity of solids in soil
-    based on organic/mineral compsition.
+def solid_volumetric_heat_capacity(f_org: float) -> float:
+    r"""
+    Computes volumetric heat capacity of solids in soil
+    based on organic and bulk mineral volume fractions. 
+    Uses single bulk value for soil minerals heat capacity.
 
     Args:
-        f_org: fraction of organic matter of solid volume [-]
+        f_org (array|float): fraction of organic matter of solid volume [-]
     Returns:
         cv_solids: volumetric heat capacity of solids [J m-3 (solids) K-1]
     """
@@ -487,15 +505,16 @@ def solid_volumetric_heat_capacity(f_org):
     return cv_solids
 
 def volumetric_heat_capacity(poros, cv_solids, wtot=0.0, wice=0.0):
-    r""" Computes volumetric heat capacity of soil.
+    r"""
+    Computes volumetric heat capacity of soil from soil volumetric texture, water and ice fractions.
 
     Args:
-        poros: porosity [m3 m-3]
-        cv_solids: heat capacity of solids [J m-3(solids) K-1]
-        wtot: volumetric water content [m3 m-3]
-        wice: volumetric ice content [m3 m-3]
+        poros (array|float): porosity [m3 m-3]
+        cv_solids (array|float): heat capacity of solids [J m-3(solids) K-1]
+        wtot (array|float): volumetric water content [m3 m-3]
+        wice (array|float): volumetric ice content [m3 m-3]
     Returns:
-        cv: volumetric heat capacity of soil [J m-3 K-1]
+        cv (array|float): volumetric heat capacity of soil [J m-3 K-1]
     """
     wair = poros - wtot
     wliq = wtot - wice
@@ -505,27 +524,32 @@ def volumetric_heat_capacity(poros, cv_solids, wtot=0.0, wice=0.0):
     return cv
 
 def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
-    r""" Thermal conductivity of soil using Tian et al. 2016 simplified
-    deVries-model. For organic layers (organic fraction > 0.9) uses o'Donnell et al. 2009.
-    deVries-type model gives reasonable approximation also in organic layers when
-    wliq < 0.4, at ~0.9 ~25% underestimate compated to o'Donnell.
+    r"""
+    Thermal conductivity in 1D soil profile
 
-    Args:
-        poros: porosity [m3 m-3]
-        wliq: volumetric liquid water content [m3 m-3]
-        wice: volumetric ice content [m3 m-3]
-        solid_composition (dict): fractions of solid volume [-]
-            'organic' (array)
-            'sand' (array)
-            'silt' (array)
-            'clay' (array)
-        bedrockL (array): bedrock thermal conductivity, nan above bedrock depth [W m-1 K-1]
-    Returns:
-        L: thermal conductivity [W m-1 K-1]
+    Uses Tian et al. 2016 simplified de Vries-model for mineral layers. 
+    For organic layers (org. fract. > 0.9) uses o'Donnell et al. 2009.
+    The deVries-type model gives reasonable approximation also in organic layers when
+    wliq < 0.4, at wliw = 0.9 ~25% underestimate compared to o'Donnell.
+
     References:
         Tian et al. 2016: A simplified de Vries-based model to estimate thermal
         conductivity of unfrozen and frozen soil. E.J.Soil Sci 67, 564-572.
         o'Donnell et al. 2009. Thermal conductivity of organic soil horizons. Soil Sci. 174, 646-651.
+    
+    Args:
+        poros (array): porosity [m3 m-3]
+        wliq (array): volumetric liquid water content [m3 m-3]
+        wice (array): volumetric ice content [m3 m-3]
+        solid_composition (dict): fractions of solid volume [-]
+            organic (array)
+            sand (array)
+            silt (array)
+            clay (array)
+        bedrockL (array): bedrock thermal conductivity, NaN above bedrock depth [W m-1 K-1]
+    Returns:
+        L (array): thermal conductivity [W m-1 K-1]
+
     """
     f_sand = solid_composition['sand']
     f_silt = solid_composition['silt']
@@ -537,8 +561,7 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     wice = np.array(wice, ndmin=1)
     wair = poros - wliq - wice
 
-# KH 18.5.20 volume fraction of minerals
-    f_minerals = 1 -poros
+    f_solid = 1 - poros
 
     # component thermal conductivities W m-1 K-1
     ks = K_SAND**f_sand * K_SILT**f_silt * K_CLAY**f_clay * K_ORG**f_org
@@ -565,14 +588,13 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     # liquid phase
     f_ice = r*(1.0 + g_ice*(ki / kw - 1.0))**(-1) + (1.0 - r)*(1.0 + (1.0-2*g_ice)*(ki / kw - 1.0))**(-1.)
 
-    #print f_min, f_gas
     # thermal conductivity W m-1 K-1
+
     # L = (wliq*kw + f_gas*wair*kg + f_min*poros*ks + f_ice*wice*ki) \
     #     / (wliq + f_gas*wair + f_min*poros + f_ice*wice)
 
-# KH 18.5.20 volume fraction of minerals
-    L = (wliq*kw + f_gas*wair*kg + f_min*f_minerals*ks + f_ice*wice*ki) \
-        / (wliq + f_gas*wair + f_min*f_minerals + f_ice*wice)
+    L = (wliq*kw + f_gas*wair*kg + f_min*f_solid*ks + f_ice*wice*ki) \
+        / (wliq + f_gas*wair + f_min*f_solid + f_ice*wice)
 
     # in fully organic layer, use o'Donnell et al. 2009
     L[f_org >= 0.9] = 0.032 + 5e-1 * wliq[f_org >= 0.9]
@@ -581,3 +603,5 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     L[~np.isnan(bedrockL)] = bedrockL[~np.isnan(bedrockL)]
 
     return L
+
+# EOF

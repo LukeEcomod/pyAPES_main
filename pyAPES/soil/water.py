@@ -26,43 +26,43 @@ class Water(object):
 
     def __init__(self, grid: Dict, profile_propeties: Dict, model_specs: Dict):
         r""" 
-        Vertically resolved soil water balance model.
+        1D soil water balance model.
 
         Args:
             grid (dict):
-                'z': node elevations, soil surface = 0.0 [m]
-                'dz': thickness of computational layers [m]
-                'dzu': distance to upper node [m]
-                'dzl': distance to lower node [m]
+                z (array): node elevations, soil surface = 0.0 [m]
+                dz (array): thickness of computational layers [m]
+                dzu (array): distance to upper node [m]
+                dzl (array): distance to lower node [m]
             
             profile_propeties (dict): arrays of len(z)
-                'pF' (dict): water retention parameters (van Genuchten)
-                    'ThetaS' (array): saturated water content [m3 m-3]
-                    'ThetaR' (array):residual water content [m3 m-3]
-                    'alpha' (array):air entry suction [cm-1]
-                    'n' (array):pore size distribution [-]
-                'saturated_conductivity_vertical' (array): [m s-1]
-                'saturated_conductivity_horizontal' (array): [m s-1]
+                pF (dict): water retention parameters (van Genuchten)
+                    ThetaS (array): saturated water content [m3 m-3]
+                    ThetaR (array): residual water content [m3 m-3]
+                    alpha (array): air entry suction [cm-1]
+                    n (array): pore size distribution [-]
+                saturated_conductivity_vertical (array): [m s-1]
+                saturated_conductivity_horizontal (array): [m s-1]
             
             model_specs (dict):
-                'solve' (bool): True,
-                'type'(str): 'Richards', solution approach 'Equilibrium' for equilibrium approach else solves flow using Richards equation
-                'pond_storage_max' (float):  maximum pond depth [m]
+                solve (bool): solve water flow
+                type (str): 'Richards' | 'Equilibrium'. Solution approach
+                pond_storage_max (float):  maximum pond depth [m]
                 
-                'initial_condition' (dict): initial conditions
-                    'ground_water_level' (float): groundwater depth [m]
-                    'pond_storage' (float): pond depth at surface [m]
+                initial_condition (dict):
+                    ground_water_level (float): groundwater depth [m]
+                    pond_storage (float): pond depth at surface [m]
                 
-                'lower_boundary (dict)': lower boundary condition
-                    'type' (str): 'impermeable', 'flux', 'free_drain' or 'head'
-                    'value' (float or None): give for 'head' [m] and 'flux' [m s-1]
-                    'depth' (float): depth of impermeable boundary (=bedrock) [m]
+                lower_boundary (dict): lower boundary condition
+                    type (str): 'impermeable', 'flux', 'free_drain' or 'head'
+                    value (float or None): give for 'head' [m] and 'flux' [m s-1]
+                    depth (float): depth of impermeable boundary (=bedrock) [m]
                 
-                'drainage_equation' (dict): drainage equation and drainage parameters
-                    'type' (str): 'hooghoudt' / None (no other options yet)
-                    'depth' (float): drain depth [m]
-                    'spacing' (float): drain spacing [m]
-                    'width' (float):  drain width [m]
+                drainage_equation (dict):
+                    type (str): 'hooghoudt' / None (no other options yet)
+                    depth (float): drain depth [m]
+                    spacing (float): drain spacing [m]
+                    width (float):  drain width [m]
         Returns:
             self (object)
         """
@@ -121,23 +121,22 @@ class Water(object):
         Args:
             dt: time step [s]
             forcing (dict):
-                'potential_infiltration': [m s-1]
-                'potential_evaporation': [m s-1]
-                'atmospheric_pressure_head': [m]
-            water_sink (array or None): sink term from layers, e.g. root sink [m s-1]
-                ! array length can be only root zone or whole soil profile
-                ! if None set to zero
+                potential_infiltration: [m s-1]
+                potential_evaporation: [m s-1]
+                atmospheric_pressure_head: [m]
+            water_sink (array|None): sink term from layers, e.g. root sink [m s-1]
+                ! array length can be only root zone or whole soil profile; if None set to zero
             lower_boundary (dict or None): allows boundary to be changed in time
-                'type': 'impermeable', 'flux', 'free_drain', 'head'
-                'value': give for 'head' [m] and 'flux' [m s-1]
+                type: 'impermeable', 'flux', 'free_drain', 'head'
+                value: give for 'head' [m] and 'flux' [m s-1]
         Returns:
             fluxes (dict): [m s-1]
-                'infiltration'
-                'evaporation'
-                'drainage'
-                'transpiration'
-                'surface_runoff'
-                'water_closure'
+                infiltration
+                evaporation
+                drainage
+                transpiration
+                surface_runoff
+                water_closure
         """
         if self.subdt is None:
             self.subdt = dt
@@ -254,45 +253,46 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
     Args:
         t_final (float): solution timestep [s]
         grid (dict):
-            'z': node elevations, soil surface = 0.0 [m]
-            'dz': thickness of computational layers [m]
-            'dzu': distance to upper node [m]
-            'dzl': distance to lower node [m]
+            z (array): node elevations, soil surface = 0.0 [m]
+            dz (array): thickness of computational layers [m]
+            dzu (array): distance to upper node [m]
+            dzl (array): distance to lower node [m]
         forcing (dict):
-            'potential_infiltration': [m s-1]
-            'potential_evaporation': [m s-1]
-            'atmospheric_pressure_head': [m]
+            potential_infiltration (float): [m s-1]
+            potential_evaporation (float): [m s-1]
+            atmospheric_pressure_head (float): [m]
         initial_state (dict):
-            'water_potential': initial water potential [m]
-            'pond_storage': initial pond storage [m]
+            water_potential (array): initial water potential [m]
+            pond_storage (float): initial pond storage [m]
         pF (dict): water retention parameters (van Genuchten)
-            'ThetaS' (array): saturated water content [m3 m-3]
-            'ThetaR' (array):residual water content [m3 m-3]
-            'alpha' (array):air entry suction [cm-1]
-            'n' (array):pore size distribution [-]
+            ThetaS (array): saturated water content [m3 m-3]
+            ThetaR (array):residual water content [m3 m-3]
+            alpha (array):air entry suction [cm-1]
+            n (array):pore size distribution [-]
         Ksat (array): saturated hydraulic conductivity [m s-1]
-        q_sink (array): sink term from layers, e.g. root sink [m3 m-3 s-1 = s-1]
-        q_drain (array): sink due to drainage per layer [m3 m-3 s-1 = s-1]
+        q_sink (array): water sink term from layers, e.g. root sink [m3 m-3 s-1 = s-1]
+        q_drain (array): water sink due to drainage per layer [m3 m-3 s-1 = s-1]
         lbc (dict):
-                'type': 'impermeable', 'flux', 'free_drain', 'head'
-                'value': give for 'head' [m] and 'flux' [m s-1]
+                'type': 'impermeable', 'flux', 'free_drain', 'head', 'head_oneway'
+                'value': give for flux [m s-1] or head [m] -based lbc 
         h_pond_max (float): maximum depth allowed ponding at surface [m]
         cosalfa (float): 1 for vertical water flow, 0 for horizontal
         steps (int): initial number of subtimesteps used to proceed to 't_final'
+    
     Returns:
         fluxes (dict): [m s-1]
-            'infiltration'
-            'evaporation'
-            'drainage'
-            'transpiration'
-            'surface_runoff'
-            'water_closure'
+            infiltration (float)
+            evaporation (float)
+            drainage (float)
+            transpiration (float)
+            surface_runoff (float)
+            water_closure (float)
         state (dict):
-            'water_potential': [m]
-            'volumetric_water_content': [m3 m-3]
-            'ground_water_level': [m]
-            'pond_storage': [m]
-        dto (float): timestep used for solving [s]
+            water_potential: [m]
+            volumetric_water_content: [m3 m-3]
+            ground_water_level: [m]
+            pond_storage: [m]
+        dto (float): internal solver timestep used [s]
 
     References:
         vanDam & Feddes (2000): Numerical simulation of infiltration, evaporation and shallow
@@ -342,38 +342,42 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
     # specifications for iterative solution
     # running time [s]
     t = 0.0
+    
     # initial and computational time step [s]
     dto = t_final / steps
     dt = dto  # adjusted during solution
     if Prec > 0.0:  # decrease time step during precipitation
         dt = min(225.0, dt)
+    
     # convergence criteria
     Conv_crit = 1.0e-12  # for soil moisture
     Conv_crit2 = 1.0e-10  # for pressure head, decreased to 1.0e-8 when profile saturated
 
-# TEST: DURING DRY CONDITIONS INFILTRATION FORCED TO FIRST 5 LAYERS
     # hydraulic condictivity based on previous time step
     KLh = hydraulic_conductivity(pF, x=h, Ksat=Ksat)
     # get KLh at i-1/2, note len(KLh) = N + 1
 #    KLh = spatial_average(KLh, method='arithmetic')
-# TEST
     KLh = spatial_average(KLh, method='geometric')
+
     # potential flux at the soil surface (< 0 infiltration)
     q0 = Evap - Prec - h_pond / t_final
+
     # maximum infiltration and evaporation rates
     MaxInf = max(-KLh[0]*(- q0 * t_final - h[0] - z[0]) / dzu[0], -Ksat[0])
+
     # net flow to soil profile during dt
     Qin = (- sum(S * dz) - q0) * dt
+
     # airvolume available in soil profile after previous time step
     Airvol = max(0.0, sum((poros - W) * dz))
     if Qin < Airvol and q0 < 0 and q0 < MaxInf:
         S[0:10] = S[0:10] - Prec / 10. / grid['dz'][0:10]
         Prec = 0.0
         dt = 30
-#        print('Dry conditions')
 
     """ solve water flow for 0...t_final """
     while t < t_final:
+
         # old state variables, solution of previous times step
         h_old = h.copy()
         W_old = W.copy()
@@ -456,6 +460,7 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
                         if iterNo == 1:
                             h_iter -= dz[0]
                             W_iter = h_to_cellmoist(pF, h_iter, dz)
+                
                 else:  # initially unsaturated profile
                     if Qin >= Airvol:  # only part of inflow fits into profile
                         h_sur = min(Qin - Airvol, h_pond_max)
@@ -540,6 +545,7 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
                         * ((KLh[N-1] - KLh[N]) * cosalfa + KLh[N] / dzl[-1] * h_bot) - S[-1] * dt
 
             """ solve triagonal matrix """
+            
             # save old iteration values
             h_iterold = h_iter.copy()
             W_iterold = W_iter.copy()
@@ -645,52 +651,59 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
 
     return fluxes, state, dto
 
+
 def waterStorage1D(t_final: float, grid: Dict, forcing: Dict, initial_state: Dict, 
                    pF: Dict, Ksat: np.ndarray, wsto_gwl: Dict,
-                   q_sink: np.ndarray, q_drain: np.ndarray=0.0, lbc: Dict={'type': 'impermeable', 'value': None},
+                   q_sink: np.ndarray, q_drain: np.ndarray=0.0, 
+                   lbc: Dict={'type': 'impermeable', 'value': None},
                    h_pond_max: float=0.0, cosalfa: float=1.0) -> Dict:
     r""" 
-    Solves soil water storage in column assuming water potential is at hydrostatic equilibrium.
+    Solves soil water storage in 1D column assuming water potential is at hydrostatic equilibrium.
 
     Args:
         t_final (float): solution timestep [s]
         grid (dict):
-            'z': node elevations, soil surface = 0.0 [m]
-            'dz': thickness of computational layers [m]
-            'dzu': distance to upper node [m]
-            'dzl': distance to lower node [m]
+            z (array): node elevations, soil surface = 0.0 [m]
+            dz (array): thickness of computational layers [m]
+            dzu (array): distance to upper node [m]
+            dzl (array): distance to lower node [m]
         forcing (dict):
-            'potential_infiltration': [m s-1]
-            'potential_evaporation': [m s-1]
-            'atmospheric_pressure_head': [m]
+            potential_infiltration (float): [m s-1]
+            potential_evaporation (float): [m s-1]
+            atmospheric_pressure_head (float): [m]
         initial_state (dict):
-            'water_potential': initial water potential [m]
-            'pond_storage': initial pond storage [m]
+            water_potential (array): initial water potential [m]
+            pond_storage (array): initial pond storage [m]
         pF (dict): water retention parameters (van Genuchten)
-            'ThetaS' (array): saturated water content [m3 m-3]
-            'ThetaR' (array):residual water content [m3 m-3]
-            'alpha' (array):air entry suction [cm-1]
-            'n' (array):pore size distribution [-]
+            ThetaS (array): saturated water content [m3 m-3]
+            ThetaR (array):residual water content [m3 m-3]
+            alpha (array): air entry suction [cm-1]
+            n (array): pore size distribution [-]
         Ksat (array): saturated hydraulic conductivity [m s-1]
         wsto_gwl (dict):
-            'to_gwl': interpolated function for gwl(Wsto)
-            'to_wsto': interpolated function for Wsto(gwl)
+            to_gwl (object): interpolated function for gwl --> Wsto
+            to_wsto (object): interpolated function for Wsto --> gwl
         q_sink (array): sink term from layers, e.g. root sink [m3 m-3 s-1]
         q_drain (array): sink due to drainage per layer [m3 m-3 s-1]
         lbc (dict):
-                'type': 'impermeable', 'flux', 'free_drain', 'head'
-                'value': give for 'head' [m] and 'flux' [m s-1]
+                type: 'impermeable', 'flux', 'free_drain', 'head'
+                value: give for 'head' [m] and 'flux' [m s-1]
         h_pond_max (float): maximum depth allowed ponding at surface [m]
-        cosalfa (float): - 1 for vertical water flow, 0 for horizontal transport
+        cosalfa (float): 1 for vertical water flow, 0 for horizontal transport
     
     Returns:
-        fluxes (dict):[m s-1]
-            'infiltration'
-            'evaporation'
-            'drainage'
-            'transpiration'
-            'surface_runoff'
-            'water_closure'
+        fluxes (dict):
+            infiltration (float): [m s-1]
+            evaporation (float): [m s-1]
+            drainage (float): [m s-1]
+            transpiration (float): [m s-1]
+            surface_runoff (float): [m s-1]
+            water_closure (float): [m s-1]
+        state (dict):
+            water_potential (array): [m]
+            volumetric_water_content (array): [m3 m-3]
+            ground_water_level (float): [m]
+            pond_storage (float): [m]
     """
 
     # time step
@@ -837,13 +850,16 @@ def waterStorage1D(t_final: float, grid: Dict, forcing: Dict, initial_state: Dic
 """ drainage equations """
 
 def drainage_hooghoud(dz, Ksat, gwl, DitchDepth, DitchSpacing, DitchWidth, Zbot=None,
-                      below_ditch_drain=False):
-    r""" Calculates drainage to ditch using Hooghoud's drainage equation,
-    accounts for drainage from saturated layers above and below ditch bottom.
+                      below_ditch_drain=False) -> np.ndarray:
+    r""" Calculates drainage to open ditch or tile-drain using Hooghoud's drainage equation.
+    Accounts for drainage from saturated layers above and below ditch bottom.
 
+    Reference:
+       Follows Koivusalo, Lauren et al. FEMMA -document. Ref: El-Sadek et al., 2001. 
+       J. Irrig.& Drainage Engineering.
     Args:
        dz (array):  soil conpartment thichness, node in center [m]
-       Ksat (array): horizontal saturated hydr. cond. [ms-1]
+       Ksat (array): horizontal saturated hydr. cond. [m s-1]
        gwl (float): ground water level below surface, <0 [m]
        DitchDepth (float): depth of drainage ditch bottom, >0 [m]
        DitchSpacing (float): horizontal spacing of drainage ditches [m]
@@ -852,12 +868,6 @@ def drainage_hooghoud(dz, Ksat, gwl, DitchDepth, DitchSpacing, DitchWidth, Zbot=
     Returns:
        Qz_drain (array): drainage from each soil layer [m3 m-3 s-1]
 
-    Reference:
-       Follows Koivusalo, Lauren et al. FEMMA -document. Ref: El-Sadek et al., 2001.
-       J. Irrig.& Drainage Engineering.
-
-    Samuli Launiainen, Metla 3.11.2014.; converted to Python 14.9.2016
-    Kersti Haahti, 29.12.2017. Code checked, small corrections
     """
     z = dz / 2 - np.cumsum(dz)
     N = len(z)
@@ -916,25 +926,23 @@ def drainage_hooghoud(dz, Ksat, gwl, DitchDepth, DitchSpacing, DitchWidth, Zbot=
 
 """ utility functions """
 
-def h_to_cellmoist(pF, h, dz):
-    r""" Cell moisture based on vanGenuchten-Mualem soil water retention model.
-    Partly saturated cells calculated as thickness weigthed average of
-    saturated and unsaturated parts.
+def h_to_cellmoist(pF: Dict, h: np.ndarray, dz: np.ndarray) -> np.ndarray:
+    r""" 
+    Converts water potential to volumetric moisture content based on vanGenuchten-Mualem model.
+    Partly saturated cells calculated as thickness-weigthed average of saturated and unsaturated parts.
 
     Args:
         pF (dict):
-            'ThetaS' (array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'ThetaR' (array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'alpha' (array): air entry suction [cm\ :sup:`-1`]
-            'n' (array): pore size distribution [-]
+            ThetaS (array): saturated water content [m3 m-3]
+            ThetaR (array): residual water content [m3 m-3]
+            alpha (array): air entry suction [cm-1]
+            n (array): pore size distribution [-]
         h (array): pressure head [m]
         dz (array): soil conpartment thichness, node in center [m]
     Returns:
-        theta (array): volumetric water content of cell [m\ :sup:`3` m\ :sup:`-3`\ ]
+        theta (array): volumetric water content of cell  [m3 m-3]
 
-    Kersti Haahti, Luke 8/1/2018
     """
-
     # water retention parameters
     Ts = np.array(pF['ThetaS'])
     Tr = np.array(pF['ThetaR'])
@@ -942,7 +950,7 @@ def h_to_cellmoist(pF, h, dz):
     n = np.array(pF['n'])
     m = 1.0 - np.divide(1.0, n)
 
-    # moisture based on cell center head
+    # moisture based on cell-center head
     x = np.minimum(h, 0)
     theta = Tr + (Ts - Tr) / (1 + abs(alfa * 100 * x)**n)**m
 
@@ -956,21 +964,20 @@ def h_to_cellmoist(pF, h, dz):
 
     return theta
 
-def diff_wcapa(pF, h, dz):
-    r""" Differential water capacity calculated numerically.
+def diff_wcapa(pF: Dict, h: np.ndarray, dz: np.ndarray) -> np.ndarray:
+    r""" Differential water capacity (dW/dh) calculated numerically.
 
     Args:
         pF (dict):
-            'ThetaS' (array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'ThetaR' (array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'alpha' (array): air entry suction [cm\ :sup:`-1`]
-            'n' (array): pore size distribution [-]
+            ThetaS (array): saturated water content [m3 m-3]
+            ThetaR (array): residual water content [m3 m-3]
+            alpha' (array): air entry suction [cm-1]
+            n (array): pore size distribution [-]
         h (array): pressure head [m]
         dz (array): soil conpartment thichness, node in center [m]
     Returns:
-        dwcapa (array): differential water capacity dTheta/dhead [m\ :sup:`-1`]
+        dwcapa (array): differential water capacity dTheta/dhead [m-1]
 
-    Kersti Haahti, Luke 8/1/2018
     """
 
     dh = 1e-5
@@ -982,22 +989,21 @@ def diff_wcapa(pF, h, dz):
 
     return dwcapa
 
-def hydraulic_conductivity(pF, x, Ksat=1):
-    r""" Unsaturated hydraulic conductivity following
-    vanGenuchten-Mualem -model.
+def hydraulic_conductivity(pF: Dict, x: np.ndarray, Ksat: np.ndarray=1) -> np.ndarray:
+    r""" 
+    Unsaturated hydraulic conductivity following vanGenuchten-Mualem -model.
 
     Args:
         pF (dict):
-            'ThetaS' (float/array): saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'ThetaR' (float/array): residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'alpha' (float/array): air entry suction [cm\ :sup:`-1`]
-            'n' (float/array): pore size distribution [-]
-        h (float/array): pressure head [m]
-        Ksat (float or array): saturated hydraulic conductivity [units]
+            ThetaS (float|array): saturated water content [m3 m-3]
+            ThetaR (float|array): residual water content [m3 m-3]
+            alpha (float|array): air entry suction [cm-1]
+            n (float|array): pore size distribution [-]
+        h (float|array): pressure head [m]
+        Ksat (float|array): saturated hydraulic conductivity [units]
     Returns:
-        Kh (float or array): hydraulic conductivity (if Ksat ~=1 then in [units], else relative [-])
+        Kh (float|array): hydraulic conductivity (if Ksat ~=1 then in [units], else relative [-])
 
-    Kersti Haahti, Luke 8/1/2018
     """
 
     x = np.array(x)
@@ -1016,21 +1022,22 @@ def hydraulic_conductivity(pF, x, Ksat=1):
 
     return Kh
 
-def gwl_Wsto(dz, pF):
-    r""" Forms interpolated function for soil column ground water depth, < 0 [m], as a
-    function of water storage [m] and vice versa
+def gwl_Wsto(dz: np.ndarray, pF: Dict) -> Dict:
+    r""" 
+    Relationship (interpolation functions) between soil column ground water depth and
+    column water storage [m] and vice versa.
 
     Args:
-        pF (dict of arrays):
-            'ThetaS' saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'ThetaR' residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            'alpha' air entry suction [cm\ :sup:`-1`]
-            'n' pore size distribution [-]
-        dz (np.arrays): soil compartment thichness, node in center [m]
-    Returns:
-        (dict):
-            'to_gwl': interpolated function for gwl(Wsto)
-            'to_wsto': interpolated function for Wsto(gwl)
+        dz (array): soil compartment thichness, node in center [m]
+        pF (dict):
+            ThetaS (float|array): saturated water content [m3 m-3]
+            ThetaR (float|array): residual water content [m3 m-3]
+            alpha (float|array): air entry suction [cm-1]
+            n (float|array): pore size distribution [-]
+    Returns (dict):
+            to_gwl: interpolated function to convert gwl --> Wsto
+            to_wsto: interpolated function to convert Wsto --> gwl
+
     """
 
     z = dz / 2 - np.cumsum(dz)
@@ -1038,6 +1045,7 @@ def gwl_Wsto(dz, pF):
     # --------- connection between gwl and water storage------------
     # gwl from ground surface gwl = 0 to gwl = -5
     gwl = np.arange(0.0, -5, -1e-3)
+
     # solve water storage corresponding to gwls
     Wsto = [sum(h_to_cellmoist(pF, g - z, dz) * dz) for g in gwl]
 
@@ -1076,10 +1084,17 @@ def get_gwl(head, x):
 
     return gwl
 
-def rew(theta, theta_wp, theta_fc):
-    """
-    Relative available water for plants
+def rew(theta: np.ndarray, theta_wp: np.ndarray, theta_fc: np.ndarray) -> np.ndarray:
+    r"""
+    Relative plant available water
     Rew = min[1.0, (theta – theta_wp)/(theta_fc – theta_wp)
+
+    Args:
+        theta (array|float): vol. water content [m3 m-3]
+        theta_wp (array|float): vol. water content at wilting point [m3 m-3]
+        theta_fc (array|float): vol. water content at field capacity [m3 m-3]
+    Returns (array):
+        Rew(array|float): relative plant available water [-]
     """
 
     Rew = np.minimum(1.0, (theta - theta_wp)/(theta_fc - theta_wp))
@@ -1087,65 +1102,38 @@ def rew(theta, theta_wp, theta_fc):
     return Rew
 
 
-""" NOT IN USE """
+""" NOT IN USE IN pyAPES_MLM"""
 
-def wrc(pF, x=None, var=None):
+def wrc(pF: Dict, theta: np.ndarray=None, psi: np.ndarray=None, draw_pF: bool=False) -> np.ndarray:
     """
-    vanGenuchten-Mualem soil water retention model (van Genuchten, 1980;
-    Schaap and van Genuchten, 2006)
-
-    .. math::
-        \\theta(\\psi_s) = \\theta_{res} + \\frac{\\theta_{sat}-\\theta_{res}}
-        {(1 + \\lvert \\alpha + \\psi_{s}\\rvert^n)^m}
-
-    where :math:`\\theta_{res}` and :math:`\\theta_{sat}` are residual and saturation
-    water contents (m\ :sup:`3` m :sup:`-3`\ ), :math:`\\alpha`\ , *n*, and :math:`m=1-^1/_n`
-    are empirical shape parameters.
-
-    Sole input 'pF' draws water retention curve and returns 'None'.
-    For drawing give only one pF-parameter set. If several pF-curves are given,
-    x can be scalar or len(x)=len(pF). In former case var is pF(x), in latter var[i]=pf[i,x[i]]
+    vanGenuchten-Mualem soil water retention model 
 
     References:
         Schaap and van Genuchten (2005). Vadose Zone 5:27-34
         van Genuchten, (1980). Soil Science Society of America Journal 44:892-898
 
     Args:
-        pF (list/dict):
-            0. 'ThetaS' saturated water content [m\ :sup:`3` m :sup:`-3`\ ]
-            1. 'ThetaR' residual water content [m\ :sup:`3` m :sup:`-3`\ ]
-            2. 'alpha' air entry suction [cm\ :sup:`-1`]
-            3. 'n' pore size distribution [-]
-        x:
-            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input is volumetric water content
-            * [m] if input is water potential
-        var: flag for conversion
-            * 'Th' for volumetric water content
-            * None for water potential
+        pF (dict):
+            ThetaS (float|array): saturated water content [m3 m-3]
+            ThetaR (float|array): residual water content [m3 m-3]
+            alpha (float|array): air entry suction [cm-1]
+            n (float|array): pore size distribution [-]
+        theta (float|array): vol. water content [m3 m-3]
+        psi (float|array): water potential [m]
+        draw_pF (bool): Draw pF-curve.
     Returns:
-        numpy array float:
-            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input is water potential
-            * [m] if input is volumetric water content
-    Samuli Launiainen, Luke 2/2016
-    """
-    if type(pF) is dict:  # dict input
-        # Ts, Tr, alfa, n = pF['ThetaS'], pF['ThetaR'], pF['alpha'], pF['n']
-        Ts = np.array(pF['ThetaS'])
-        Tr = np.array(pF['ThetaR'])
-        alfa = np.array(pF['alpha'])
-        n = np.array(pF['n'])
-        m = 1.0 - np.divide(1.0, n)
+        y (float|array): water potential [m] or vol. water content [m3 m-3]. Returns None if only curve is drawn.
 
-    else:  # list input
-        pF = np.array(pF, ndmin=1)  # ndmin=1 needed for indexing 0-d arrays
-        Ts = pF[:, 0]
-        Tr = pF[:, 1]
-        alfa = pF[:, 2]
-        n = pF[:, 3]
-        m = 1.0 - np.divide(1.0, n)
+    """
+
+    Ts = np.array(pF['ThetaS'])
+    Tr = np.array(pF['ThetaR'])
+    alfa = np.array(pF['alpha'])
+    n = np.array(pF['n'])
+    m = 1.0 - np.divide(1.0, n)
 
     def theta_psi(x):
-        # converts water content (m3m-3) to potential (m)
+        # converts water content [m3 m-3] to potential [m]]
         x = np.minimum(x, Ts)
         x = np.maximum(x, Tr)  # checks limits
         s = (Ts - Tr) / ((x - Tr) + EPS)
@@ -1154,15 +1142,23 @@ def wrc(pF, x=None, var=None):
         return Psi
 
     def psi_theta(x):
-        # converts water potential (m) to water content (m3m-3)
+        # converts water potential [m] to water content [m3 m-3]
         x = 100*np.minimum(x, 0)  # cm
         Th = Tr + (Ts - Tr) / (1 + abs(alfa*x)**n)**m
         return Th
 
-    # This does all the work
-    if x is None and np.size(Ts) == 1:  # draws pf-curve
+    # --- convert between theta <-- --> psi
+    if theta:
+        y = theta_psi(theta)  # 'Theta-->Psi'
+    elif psi:
+        y = psi_theta(psi)  # 'Psi-->Theta'
+
+    # draws pf-curve
+    if draw_pF:
+        Ts = Ts[0]; Tr = Tr[0]; alpha = alpha[0]; n = n[0]  
         xx = -np.logspace(-4, 5, 100)  # cm
         yy = psi_theta(xx)
+
         #  field capacity and wilting point
         fc = psi_theta(-1.0)
         wp = psi_theta(-150.0)
@@ -1181,81 +1177,8 @@ def wrc(pF, x=None, var=None):
         plt.ylim(0.8*Tr, min(1, 1.1*Ts))
 
         del xx, yy
-        return None
-
-    elif x is None:
-        print('soil_cores.wrc: To draw curve give only one pF -parameter set')
-        return None
-
-    if var is 'Th':
-        y = theta_psi(x)  # 'Theta-->Psi'
-    else:
-        y = psi_theta(x)  # 'Psi-->Theta'
-
+        y = None
+    
     return y
 
-def unsat_conductivity(pF, x=None, var=None, Ksat=1):
-    r""" Hydraulic conductivity following vanGenuchten-Mualem -model.
-    Sole input 'pF' draws relative conductivity curve.
-
-    Args:
-        pF (dict/list):
-            0. 'ThetaS' saturated water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            1. 'ThetaR' residual water content [m\ :sup:`3` m\ :sup:`-3`\ ]
-            2. 'alpha' air entry suction [cm\ :sup:`-1`]
-            3. 'n' pore size distribution [-]
-        x (float or np.array):
-            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input is vol.water content
-            * [m] if input is water potential
-        var (str): flag for conversion
-            * 'Th' for volumetric water content
-            * None for water potential
-        Ksat (float or np.array): saturated hydraulic conductivity [units]
-    Returns:
-        Kh (float or np.array): hydraulic conductivity (if Ksat ~=1 then in [units], else relative [-])
-    """
-
-    if type(pF) is dict:  # dict input
-        alfa = np.array(pF['alpha'])
-        n = np.array(pF['n'])
-        m = 1.0 - np.divide(1.0, n)
-    else:  # list input
-        pF = np.array(pF, ndmin=1)
-        alfa = pF[2]
-        n = pF[3]
-        m = 1.0 - np.divide(1.0, n)
-
-    def relcond(x):
-        Seff = 1.0 / (1.0 + abs(alfa*x)**n)**m
-        r = Seff**0.5 * (1.0 - (1.0 - Seff**(1/m))**m)**2.0
-        return r
-
-    if x is None and np.size(alfa) == 1:  # draws curve
-        xx = -np.logspace(-4, 5, 100)  # cm
-        yy = relcond(xx)
-
-        fig = plt.figure()
-        fig.suptitle('Hydr. cond. (vanGenuchten-Mualem)', fontsize=16)
-        ttext = r'$K_{sat}=$' + str(Ksat) + r', $\alpha=$' + str(alfa) \
-                + ', n=' + str(n)
-
-        plt.title(ttext, fontsize=14)
-        plt.semilogx(-xx, yy, 'g-')
-        plt.ylabel(r'K_{h} / K_{sat}', fontsize=14)
-        plt.xlabel('$\psi$ $(cm)$', fontsize=14)
-
-        del xx, yy
-        return None
-
-    elif x is None:
-        print('hydrCond: To draw curve give only one pF -parameter set')
-        return None
-
-    # this computes and returns
-    x = np.array(x)
-    if x is not None and var is 'Th':
-        x = wrc(pF, x=x, var='Th')
-
-    Kh = Ksat*relcond(100.0*np.minimum(x, 0))
-
-    return Kh
+# EOF

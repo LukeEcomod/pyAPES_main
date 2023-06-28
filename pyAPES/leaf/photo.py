@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 .. module: photo
-    :synopsis: pyAPES-model component leaf
-.. moduleauthor:: Samuli Launiainen & Kersti Leppä
-
-Describes coupled leaf/needle-scale photosynthesis and stomatal control using variants of
+    :synopsis: pyAPES leaf component. Describes coupled leaf/needle-scale photosynthesis and stomatal control using variants of
 Farquhar model and 'A-gs' schemes. Includes also energy balance.
+.. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
 Key references:
     Launiainen et al. 2015 Ecol. Mod.

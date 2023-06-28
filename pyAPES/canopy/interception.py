@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 .. module: interception
-    :synopsis: pyAPES-model canopy component
+    :synopsis: pyAPES-model mlm_canopy component
 .. moduleauthor:: Kersti Leppä & Samuli Launiainen
 
 *Rainfall interception and wet-canopy energy balance in a multi-layer canopy*
