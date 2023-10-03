@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-.. module: pyAPES_mlm
+.. module: pyAPES.models.mlm
     :synopsis: pyAPES component. Multi-layer, multi-species SVAT model
 .. moduleauthor:: Samuli Launiainen, Kersti Leppä & Antti-Jussi Kieloaho
 
@@ -10,7 +10,7 @@ Key references:
 
 Launiainen, S., Katul, G.G., Lauren, A. and Kolari, P., 2015. Coupling boreal
 forest CO2, H2O and energy flows by a vertically structured forest canopy –
-Soil model with separate bryophyte layer. Ecological modelling, 312, pp.385-405.
+soil model with separate bryophyte layer. Ecological Modelling, 312, pp.385-405.
 
 Leppä, K. et al. 2020. Agric. For. Meteorology
 
@@ -41,20 +41,21 @@ import logging
 from pandas import date_range
 from typing import List, Tuple, Dict
 
-from utils.iotools import initialize_netcdf,  write_ncf
-from canopy.mlm_canopy import CanopyModel
-from soil.soil import Soil
+from pyAPES.utils.iotools import initialize_netcdf,  write_ncf
+from pyAPES.canopy.mlm_canopy import CanopyModel
+from pyAPES.soil.soil import Soil
 
-from utils.constants import WATER_DENSITY
+from pyAPES.utils.constants import WATER_DENSITY
 
 def driver(parameters,
-           create_ncf=False,
+           create_ncf=False, 
            result_file=None):
     """
-    Driver for pyAPES_MLM multi-layer model. Gets parameters as argument, prepares output files, runs model.
+    Driver for pyAPES_MLM multi-layer model. Gets parameters and forcing as argument, prepares output files, runs model.
     
     Args:
-        parameters (dict/list): either single parameter dictionary or list of parameters
+        parameters (dict/list): either single parameter dictionary or list of parameter dictionaries
+
         create_ncf (bool): results saved to netCDF4 file
         result_file (str): name of result file
     Returns:
@@ -63,7 +64,7 @@ def driver(parameters,
     """
 
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
-    from parameters.mlm_outputs import output_variables, logging_configuration
+    from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
     from logging.config import dictConfig
 
     # --- Config logger
@@ -423,9 +424,3 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
     return results
 
 # EOF
-#if __name__ == '__main__':
-#
-#    from parameters.parametersets import lettosuo_parameters
-#    outputfile=driver(create_ncf=True, parametersets=lettosuo_parameters)
-#
-#    print(outputfile)

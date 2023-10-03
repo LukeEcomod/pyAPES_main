@@ -1,5 +1,5 @@
 """
-.. module: pyAPES.parameters.mlm_outputs
+.. module: pyAPES.models.mlm_outputs
     :synopsis: pyAPES_MLM NetCSF4 outputs and logger configuration
 .. moduleauthor:: Samuli Launiainen
 
@@ -42,7 +42,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_Tleaf_sh', 'shaded leaf temperature [degC]', ('date', 'simulation', 'canopy')],
 
       # radiation
-#      ['canopy_sunlit_fraction','fraction of sunlit leafs [-]', ('date', 'simulation', 'canopy')],
+      ['canopy_sunlit_fraction','fraction of sunlit leafs [-]', ('date', 'simulation', 'canopy')],
       ['canopy_SWnet', 'net shortwave radiation balance at canopy top [W m-2]', ('date', 'simulation')],
       ['canopy_LWnet', 'net longwave radiation balance at canopy top [W m-2]', ('date', 'simulation')],
       ['canopy_Rnet', 'net radiation balance at canopy top [W m-2]', ('date', 'simulation')],
@@ -71,8 +71,8 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_condensation_drip', 'condensation to canopy that drips [kg m-2 s-1]', ('date', 'simulation')],
       ['canopy_throughfall', 'throughfall to moss or snow [kg m-2 s-1]', ('date', 'simulation')],
       ['canopy_evaporation_ml', 'evaporation from interception storage, profile (condensation incl.) [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
-#      ['canopy_throughfall_ml', 'throughfall within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
-#      ['canopy_condensation_drip_ml', 'condensation drip within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
+      ['canopy_throughfall_ml', 'throughfall within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
+      ['canopy_condensation_drip_ml', 'condensation drip within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
       ['canopy_water_closure', 'interception model mass balance error [kg m-2 s-1]', ('date', 'simulation')],
 
       # ecosystem-level fluxes (at highest gridpoint, per m-2 ground)
@@ -88,15 +88,12 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_latent_heat_flux', 'latent heat flux [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_sensible_heat_flux', 'sensible heat flux [W m-2]', ('date', 'simulation', 'canopy')],
 
-      # root sink profile (all PlantTypes combined)
-      #['canopy_root_sink', 'root water uptake profile [m s-1]', ('date', 'simulation', 'soil')],
-
       # planttype -specific outputs
       ['pt_total_gpp', 'gross-primary productivity [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
-#      ['pt_total_dark_respiration', 'dark (or leaf + wood?) respiration [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
+      ['pt_total_dark_respiration', 'dark (or leaf + wood?) respiration [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_transpiration', 'transpiration [kg m-2 s-1]', ('date', 'simulation', 'planttype')],
-#      ['pt_total_stomatal_conductance_h2o', 'stomatal conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
-#      ['pt_total_boundary_conductance_h2o', 'leaf boundary layer conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
+      ['pt_total_stomatal_conductance_h2o', 'stomatal conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
+      ['pt_total_boundary_conductance_h2o', 'leaf boundary layer conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_root_water_potential', 'root water potential [m?]', ('date', 'simulation', 'planttype')], # CHECK UNITS!!!
 
       # vertical profiles: layers where planttype lad == 0 are set to np.NaN
@@ -139,7 +136,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['soil_volumetric_water_content', 'soil water content [m3/m3]', ('date', 'simulation', 'soil')],
       ['soil_volumetric_ice_content', 'soil ice content [m3/m3]', ('date', 'simulation', 'soil')],
       ['soil_heat_flux', 'soil heat flux [W m-2]', ('date', 'simulation', 'soil')],
-#      ['soil_thermal_conductivity', 'thermal conductivity [W m-1 K-1]', ('date', 'simulation', 'soil')],
+      ['soil_thermal_conductivity', 'thermal conductivity [W m-1 K-1]', ('date', 'simulation', 'soil')],
       ['soil_water_closure', 'soil water balance error [m s-1]', ('date', 'simulation')],
       ['soil_energy_closure', 'soil heat balance error [W m-2]', ('date', 'simulation')],
 

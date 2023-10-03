@@ -17,8 +17,8 @@ from multiprocessing import Process, Queue, Pool  # , cpu_count
 #from psutil import cpu_count
 from copy import deepcopy
 
-from tools.iotools import initialize_netcdf, write_ncf
-from pyAPES import Model
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf
+from pyAPES.mlm import Model
 
 import time
 
@@ -193,9 +193,9 @@ def driver(ncf_params,
 
 if __name__ == '__main__':
     import argparse
-    from parameters.outputs import parallel_logging_configuration, output_variables
-    from parameters.SmearII import gpara, cpara, spara
-    from parameters.parameter_tools import get_parameter_list
+    from pyAPES.models.mlm_outputs import parallel_logging_configuration, output_variables
+    from pyAPES.models.mlm_parameters import gpara, cpara, spara
+    from pyAPES.parameters.parameter_tools import get_parameter_list
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--cpu', help='number of cpus to be used', type=int)

@@ -567,7 +567,7 @@ class CanopyModel(object):
             if pt.LAImax > 0.0:
                 Tr_pt = pt_stats[pt_index]['transpiration'] * MOLAR_MASS_H2O / WATER_DENSITY
                 rootsink[pt.Roots.ix] += pt.Roots.wateruptake(
-                        transpiration=Tr_pt,
+                        transpiration_rate=Tr_pt,
                         h_soil=forcing['soil_water_potential'],
                         kh_soil=parameters['soil_hydraulic_conductivity'])
             pt_index += 1

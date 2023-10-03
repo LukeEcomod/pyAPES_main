@@ -62,7 +62,7 @@ class Interception(object):
         # initial water storage [kg m-2]
         #self.W = np.minimum(p['w_ini'], p['wmax'] * self.LAIz)
         self.W = p['w_ini'] * p['wmax'] * self.LAIz
-        self.W = np.zeros(len)
+        self.W = np.zeros(len(self.LAIz))
         self.update()
 
     def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Dict:

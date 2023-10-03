@@ -114,7 +114,7 @@ def write_ncf(nsim=None, results=None, ncf=None):
                 ncf[key][:, nsim] = results[key]
 
 
-def read_forcing(forc_fp: str, start_time: str, end_time: str,
+def read_forcing(forcing_file: str, start_time: str, end_time: str,
                  dt: float=1800.0, na_values: str='NaN', sep: str=';') -> pd.DataFrame:
     """
     Reads model forcing data from csv-file to pd.DataFrame
@@ -135,7 +135,7 @@ def read_forcing(forc_fp: str, start_time: str, end_time: str,
 
     # filepath
     #forc_fp = "forcing/" + forc_filename
-    dat = pd.read_csv(forc_fp, header='infer', na_values=na_values, sep=sep)
+    dat = pd.read_csv(forcing_file, header='infer', na_values=na_values, sep=sep)
 
     # set to dataframe index
     tvec = pd.to_datetime(dat[['year', 'month', 'day', 'hour', 'minute']])
