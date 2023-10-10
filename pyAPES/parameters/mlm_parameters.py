@@ -414,7 +414,7 @@ water_model = {'solve': True,
 # --- heat model: pyAPES.soil.heat.Heat
 heat_model = {'solve': True,
               'initial_condition': {
-                      'temperature': 4.0,  # initial soil temperature [degC]
+                      'temperature': 4.0,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',

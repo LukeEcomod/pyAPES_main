@@ -70,6 +70,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_condensation', 'condensation to canopy interception storage [kg m-2 s-1]', ('date', 'simulation')],
       ['canopy_condensation_drip', 'condensation to canopy that drips [kg m-2 s-1]', ('date', 'simulation')],
       ['canopy_throughfall', 'throughfall to moss or snow [kg m-2 s-1]', ('date', 'simulation')],
+      # add canopy_interception_storage_ml
       ['canopy_evaporation_ml', 'evaporation from interception storage, profile (condensation incl.) [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
       ['canopy_throughfall_ml', 'throughfall within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
       ['canopy_condensation_drip_ml', 'condensation drip within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
