@@ -698,6 +698,7 @@ class CanopyModel(object):
         ff_fluxes.update({'par_albedo': self.forestfloor.albedo['PAR'],
                           'nir_albedo': self.forestfloor.albedo['NIR']}
                         )
+        
         return outputs_canopy, pt_results, ff_fluxes, gt_results
 
     def _restore(self, forcing: Dict) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:

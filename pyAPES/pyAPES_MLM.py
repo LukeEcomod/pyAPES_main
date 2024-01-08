@@ -418,7 +418,7 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
             if key == 'z' or key == 'planttypes' or key == 'groundtypes':
                 results[variable] = step_results[key]
             else:
-                #print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
+                # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]),step_results[key])
                 results[variable][step] = step_results[key]
 
     return results
