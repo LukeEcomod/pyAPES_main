@@ -110,12 +110,12 @@ def spatial_average(y: np.ndarray, x: np.ndarray=None, method: str='arithmetic')
     N = len(y)
     f = np.empty(N+1)  # Between all nodes and at surface and bottom
 
-    if method is 'arithmetic':
+    if method == 'arithmetic':
         f[1:-1] = 0.5*(y[:-1] + y[1:])
         f[0] = y[0]
         f[-1] = y[-1]
 
-    elif method is 'geometric':
+    elif method == 'geometric':
         f[1:-1] = np.sqrt(y[:-1] * y[1:])
         f[0] = y[0]
         f[-1] = y[-1]

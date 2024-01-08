@@ -423,4 +423,44 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
 
     return results
 
+if __name__ == '__main__':
+
+    # setting path
+    import sys
+    #sys.path.append('c:\\Repositories\\pyAPES_main')
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    pyAPES_main_folder = os.getenv('pyAPES_main_folder')
+
+    sys.path.append(pyAPES_main_folder)
+    #print(sys.path)
+
+    #import argparse
+    from pyAPES.parameters.mlm_outputs import output_variables
+    from pyAPES.parameters.mlm_parameters import gpara, cpara, spara
+    from pyAPES.utils.iotools import read_forcing
+
+    # read forcing data
+    forcing = read_forcing(
+        forcing_file=gpara['forc_filename'],
+        start_time=gpara['start_time'],
+        end_time=gpara['end_time'],
+        dt=gpara['dt']
+    )
+
+    # combine parameterset
+    params = {
+        'general': gpara,   # model configuration
+        'canopy': cpara,    # planttype, micromet, canopy, bottomlayer parameters
+        'soil': spara,      # soil heat and water flow parameters
+        'forcing': forcing  # forging data
+    }
+ 
+    # run the model
+    resultfile, Model = driver(parameters=params,
+                           create_ncf=True,
+                           result_file= 'testrun.nc'
+                          )
 # EOF

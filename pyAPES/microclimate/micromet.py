@@ -221,21 +221,22 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
     
     Args:
        z - height [m]], constant increments
-       Cd - drag coefficient (typical range 0.1 - 0.3) [-]]
+       Cd - drag coefficient (typical range 0.1 - 0.3) [-]
        lad - plant area density, 1-sided [m2 m-3]
        hc - canopy height [m]
        Utop - U /u* [-] upper boundary
-       Uhi - U /u* [-]at ground (0.0 for no-slip)
+       Ubot - U /u* [-] at ground (0.0 for no-slip)
        dPdx - u* -normalized horizontal pressure gradient
+       lbc_flux - True sets lower BC to zero flux
     
     Returns:
         (tuple):
             tau (array): u* -normalized momentum flux
             U (array): u* normalized mean wind speed [-]]
             Km (array): eddy diffusivity for momentum [m2 s-1]
-            l_mix (array): mixing length [m]]
+            l_mix (array): mixing length [m]
             d (float): zero-plane displacement height [m]
-            zo (float): roughness lenght for momentum [m]]
+            zo (float): roughness lenght for momentum [m]
 
     """
 

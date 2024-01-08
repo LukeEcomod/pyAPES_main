@@ -18,7 +18,7 @@ from multiprocessing import Process, Queue, Pool  # , cpu_count
 from copy import deepcopy
 
 from pyAPES.utils.iotools import initialize_netcdf, write_ncf
-from pyAPES.mlm import Model
+from pyAPES.pyAPES_mlm import Model
 
 import time
 
@@ -193,8 +193,8 @@ def driver(ncf_params,
 
 if __name__ == '__main__':
     import argparse
-    from pyAPES.models.mlm_outputs import parallel_logging_configuration, output_variables
-    from pyAPES.models.mlm_parameters import gpara, cpara, spara
+    from pyAPES.parameters.mlm_outputs import parallel_logging_configuration, output_variables
+    from pyAPES.parameters.mlm_parameters import gpara, cpara, spara
     from pyAPES.parameters.parameter_tools import get_parameter_list
 
     parser = argparse.ArgumentParser()

@@ -1,0 +1,61 @@
+│
+├── pyAPES
+│   │
+│   ├── pyAPES_mlm.py		# Multi-layer ecosystem model
+│	├── pyAPES_blm.py		# Big-leaf ecosystem model	
+│	├── parallelAPES.py 	# parallelized multi-layer model
+│	│
+│	├── microclimate		# canopy flow & scalar profiles, short- and long-wave radiation 
+│	│   ├── micromet.py
+│	│   └── radiation.py
+│	│
+│	├── canopy				# canopy model
+│	│   ├── forestfloor.py
+│	│   ├── interception.py
+│	│   └── mlm_canopy.py
+│	│
+│	├── leaf				# leaf gas-exchange, stomatal conductance, energy-balance
+│	│   └── photo.py
+│	│
+│	├── planttype			# vascular plants
+│	│   ├── phenology.py
+│	│   ├── planttype.py
+│	│   └── rootzone.py
+│	│
+│	├── bottomlayer			# moss / litter layer
+│	│   ├── baresoil.py
+│	│   ├── carbon.py
+│	│   └── organiclayer.py
+│	│
+│	├── snow				# snowpack
+│	│   └── snowpack.py
+│	│
+│	├── soil				# soil profile or bucket
+│	│   ├── heat.py
+│	│   ├── soil.py
+│	│   └── water.py
+│	│
+│	├── utils				# physical constants, input-output functions, solvers
+│	│   ├── constants.py
+│	│   ├── iotools.py
+│	│   └── utilities.py
+│	│
+│	└──parameters			# model parameters
+│ 	 	├── mlm_outputs.py
+│ 	    ├── mlm_parameters.py
+│ 	    ├── outputs_obs.py
+│ 	    ├── parametersets.py
+│ 	    └── parameter_tools.py
+│ 
+├── forcing
+│	├──forcingdata.dat
+│	└──demofluxes.dat
+│
+├── Results					# model outputs
+│
+├── examples				# IPython Notebooks to demonstrate code usage
+│	│
+│   ├── Ex1_pyAPES_mlm.ipynb
+│   └── Ex5_moss_photosynthesis.ipynb
+│
+└── docs					# documentation
