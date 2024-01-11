@@ -206,6 +206,23 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['gt_water_potential', 'water potential [m]', ('date', 'simulation', 'groundtype')],
       ['gt_hydraulic_conductivity', 'hydraulic_conductivity [m s-1]', ('date', 'simulation', 'groundtype')],
       ['gt_thermal_conductivity', 'thermal_conductivity [W m-1 K-1]', ('date', 'simulation', 'groundtype')],
+      
+      # isotope variables
+      ['forcing_d13Ca', 'd13C in atmospheric CO2 [permil]', ('date', 'simulation')],
+      ['forcing_d18Ov', 'd18O in atmospheric H2O [permil]', ('date', 'simulation')],
+      ['forcing_d18O_sw', 'd18O in source water [permil]', ('date', 'simulation')],
+      ['pt_13c_discrimination_sunlit', '13C-discrimination of net photosynthesis, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_13c_discrimination_shaded', '13C-discrimination of net photosynthesis, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d13c_net_co2_flux_sunlit', 'd13C of net CO2 flux, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d13c_net_co2_flux_shaded', 'd13C of net CO2 flux, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d13c_leaf_sugar_sunlit', 'leaf sugar d13C, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d13c_leaf_sugar_shaded', 'leaf sugar d13C, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_leaf_water_sunlit', 'leaf water d18O, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_leaf_water_shaded', 'leaf water d18O, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_leaf_sugar_sunlit', 'leaf sugar d18O, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_leaf_sugar_shaded', 'leaf sugar d18O, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_evaporative_sites_sunlit', 'leaf water d18O at evaporative sites, sunlit leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
+      ['pt_d18o_evaporative_sites_shaded', 'leaf water d18O at evaporative sites, shaded leaf [permil]',('date', 'simulation', 'planttype', 'canopy')],
       ]
 
 }

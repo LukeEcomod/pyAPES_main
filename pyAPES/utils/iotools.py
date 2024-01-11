@@ -156,6 +156,12 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
         cols.append('X')
     if 'DDsum' in dat:
         cols.append('DDsum')
+        
+    # isotope model inputs
+    if 'd13Ca' in dat.columns:  # carbon
+        cols.append('d13Ca')
+    if {'d18O_prec', 'd18Ov', 'd18O_sw'}.issubset(dat.columns):  # oxygen
+        cols.extend(['d18O_prec', 'd18Ov', 'd18O_sw'])
 
     # Create dataframe from specified columns
     Forc = dat[cols].copy()
