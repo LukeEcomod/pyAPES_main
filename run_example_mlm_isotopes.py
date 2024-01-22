@@ -57,15 +57,23 @@ ax[0].set_ylabel('z (m)')
 ax[0].legend(['sunlit', 'shaded'])
 fig.tight_layout()
 
-fig, ax = plt.subplots(3,1, figsize=(10,7), sharex='all')
-for i, v in enumerate(var):
-    results[v+'_sunlit'][:,0,0,50].plot(x='date',ax=ax[i])
-    results[v+'_shaded'][:,0,0,50].plot(x='date',ax=ax[i])
-    ax[i].set_ylabel(results[v+'_shaded'].attrs['units'].split(',')[0] + ' (‰)')
+var = [['pt_d13c_leaf_sugar'],['pt_d18o_leaf_sugar','pt_d18o_leaf_water']]
+var2 = ['pt_d13c_C_pool','pt_d18o_C_pool','pt_C_pool']
+var3 = ['pt_d13c_treering_celluose','pt_d18o_treering_celluose']
+
+fig, ax = plt.subplots(3,1, figsize=(10,10), sharex='all')
+for i, vv in enumerate(var):
+    for v in vv:
+        results[v+'_sunlit'][:,0,0,50].plot(x='date',ax=ax[i],label=results[v+'_sunlit'].attrs['units'])
+        results[v+'_shaded'][:,0,0,50].plot(x='date',ax=ax[i],label=results[v+'_shaded'].attrs['units'])
+for i, v in enumerate(var2):
+    results[v][:,0,0].plot(x='date',ax=ax[i],label=results[v].attrs['units'])
+for i, v in enumerate(var3):
+    results[v][:,0,0].plot(x='date',ax=ax[i],label=results[v].attrs['units'], marker='o', linestyle='')
     ax[i].set_xlabel('')
-    if i > 0:
-        ax[i].set_title('')
-ax[0].legend(['sunlit', 'shaded'])
+    ax[i].set_ylabel('')
+    ax[i].set_title('')
+    ax[i].legend()
 fig.tight_layout()
 
 results.close()

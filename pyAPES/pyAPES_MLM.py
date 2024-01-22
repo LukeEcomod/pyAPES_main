@@ -196,7 +196,8 @@ class MLM_model(object):
 
         # create isotope model instance
         self.isotope_model = Isotopes(isotope_para,
-                                      [pt.mask for pt in self.canopy_model.planttypes])
+                                      [pt.mask for pt in self.canopy_model.planttypes],
+                                      [pt.LAImax for pt in self.canopy_model.planttypes])
 
         # initialize temorary structure to save results
         self.results = _initialize_results(outputs,
@@ -349,9 +350,14 @@ class MLM_model(object):
                 'leaf_surface_co2_shaded': out_planttype['leaf_surface_co2_shaded'],
                 'co2': out_canopy['co2'],
                 'h2o': out_canopy['h2o'],
-                'air_pressure': self.forcing['P'].iloc[k]
+                'air_pressure': self.forcing['P'].iloc[k],
+                'air_temperature': self.forcing['Tair'].iloc[k],
+                'LAIz': [pt.lad * self.canopy_model.dz for pt in self.canopy_model.planttypes],
+                'f_sl': out_canopy['sunlit_fraction'],
+                'datetime': self.forcing.index[k]
                 }
- 
+            
+            # add isotopic forcing data depending on which isotopes are solved
             if self.isotope_model.solve_d13C:
                 iso_forcing.update({'d13Ca': self.forcing['d13Ca'].iloc[k]})
                 forcing_output.update({'d13Ca': self.forcing['d13Ca'].iloc[k]})
@@ -365,7 +371,7 @@ class MLM_model(object):
             # run model
             out_isotope = self.isotope_model.run(dt=self.dt, forcing=iso_forcing)
 
-
+            # --- append results ---
             self.results = _append_results('forcing', k, forcing_output, self.results)
             self.results = _append_results('canopy', k, out_canopy, self.results)
             self.results = _append_results('ffloor', k, out_ffloor, self.results)
@@ -374,6 +380,13 @@ class MLM_model(object):
             self.results = _append_results('gt', k, out_groundtype, self.results)
             self.results = _append_results('pt', k, out_isotope, self.results)
 
+        # --- calculate wood sections isotopes ---
+        out_isotope_woodsections, indices = self.isotope_model.calculate_woodsections_values(
+            dates=self.forcing.index)
+        # append to results
+        for i, k in enumerate(indices):
+            self.results = _append_results('pt', k, out_isotope_woodsections[i], self.results)                
+        
         print('100%')
 
         # append plantype, groundtype and grid information
