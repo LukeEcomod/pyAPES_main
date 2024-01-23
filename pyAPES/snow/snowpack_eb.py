@@ -3,7 +3,7 @@
     :synopsis: APES-model component
 .. moduleauthor:: Jari-Pekka Nousu
 
-*Energy balance, layered snowpack, based on FSM*
+*Energy balance, layered snowpack, based on FSM2*
 
 """
 
@@ -35,30 +35,35 @@ class SnowModel:
         self.Nsoil = layers.Nsoil # Number of soil layers
 
         # from Parameters
-        self.eta0 = parameters.eta0 # Reference snow viscosity (Pa s)
-        self.rcld = parameters.rcld # Maximum density for cold snow (kg/m^3)
-        self.rfix = parameters.rfix # Fixed snow density (kg/m^3)
-        self.rgr0 = parameters.rgr0 # Fresh snow grain radius (m)
-        self.rhof = parameters.rhof # Fresh snow density (kg/m^3)
-        self.rhow = parameters.rhow # Wind-packed snow density (kg/m^3)
-        self.rmlt = parameters.rmlt # Maximum density for melting snow (kg/m^3)
-        self.snda = parameters.snda # Thermal metamorphism parameter (1/s)
-        self.trho = parameters.trho # Snow compaction timescale (s)
-        self.Wirr = parameters.Wirr # Irreducible liquid water content of snow
+        self.eta0 = params.eta0 # Reference snow viscosity (Pa s)
+        self.rcld = params.rcld # Maximum density for cold snow (kg/m^3)
+        self.rfix = params.rfix # Fixed snow density (kg/m^3)
+        self.rgr0 = params.rgr0 # Fresh snow grain radius (m)
+        self.rhof = params.rhof # Fresh snow density (kg/m^3)
+        self.rhow = params.rhow # Wind-packed snow density (kg/m^3)
+        self.rmlt = params.rmlt # Maximum density for melting snow (kg/m^3)
+        self.snda = params.snda # Thermal metamorphism parameter (1/s)
+        self.trho = params.trho # Snow compaction timescale (s)
+        self.Wirr = params.Wirr # Irreducible liquid water content of snow
+
+        self.HYDROL = 2 # NOTE THIS NEEDS TO COME FROM THE NAMELIST!
+        self.CONDUCT = 1
+        self.DENSITY = 1
+        self.dt = 3600
         
         # Model state variables (in/out)
-        self.Nsnow = np.zeros(Nsmax) # Number of snow layers
-        self.Dsnw = np.zeros(Nsmax) # Snow layer thicknesses (m)
-        self.Rgrn = np.zeros(Nsmax) # Snow layer grain radius (m)
-        self.Sice = np.zeros(Nsmax) # Ice content of snow layers (kg/m^2)
-        self.Sliq = np.zeros(Nsmax) # Liquid content of snow layers (kg/m^2)
-        self.Tsnow = np.zeros(Nsmax) # Snow layer temperatures (K)
-        self.Tsoil = np.zeros(Nsmax) # Soil layer temperatures (K)
+        self.Nsnow = np.zeros(1) # Number of snow layers
+        self.Dsnw = np.zeros(self.Nsmax) # Snow layer thicknesses (m)
+        self.Rgrn = np.zeros(self.Nsmax) # Snow layer grain radius (m)
+        self.Sice = np.zeros(self.Nsmax) # Ice content of snow layers (kg/m^2)
+        self.Sliq = np.zeros(self.Nsmax) # Liquid content of snow layers (kg/m^2)
+        self.Tsnow = np.zeros(self.Nsmax) # Snow layer temperatures (K)
+        self.Tsoil = np.zeros(self.Nsmax) # Soil layer temperatures (K)
         self.Gsoil = np.zeros(1) # Heat flux into soil (W/m^2)
         self.Roff = np.zeros(1) # Runoff from snow (kg/m^2/s)
         self.hs = np.zeros(1) # Snow depth (m)
         self.swe = np.zeros(1) # Total snow mass on ground (kg/m^2)
-        self.Wflx = np.zeros(Nsmax) # Water flux into snow layer (kg/m^2/s)
+        self.Wflx = np.zeros(self.Nsmax) # Water flux into snow layer (kg/m^2/s)
         self.i,self.j = np.zeros(1),np.zeros(1) # Hydrology iteration counters
         self.k = np.zeros(1) # Snow layer counter
         self.knew =  np.zeros(1) # New snow layer pointer
@@ -73,114 +78,115 @@ class SnowModel:
         self.rhos = np.zeros(1) # Density of snow layer (kg/m^3)
         self.SliqMax = np.zeros(1) # Maximum liquid content for layer (kg/m^2)
         self.wt = np.zeros(1) # Layer weighting
-        self.a =  np.zeros(Nsmax) # Below-diagonal matrix elements
-        self.b = np.zeros(Nsmax) # Diagonal matrix elements
-        self.c = np.zeros(Nsmax) # Above-diagonal matrix elements
-        self.csnow = np.zeros(Nsmax) # Areal heat capacity of snow (J/K/m^2)
-        self.dTs = np.zeros(Nsmax) # Temperature increments (k)
-        self.D = np.zeros(Nsmax) # Layer thickness before adjustment (m)
-        self.E = np.zeros(Nsmax) # Energy contents before adjustment (J/m^2)
-        self.Gs = np.zeros(Nsmax) # Thermal conductivity between layers (W/m^2/k)
-        self.phi = np.zeros(Nsmax) # Porosity of snow layers
-        self.rhs = np.zeros(Nsmax) # Matrix equation rhs
-        self.R = np.zeros(Nsmax) # Snow grain radii before adjustment (kg/m^2)
-        self.S = np.zeros(Nsmax) # Ice contents before adjustment (kg/m^2)
-        self.U = np.zeros(Nsmax) # Layer internal energy contents (J/m^2)
-        self.W = np.zeros(Nsmax) # Liquid contents before adjustment (kg/m^2)   
+        self.a =  np.zeros(self.Nsmax) # Below-diagonal matrix elements
+        self.b = np.zeros(self.Nsmax) # Diagonal matrix elements
+        self.c = np.zeros(self.Nsmax) # Above-diagonal matrix elements
+        self.csnow = np.zeros(self.Nsmax) # Areal heat capacity of snow (J/K/m^2)
+        self.dTs = np.zeros(self.Nsmax) # Temperature increments (k)
+        self.D = np.zeros(self.Nsmax) # Layer thickness before adjustment (m)
+        self.E = np.zeros(self.Nsmax) # Energy contents before adjustment (J/m^2)
+        self.Gs = np.zeros(self.Nsmax) # Thermal conductivity between layers (W/m^2/k)
+        self.phi = np.zeros(self.Nsmax) # Porosity of snow layers
+        self.rhs = np.zeros(self.Nsmax) # Matrix equation rhs
+        self.R = np.zeros(self.Nsmax) # Snow grain radii before adjustment (kg/m^2)
+        self.S = np.zeros(self.Nsmax) # Ice contents before adjustment (kg/m^2)
+        self.U = np.zeros(self.Nsmax) # Layer internal energy contents (J/m^2)
+        self.W = np.zeros(self.Nsmax) # Liquid contents before adjustment (kg/m^2)   
         self.dth = np.zeros(1) # Hydrology timestep (s)
-        self.dtheta = np.zeros(Nsmax) # Change in liquid water content
-        self.ksat = np.zeros(Nsmax) # Saturated hydraulic conductivity (m/s)
-        self.thetar = np.zeros(Nsmax) # Irreducible water content
-        self.thetaw = np.zeros(Nsmax) # Volumetric liquid water content
-        self.theta0 = np.zeros(Nsmax) # Liquid water content at start of timestep
-        self.Qw = np.zeros(Nsmax+1) # Water flux at snow layer boundaruess (m/s)
+        self.dtheta = np.zeros(self.Nsmax) # Change in liquid water content
+        self.ksat = np.zeros(self.Nsmax) # Saturated hydraulic conductivity (m/s)
+        self.thetar = np.zeros(self.Nsmax) # Irreducible water content
+        self.thetaw = np.zeros(self.Nsmax) # Volumetric liquid water content
+        self.theta0 = np.zeros(self.Nsmax) # Liquid water content at start of timestep
+        self.Qw = np.zeros(self.Nsmax+1) # Water flux at snow layer boundaruess (m/s)
     
-    def run_timestep(self,dt,drip,Esrf,Gsrf,ksnow,ksoil,Melt,Rf,Sf,Ta,trans,
-                    Tsrf,unload,Nsnow,Dsnw,Rgrn,Sice,Sliq,Tsnow,Tsoil,
-                    Gsoil,Roff,hs,swe,Wflx):
+    def run_timestep(self,drip,Esrf,Gsrf,ksoil,Rf,Sf,Ta,trans,Tsrf,unload,Tsoil):
+        '''
+        '''
  
         # No snow
-        Gsoil = Gsrf
-        Roff = Rf + drip/dt
-        Wflx[:] = 0
+        self.Gsoil = Gsrf
+        self.Roff = Rf + drip/self.dt
+        self.Wflx[:] = 0
 
         # Existing snowpack
         if (self.Nsnow > 0):
             # NOTE here add computation of ksnow with snow_thermal function, then remove from args!
+            ksnow = snow_thermal(self.kfix, self.rhof, self.rho_wat, self.Dsnw, self.Nsnow, self.Sice, self.Sliq, self.CONDUCT, self.DENSITY)
             # Heat conduction
             for k in range(self.Nsnow):
                 self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
             if (self.Nsnow == 1):
-                Gs[0] = 2 / (Dsnw[0]/ksnow[0] + Dzsoil[0]/ksoil[0])
-                dTs[0] = (Gsrf + Gs[0]*(Tsoil[0] - Tsnow[0]))*dt / (self.csnow[0] + Gs[0]*dt)
+                Gs[0] = 2 / (self.Dsnw[0]/ksnow[0] + self.Dzsoil[0]/ksoil[0])
+                dTs[0] = (Gsrf + self.Gs[0]*(Tsoil[0] - Tsnow[0]))*self.dt / (self.csnow[0] + self.Gs[0]*self.dt)
             else:
                 for k in range(self.Nsnow-1):
-                      Gs[k] = 2 / (Dsnw[k]/ksnow[k] + Dsnw[k+1]/ksnow[k+1])
+                      Gs[k] = 2 / (self.Dsnw[k]/ksnow[k] + self.Dsnw[k+1]/ksnow[k+1])
                 a[0] = 0
-                b[0] = self.csnow[0] + Gs[0]*dt
-                c[0] = - Gs[0]*dt
-                rhs[0] = (Gsrf - Gs[0]*(Tsnow[0] - Tsnow[1]))*dt
+                b[0] = self.csnow[0] + self.Gs[0]*self.dt
+                c[0] = - Gs[0]*self.dt
+                rhs[0] = (Gsrf - Gs[0]*(Tsnow[0] - Tsnow[1]))*self.dt
                 for k in range(1,self.Nsnow-1):
                     a[k] = c[k-1]
-                    b[k] = self.csnow[k] + (Gs[k-1] + Gs[k])*dt
-                    c[k] = - Gs[k]*dt
-                    rhs[k] = Gs[k-1]*(Tsnow[k-1] - Tsnow[k])*dt + Gs[k]*(Tsnow[k+1] - Tsnow[k])*dt 
+                    b[k] = self.csnow[k] + (Gs[k-1] + Gs[k])*self.dt
+                    c[k] = - Gs[k]*self.dt
+                    rhs[k] = Gs[k-1]*(Tsnow[k-1] - Tsnow[k])*self.dt + Gs[k]*(Tsnow[k+1] - Tsnow[k])*self.dt 
 
             k = self.Nsnow
             Gs[k] = 2 / (Dsnw[k]/ksnow[k] + Dzsoil[0]/ksoil[0])
             a[k] = c[k-1]
-            b[k] = self.csnow[k] + (Gs[k-1] + Gs[k])*dt
+            b[k] = self.csnow[k] + (Gs[k-1] + Gs[k])*self.dt
             c[k] = 0
-            rhs[k] = Gs[k-1]*(Tsnow[k-1] - Tsnow[k])*dt + Gs[k]*(Tsoil[0] - Tsnow[k])*dt
+            rhs[k] = Gs[k-1]*(Tsnow[k-1] - Tsnow[k])*self.dt + Gs[k]*(Tsoil[0] - Tsnow[k])*self.dt
             dTs = self.tridiag(self.Nsnow,Nsmax,a,b,c,rhs)
             
             for k in range(self.Nsnow):
                 Tsnow[k] = Tsnow[k] + dTs[k]
             k = self.Nsnow
-            Gsoil = Gs[k]*(Tsnow[k] - Tsoil[0])
+            self.Gsoil = Gs[k]*(Tsnow[k] - Tsoil[0])
         
             # Convert melting ice to liquid water
-            dSice = Melt*dt
+            dSice = Melt*self.dt
             for k in range(self.Nsnow):
                 coldcont = self.csnow[k]*(Tm - Tsnow[k])
                 if (coldcont < 0):
                     dSice = dSice - coldcont/Lf
-                    Tsnow[k] = Tm
+                    Tsnow[k] = self.Tm
                 if (dSice > 0):
                     if (dSice > self.Sice[k]):  # Layer melts completely
                         dSice = dSice - self.Sice[k]
-                        Dsnw[k] = 0
+                        self.Dsnw[k] = 0
                         self.Sliq[k] = self.Sliq[k] + self.Sice[k]
                         self.Sice[k] = 0
                     else:                       # Layer melts partially
-                        Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
+                        self.Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
                         self.Sliq[k] = self.Sliq[k] + dSice
                         dSice = 0
                     
             # Remove snow by sublimation 
-            dSice = Esrf*dt
+            dSice = Esrf*self.dt
             if (dSice > 0):
                 for k in range(self.Nsnow):
                     if (dSice > self.Sice[k]):  # Layer sublimates completely
                         dSice = dSice - self.Sice[k]
-                        Dsnw[k] = 0
+                        self.Dsnw[k] = 0
                         self.Sice[k] = 0
                     else:                       # Layer sublimates partially
-                        Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
+                        self.Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
                         dSice = 0
 
             # Remove wind-trasported snow 
-            dSice = trans*dt
+            dSice = trans*self.dt
             if (dSice > 0):
                 for k in range(self.Nsnow):
                     if (dSice > self.Sice[k]):  # Layer completely removed
                         dSice = dSice - self.Sice[k]
-                        Dsnw[k] = 0
+                        self.Dsnw[k] = 0
                         self.Sice[k] = 0
                     else:                       # Layer partially removed
-                        Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
+                        self.Dsnw[k] = (1 - dSice/self.Sice[k])*Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
                         dSice = 0
 
@@ -188,19 +194,19 @@ class SnowModel:
                 # Fixed snow density
                 for k in range(self.Nsnow):
                     if (Dsnw[k] > np.finfo(float).eps):
-                        Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rfix
+                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rfix
             if DENSITY == 1:
                 # Snow compaction with age
                 for k in range(self.Nsnow):
                     if Dsnw[k] > np.finfo(float).eps: # epsillon different in FSM
                         rhos = (self.Sice[k] + self.Sliq[k]) / Dsnw[k]
-                        if Tsnow[k] >= Tm:
+                        if Tsnow[k] >= self.Tm:
                             if rhos < rmlt:
-                                rhos = rmlt + (rhos - rmlt) * np.exp(-dt / trho)
+                                rhos = rmlt + (rhos - rmlt) * np.exp(-self.dt / trho)
                         else:
                             if rhos < rcld:
-                                rhos = rcld + (rhos - rcld) * np.exp(-dt / trho)
-                        Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
+                                rhos = rcld + (rhos - rcld) * np.exp(-self.dt / trho)
+                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
                         
             if DENSITY == 2:
                 # Snow compaction by overburden
@@ -209,14 +215,14 @@ class SnowModel:
                     mass = mass + 0.5*(self.Sice[k] + self.Sliq[k]) 
                     if (Dsnw[k] > np.finfo(float).eps):
                         rhos = (self.Sice[k] + self.Sliq[k]) / Dsnw[k]
-                        rhos = rhos + (rhos*g*mass*dt/(eta0*exp(-(Tsnow[k] - Tm)/12.4 + rhos/55.6)) + dt*rhos*snda*exp((Tsnow[k] - Tm)/23.8 - max(rhos - 150, 0.)/21.7))
-                        Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
+                        rhos = rhos + (rhos*g*mass*self.dt/(eta0*exp(-(Tsnow[k] - self.Tm)/12.4 + rhos/55.6)) + self.dt*rhos*snda*exp((Tsnow[k] - self.Tm)/23.8 - max(rhos - 150, 0.)/21.7))
+                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
                     mass = mass + 0.5*(self.Sice[k] + self.Sliq[k])
 
             # Snow grain growth
             for k in range(self.Nsnow):
                 ggr = 2e-13
-                if (Tsnow[k] < Tm):
+                if (Tsnow[k] < self.Tm):
                     if (Rgrn[k] < 1.50e-4):
                         ggr = 2e-14
                     else:
@@ -227,131 +233,131 @@ class SnowModel:
 
         # Add snowfall and frost to layer 1 with fresh snow density and grain size
         Esnow = 0
-        if (Esrf < 0 & Tsrf < Tm):
+        if (Esrf < 0 & Tsrf < self.Tm):
             Esnow = Esrf
-        dSice = (Sf - Esnow)*dt
-        Dsnw[0] = Dsnw[0] + dSice / rhof
+        dSice = (Sf - Esnow)*self.dt
+        self.Dsnw[0] = self.Dsnw[0] + dSice / self.rhof
         if (self.Sice[0] + dSice > np.finfo(float).eps):
-            Rgrn[0] = (self.Sice[0]*Rgrn[0] + dSice*rgr0) / (self.Sice[0] + dSice)
+            self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + dSice*self.rgr0) / (self.Sice[0] + dSice)
         self.Sice[0] = self.Sice[0] + dSice
     
         # Add canopy unloading to layer 1 with bulk snow density and grain size
-        rhos = rhof
+        rhos = self.rhof
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
-        hs = sum(Dsnw[:])
+        hs = sum(self.Dsnw[:])
         if (hs > np.finfo(float).eps):
             rhos = swe / hs
-        Dsnw[0] = Dsnw[0] + unload / rhos
+        self.Dsnw[0] = self.Dsnw[0] + unload / rhos
         if (self.Sice[0] + unload > np.finfo(float).eps):
-            Rgrn[0] = (self.Sice[0]*Rgrn[0] + unload*rgr0) / (self.Sice[0] + unload)
+            self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + unload*self.rgr0) / (self.Sice[0] + unload)
         self.Sice[0] = self.Sice[0] + unload
 
         # Add wind-blown snow to layer 1 with wind-packed density and fresh grain size
-        dSice = - trans*dt
+        dSice = - trans*self.dt
         if (dSice > 0):
-            Dsnw[0] = Dsnw[0] + dSice / rhow
-            Rgrn[0] = (self.Sice[0]*Rgrn[0] + dSice*rgr0) / (self.Sice[0] + dSice)
+            self.Dsnw[0] = self.Dsnw[0] + dSice / rhow
+            self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + dSice*self.rgr0) / (self.Sice[0] + dSice)
             self.Sice[0] = self.Sice[0] + dSice
 
         # New snowpack
-        if (self.Nsnow == 0 & self.Sice[0] > 0):
+        if (self.Nsnow == 0) & (self.Sice[0] > 0):
             self.Nsnow = 1
-            Rgrn[0] = rgr0
-            Tsnow[0] = min(Ta, Tm)
-
+            self.Rgrn[0] = self.rgr0
+            self.Tsnow[0] = min(Ta, self.Tm)
 
         # Store state of old layers
-        D[:] = Dsnw[:]
-        R[:] = Rgrn[:]
-        S[:] = self.Sice[:]
-        W[:] = self.Sliq[:]
-        for k in range(self.Nsnow):
-            self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
-            E[k] = self.csnow[k]*(Tsnow[k] - Tm)
+        self.D[:] = self.Dsnw[:]
+        self.R[:] = self.Rgrn[:]
+        self.S[:] = self.Sice[:]
+        self.W[:] = self.Sliq[:]
+        if self.Nsnow > 0:
+            for k in range(self.Nsnow):
+                self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
+                self.E[k] = self.csnow[k]*(self.Tsnow[k] - self.Tm)
         Nold = self.Nsnow
-        hs = sum(Dsnw[:])
+        hs = sum(self.Dsnw[:])
 
         # Initialise new layers
-        Dsnw[:] = 0
-        Rgrn[:] = 0
+        self.Dsnw[:] = 0
+        self.Rgrn[:] = 0
         self.Sice[:] = 0
         self.Sliq[:] = 0
-        Tsnow[:] = Tm
-        U[:] = 0
+        self.Tsnow[:] = self.Tm
+        self.U[:] = 0
         self.Nsnow = 0
 
         if (hs > 0):  # Existing or new snowpack
             # Re-assign and count snow layers
             dnew = hs
-            Dsnw[0] = dnew
+            self.Dsnw[0] = dnew
             k = 1
-            if (Dsnw[0] > Dzsnow[0]):
-                for k in range(Nsmax):
-                    Dsnw[k] = Dzsnow[k]
-                    dnew = dnew - Dzsnow[k]
-                    if (dnew <= Dzsnow[k] | k == Nsmax):
-                        Dsnw[k] = Dsnw[k] + dnew
+            if (self.Dsnw[0] > self.Dzsnow[0]):
+                for k in range(self.Nsmax):
+                    self.Dsnw[k] = self.Dzsnow[k]
+                    dnew = dnew - self.Dzsnow[k]
+                    if (dnew <= self.Dzsnow[k]) | (k == self.Nsmax):
+                        self.Dsnw[k] = Dsnw[k] + dnew
                         break
             self.Nsnow = k
 
             # Fill new layers from the top downwards
             knew = 1
-            dnew = Dsnw[0]
+            dnew = self.Dsnw[0]
             for kold in range(Nold):
-                if (D[kold] < dnew):
+                if (self.D[kold] < dnew):
                     # All snow from old layer partially fills new layer
-                    Rgrn[knew] = Rgrn[knew] + S[kold]*R[kold]
-                    self.Sice[knew] = self.Sice[knew] + S[kold]
-                    self.Sliq[knew] = self.Sliq[knew] + W[kold]
-                    U[knew] = U[knew] + E[kold]
-                    dnew = dnew - D[kold]
+                    self.Rgrn[knew] = self.Rgrn[knew] + self.S[kold]*self.R[kold]
+                    self.Sice[knew] = self.Sice[knew] + self.S[kold]
+                    self.Sliq[knew] = self.Sliq[knew] + self.W[kold]
+                    self.U[knew] = self.U[knew] + self.E[kold]
+                    dnew = dnew - self.D[kold]
                     break
                 else:
                     # Some snow from old layer fills new layer
-                    wt = dnew / D[kold]
-                    Rgrn[knew] = Rgrn[knew] + wt*S[kold]*R[kold]
-                    self.Sice[knew] = self.Sice[knew] + wt*S[kold]
-                    self.Sliq[knew] = self.Sliq[knew] + wt*W[kold]
-                    U[knew] = U[knew] + wt*E[kold]
-                    D[kold] = (1 - wt)*D[kold]
-                    E[kold] = (1 - wt)*E[kold]
-                    S[kold] = (1 - wt)*S[kold]
-                    W[kold] = (1 - wt)*W[kold]
+                    wt = dnew / self.D[kold]
+                    self.Rgrn[knew] = self.Rgrn[knew] + wt*self.S[kold]*self.R[kold]
+                    self.Sice[knew] = self.Sice[knew] + wt*self.S[kold]
+                    self.Sliq[knew] = self.Sliq[knew] + wt*self.W[kold]
+                    self.U[knew] = self.U[knew] + wt*self.E[kold]
+                    self.D[kold] = (1 - wt)*self.D[kold]
+                    self.E[kold] = (1 - wt)*self.E[kold]
+                    self.S[kold] = (1 - wt)*self.S[kold]
+                    self.W[kold] = (1 - wt)*self.W[kold]
                     knew = knew + 1
                     if (knew > self.Nsnow):
                         break
-                    dnew = Dsnw[knew]
+                    dnew = self.Dsnw[knew]
 
         # Diagnose snow layer temperatures
         for k in range(self.Nsnow):
             self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
-            Tsnow[k] = Tm + U[k] / self.csnow[k]
-            Rgrn[k] = Rgrn[k] / self.Sice[k]
+            self.Tsnow[k] = self.Tm + self.U[k] / self.csnow[k]
+            self.Rgrn[k] = self.Rgrn[k] / self.Sice[k]
 
         # Drain, retain or freeze snow in layers
-        if HYDROL == 0:
+        if self.HYDROL == 0:
             # Free-draining snow, no retention or freezing 
-            Wflx[0] = Roff
+            self.Wflx[0] = self.Roff
             for k in range(self.Nsnow):
-                Roff = Roff + self.Sliq[k] / dt
+                self.Roff = self.Roff + self.Sliq[k] / self.dt
                 self.Sliq[k] = 0
                 if (k < self.Nsnow):
-                    Wflx[k+1] = Roff
+                    self.Wflx[k+1] = self.Roff
 
-        if HYDROL == 1:
+        if self.HYDROL == 1:
             # Bucket storage 
-            if (maxval(self.Sliq)>0 | Rf>0):
+            if (np.max(self.Sliq)) > 0 | (Rf > 0):
                 for k in range(self.Nsnow):
-                    phi[k] = 1 - self.Sice[k]/(rho_ice*Dsnw[k])
-                    self.SliqMax = rho_wat*Dsnw[k]*phi[k]*Wirr
-                    self.Sliq[k] = self.Sliq[k] + Roff*dt
+                    self.phi[k] = 1 - self.Sice[k]/(rho_ice*Dsnw[k])
+                    self.SliqMax = rho_wat*Dsnw[k]*self.phi[k]*self.Wirr
+                    self.Sliq[k] = self.Sliq[k] + Roff*self.dt
                     Wflx[k] = Roff
                     Roff = 0
                 if (self.Sliq[k] > self.SliqMax):       # Liquid capacity exceeded
-                    Roff = (self.Sliq[k] - self.SliqMax)/dt   # so drainage to next layer
+                    Roff = (self.Sliq[k] - self.SliqMax)/self.dt   # so drainage to next layer
                     self.Sliq[k] = self.SliqMax
                 self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
-                coldcont = self.csnow[k]*(Tm - Tsnow[k])
+                coldcont = self.csnow[k]*(self.Tm - Tsnow[k])
                 if (coldcont > 0):            # Liquid can freeze
                     dSice = min(self.Sliq[k], coldcont/Lf)
                     self.Sliq[k] = self.Sliq[k] - dSice
@@ -359,48 +365,48 @@ class SnowModel:
                     Tsnow[k] = Tsnow[k] + Lf*dSice/self.csnow[k]
 
 
-        if HYDROL == 2: # NOTE THIS NEEDS TESTING!
+        if self.HYDROL == 2: # NOTE THIS NEEDS TESTING!
             # Gravitational drainage 
             if (np.max(self.Sliq) > 0 | Rf > 0):
                 Qw[:] = 0
                 Qw[0] = Rf/rho_wat
                 Roff = 0
                 for k in range(self.Nsnow):
-                    ksat[k] = 0.31*(rho_wat*g/mu_wat)*Rgrn[k]**2*exp(-7.8*self.Sice[k]/(rho_wat*Dsnw[k]))
-                    phi[k] = 1 - self.Sice[k]/(rho_ice*Dsnw[k])
-                    thetar[k] = Wirr*phi[k]
+                    ksat[k] = 0.31*(self.rho_wat*self.g/self.mu_wat)*self.Rgrn[k]**2*exp(-7.8*self.Sice[k]/(rho_wat*Dsnw[k]))
+                    self.phi[k] = 1 - self.Sice[k]/(self.rho_ice*self.Dsnw[k])
+                    thetar[k] = self.Wirr*self.phi[k]
                     thetaw[k] = self.Sliq[k]/(rho_wat*Dsnw[k])
-                    if (thetaw[k]>phi[k]):
-                        Roff = Roff + rho_wat*Dsnw[k]*(thetaw[k] - phi[k])/dt
-                        thetaw(k) = phi(k)
-                dth = 0.1*dt
+                    if (thetaw[k]>self.phi[k]):
+                        Roff = Roff + rho_wat*Dsnw[k]*(thetaw[k] - self.phi[k])/self.dt
+                        thetaw[k] = self.phi[k]
+                dth = 0.1*self.dt
                 for i in range(10): # subdivide timestep NOTE CHECK THIS LATER!
                     theta0[:] = thetaw[:]
                     for j in range(10): # Newton-Raphson iteration
                         a[:] = 0
                         b[:] = 1/dth 
                         if (thetaw[0] > thetar[0]):
-                            b[0] = 1/dth + 3*ksat[0]*(thetaw[0] - thetar[0])**2/(phi[0] - thetar[0])**3/Dsnw[0]
-                            Qw[1] = ksat[0]*((thetaw[0] - thetar[0])/(phi[0] - thetar[0]))**3
+                            b[0] = 1/dth + 3*ksat[0]*(thetaw[0] - thetar[0])**2/(self.phi[0] - thetar[0])**3/Dsnw[0]
+                            Qw[1] = ksat[0]*((thetaw[0] - thetar[0])/(self.phi[0] - thetar[0]))**3
                         rhs[0] = (thetaw[0] - theta0[0])/dth + (Qw[1] - Qw[0])/Dsnw[0]
                         for k in range(1, self.Nsnow):
                             if (thetaw[k-1] > thetar[k-1]):
-                                a[k] = - 3*ksat[k-1]*(thetaw[k-1] - thetar[k-1])**2/(phi[k-1] - thetar[k-1])**3/Dsnw[k-1]
+                                a[k] = - 3*ksat[k-1]*(thetaw[k-1] - thetar[k-1])**2/(self.phi[k-1] - thetar[k-1])**3/Dsnw[k-1]
                             if (thetaw[k] > thetar[k]):
-                                b[k] = 1/dth + 3*ksat[k]*(thetaw[k] - thetar[k])**2/(phi[k] - thetar[k])**3/Dsnw[k]
-                                Qw(k+1) = ksat(k)*((thetaw(k) - thetar(k))/(phi(k) - thetar(k)))**3
+                                b[k] = 1/dth + 3*ksat[k]*(thetaw[k] - thetar[k])**2/(self.phi[k] - thetar[k])**3/Dsnw[k]
+                                Qw[k+1] = ksat[k]*((thetaw[k] - thetar[k])/(self.phi[k] - thetar[k]))**3
                             rhs[k] = (thetaw[k] - theta0[k])/dth + (Qw[k+1] - Qw[k])/Dsnw[k]
                         dtheta[0] = - rhs[0]/b[0]
                         for k in range(1, self.Nsnow):
                             dtheta[k] = - (a[k]*dtheta[k-1] + rhs[k])/b[k]
                         for k in range(self.Nsnow):
                             thetaw[k] = thetaw[k] + dtheta[k]
-                            if (thetaw[k] > phi[k]):
-                                Qw[k+1] = Qw[k+1] + (thetaw[k] - phi[k])*Dsnw[k]/dth
-                                thetaw[k] = phi[k]
+                            if (thetaw[k] > self.phi[k]):
+                                Qw[k+1] = Qw[k+1] + (thetaw[k] - self.phi[k])*Dsnw[k]/dth
+                                thetaw[k] = self.phi[k]
                     Wflx[:] = Wflx[:] + rho_wat*Qw[0:Nsmax]/10
                     Roff = Roff + rho_wat*Qw[self.Nsnow+1]/10
-                self.Sliq(:) = rho_wat*Dsnw(:)*thetaw(:)
+                self.Sliq[:] = rho_wat*Dsnw[:]*thetaw[:]
                 for k in range(self.Nsnow):
                     self.csnow[k] = self.Sice[k]*self.hcap_ice + self.Sliq[k]*self.hcap_wat
                     coldcont = self.csnow[k]*(Tm - Tsnow[k])
@@ -410,9 +416,11 @@ class SnowModel:
                         self.Sice[k] = self.Sice[k] + dSice
                         Tsnow[k] = Tsnow[k] + Lf*dSice/self.csnow[k]
 
-        swe = sum(self.Sice[:]) + sum(self.Sliq[:])
+        self.swe = sum(self.Sice[:]) + sum(self.Sliq[:])
         # End if existing or new snowpack
 
+        # NOTE SHOULD SAVE RESULTS BETTER!
+        return self.Gsoil, self.Roff, self.hs, self.swe, self.Wflx
 
     def tridiag(Nvec,Nmax,a,b,c,r,x):
         '''
@@ -439,7 +447,7 @@ class SnowModel:
         for n in range(Nvec - 1, 0, -1):
             x[n] = x[n] - g[n + 1] * x[n + 1]
 
-    return x
+        return x
 
     def snow_thermal(kfix, rhof, rho_wat, Dsnw, Nsnow, Sice, Sliq, CONDUCT, DENSITY):
         '''
@@ -455,4 +463,4 @@ class SnowModel:
                     rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224*(rhos/rho_wat)**1.885
                 
-    return ksnow
+        return ksnow
