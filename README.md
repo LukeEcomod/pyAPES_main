@@ -21,5 +21,4 @@
 
 1. Sapflow and trunk water storage dynamics using 1D porous media approach
 1. Energy-balance based snow scheme
-1. Add 13C, 18O and 2H isotopes: for d13C and d18O see [Demo_mlm_isotopes](Demo_mlm_isotopes.ipynb)
-- d13C probably requires mesophyll conductance and wood respiration to be added to pyAPES 
+1. Add 13C, 18O and 2H isotopes: for d13C and d18O see [Demo_mlm_isotopes](Demo_mlm_isotopes.ipynb) (d13C probably requires mesophyll conductance and wood respiration to be added to pyAPES) 
