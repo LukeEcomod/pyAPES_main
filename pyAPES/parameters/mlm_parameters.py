@@ -15,8 +15,8 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2015-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2015-06-30",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2015-05-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2015-11-01",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2015_2019_isotopes.dat', # forcing data file
          'results_directory':'results/'
          }
@@ -451,9 +451,9 @@ isopara = {
             'constant': False,
             'value': 27e-3
             },
-        'nonsteadystate': False,  # if true applies non-steady state for leaf water modeling, else steady-state approach
+        'nonsteadystate': True,  # if true applies non-steady state for leaf water modeling, else steady-state approach
         'Vlw': 5. * 2,  # leaf mesophyll water volume (mol m-2)  ! one-sided leaf area
-        'peclet': True,  # if true applies peclet model (L_eff), else two-pool model (f1)
+        'peclet': False,  # if true applies peclet model (L_eff), else two-pool model (f1)
         'L_eff': 0.03 * 2,  # leaf mesophyll effective mixing length (m)  ! one-sided leaf area
         'f1': 1.0,  # parameter of two-pool model, if f1=1 simplifies to Craig-Gordon model
         'pex': 0.36,  # proportion of oxygen atoms exchanged with source water during cellulose synthesis (-)

@@ -317,19 +317,21 @@ class Isotopes(object):
             ix = dates.isin(date_mid)
             indices = np.arange(len(dates))[ix]
             ixx = date_mid.isin(dates)
+        else:
+            indices = []
         
         pt_results = [{} for i in range(self.n_pt)]  # list of n_pt dicts
         
         for n in range(self.n_pt):
             if self.solve_d13C:
-                d13C_cellulose = self.sum_C_times_d13C[n] / self.sum_C[n]
+                d13C_cellulose = self.sum_C_times_d13C[n][ixx] / self.sum_C[n][ixx]
                 pt_results[n].update(
-                    {'d13c_treering_celluose': d13C_cellulose[ixx]})
+                    {'d13c_treering_celluose': d13C_cellulose})
                 
             if self.solve_d18O:
-                d18O_cellulose = self.sum_C_times_d18O[n] / self.sum_C[n]
+                d18O_cellulose = self.sum_C_times_d18O[n][ixx] / self.sum_C[n][ixx]
                 pt_results[n].update(
-                    {'d18o_treering_celluose': d18O_cellulose[ixx]})
+                    {'d18o_treering_celluose': d18O_cellulose})
             
         # convert list of dicts to list (for each timestep with values) of dicts of lists for each planttype
         results = [{} for i in range(len(indices))]
@@ -461,6 +463,9 @@ def d18O_leaf(dt: float, E: np.ndarray, An: np.ndarray, Rd: np.ndarray, w_a: np.
     
     esat = 611.0 * np.exp((17.502 * T) / (T + 240.97))  # Pa
     w_i = esat / P
+    
+    # keep vpd positive
+    w_a = np.minimum(w_i - EPS, w_a)
 
     e_star = np.exp(1137/(T + DEG_TO_KELVIN)**2 - 0.4156 /(T + DEG_TO_KELVIN) - 0.0020667) - 1
 

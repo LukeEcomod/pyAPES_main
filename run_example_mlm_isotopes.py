@@ -11,8 +11,6 @@ from pyAPES.utils.iotools import read_forcing
 # import the multi-layer model (mlm) driver
 from pyAPES.pyAPES_MLM import driver
 
-eps = 1e-16
-
 # import parameter dictionaries
 from pyAPES.parameters.mlm_parameters import gpara, cpara, spara, isopara # model configuration, canopy parameters, soil parameters
 
@@ -42,6 +40,8 @@ import matplotlib.pyplot as plt
 
 # read simulation restuls to xarray dataset
 results = read_results(resultfile)
+
+# plotting results 
 
 var = ['pt_d13c_leaf_sugar','pt_d18o_leaf_water','pt_d18o_leaf_sugar']
 
