@@ -15,7 +15,7 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2001-06-01",  # start time of simulation [yyyy-mm-dd]
+         'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : 'c:/Repositories/pyAPES_main/forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
          'results_directory':'results/'
@@ -205,7 +205,7 @@ soil_respiration = {
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
-#   Moss or litter layer properties. Define groudtypes
+#   Moss or litter layer properties. Define groundtypes
 
 Forest_moss = {
     'name': 'forest mosses',  # Based on literature review of Pleurozium schreberi and Hylocomium splendens

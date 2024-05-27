@@ -835,8 +835,9 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
               leaf_emi: float=1.0, PlotFigs: bool=False) -> Tuple:
     """
     Estimates long-wave (LW) radiation budget and net isothermal LW radiation within horizontally 
-    homogeneous canopy. Assumes canopy elements as black bodies (es=1.0) at local air temperature
-    T(z), i.e. neglects scattering.
+    homogeneous canopy. Assumes canopy elements as black bodies (es=1.0) at local leaf or air temperature
+    T(z), i.e. neglects scattering. Note that depending whether Tleaf or Tair is used, the leaf energy budged must be
+    revised account for the dT = Tleaf - Tair.
 
     Reference:
        Adapted from Flerchinger et al. 2009. Simulation of within-canopy radiation exchange, NJAS 57, 5-15.
@@ -850,10 +851,10 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
     
     Returns:
         (tuple):
-            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance;
-            LWdn (array): [W m-2 (ground), downward LW profile in the canopy;
-            LWup (array): [W m-2 (ground), upward LW profile in the canopy;
-            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance.
+            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance, accounts for mean leaf orientation
+            LWdn (array): [W m-2 (ground), downward LW profile in the canopy
+            LWup (array): [W m-2 (ground), upward LW profile in the canopy
+            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance
     
     """
 

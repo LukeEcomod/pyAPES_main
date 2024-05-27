@@ -18,15 +18,15 @@ from typing import Dict, List, Tuple
 import logging
 
 from pyAPES.utils.utilities import tridiag as thomas, spatial_average
-from pyAPES.utils.constants import EPS
+from pyAPES.utils.constants import EPS, WATER_DENSITY
 
 logger = logging.getLogger(__name__)
 
-class Water(object):
+class Water_1D(object):
 
     def __init__(self, grid: Dict, profile_propeties: Dict, model_specs: Dict):
         r""" 
-        1D soil water balance model.
+        1D soil water balance model using Richards-equation or Equilibrium scheme.
 
         Args:
             grid (dict):
@@ -240,6 +240,115 @@ class Water(object):
         self.Kv = hydraulic_conductivity(self.pF, x=self.h, Ksat=self.Kvsat)
         self.Kh = hydraulic_conductivity(self.pF, x=self.h, Ksat=self.Khsat)
 
+#%%% SAMULI ADDING BUCKET MODEL HERE
+        
+class WaterBucket(object):
+    """
+    Single-layer soil water bucket model with bulk properties
+    References: Loosely following Guswa et al, 2002 WRR
+    """
+
+    def __init__(self, p: Dict, Wliq: float, lower_boundary: Dict, SurfSto: float=0.0):
+        """
+        Args:
+            p (dict):
+                'depth' (float) - bucket depth [m]
+                'pF' (dict) - vanGenuchten water retention parameters {dict}
+                'Ksat' (float)- saturated hydr. cond. [ms-1]
+                'MaxPond' (float)- maximum ponding depth above bucket [m]
+            Wliq (float) - initial vol. water content [m3m-3]    
+            lower_boundary (dict): lower boundary condition
+                    type (str): 'impermeable', 'flux', 'free_drain' or 'head'
+                    value (float or None): give for 'head' [m] and 'flux' [m s-1]
+                    depth (float): depth of impermeable boundary (=bedrock) [m]
+        """
+        
+        self.D = p['depth']
+        self.Ksat = p['Ksat']
+        self.pF = p['pF']
+        
+        self.Fc = psi_theta(self.pF, x=-1.0)
+        self.Wp = psi_theta(self.pF, x=-150.0)
+        
+        self.poros = self.pF['ThetaS'] # porosity
+        
+        # water storages
+        self.MaxSto = self.poros * self.D
+        self.MaxPond = p['MaxPond']
+        
+        # initial state
+        self.SurfSto = SurfSto
+        self.WatSto = self.D * p['Wliq']
+        self.Wliq = p['Wliq']
+        self.Wair = self.poros - self.Wliq        
+        self.Sat = self.Wliq / self.poros
+        self.h = theta_psi(self.pF, self.Wliq)
+        self.Kh = self.Ksat * hydraulic_conductivity(self.pF, self.h)
+        
+        # relatively extractable water
+        self.Rew = np.minimum( (self.Wliq - self.Wp) / (self.Fc - self.Wp + EPS), 1.0)
+                        
+    def update_state(self, dWat: float, dSur: float=0.0):
+        """
+        updates state by computed dSto [m] and dSurf [m] 
+        """
+        self.WatSto += dWat
+        self.SurfSto +=dSur
+        
+        self.Wliq = self.poros * self.WatSto / self.MaxSto
+        self.Wair = self.poros - self.Wliq
+        self.Sat = self.Wliq/self.poros
+        self.h = theta_psi(self.pF, self.Wliq)
+        self.Kh = self.Ksat * hydraulic_conductivity(self.pF, self.h)            
+        self.Rew = np.minimum((self.Wliq - self.Wp) / (self.Fc - self.Wp + EPS), 1.0)      
+        
+    def run(self, dt: float, rr: float=0.0, et: float=0.0, latflow: float=0.0):
+        r""" Bucket model water balance
+        Args: 
+            dt [s]
+            rr - potential infiltration [mm s-1 = kg m-2 s-1]
+            et - evapotranspiration sink [mm s-1]
+            latflow - lateral sink/source term[mm s-1]
+        Returns: 
+            infil [mm] - infiltration [m]
+            Roff [mm] - surface runoff
+            drain [mm] - percolation /leakage
+            roff [mm] - surface runoff
+            et [mm] - evapotranspiration
+            mbe [mm] - mass balance error
+        """
+        # fluxes        
+        Qin = (rr + latflow) * dt / WATER_DENSITY # m, potential inputs   
+        et = et * dt / WATER_DENSITY
+        
+        # free drainage from profile
+        drain = min(self.Kh * dt, max(0, (self.Wliq - self.Fc)) * self.D) # m
+                
+        # infiltr is restricted by availability, Ksat or available pore space
+        infil = min(Qin, self.Ksat*dt, (self.MaxSto - self.WatSto + drain + et)) 
+
+        # change in surface and soil water store
+        SurfSto0 = self.SurfSto       
+        dSto = (infil - drain - et)
+        
+        #in case of Qin excess, update SurfSto and route Roff
+        q = Qin - infil
+        if q > 0:
+            dSur = min(self.MaxPond - self.SurfSto, q)
+            roff = q - dSur #runoff, m
+        else:
+            dSur = 0.0
+            roff = 0.0
+        
+        #update state variables
+        self.update_state(dSto, dSur)
+        
+        #mass balance error
+        mbe = dSto + (self.SurfSto - SurfSto0) - (rr + latflow - et - drain - roff)
+                    
+        return WATER_DENSITY * infil, WATER_DENSITY * roff, WATER_DENSITY * drain, WATER_DENSITY * mbe 
+
+
 # %%
 # --- functions to solve water balance in a 1D column
 
@@ -298,7 +407,7 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
         vanDam & Feddes (2000): Numerical simulation of infiltration, evaporation and shallow
         groundwater levels with the Richards equation, J.Hydrol 233, 72-85.
 
-    Note: How to implement macropore bypass flow?
+    Note: Implement macropore bypass flow?
     """
 
     # forcing
@@ -924,7 +1033,53 @@ def drainage_hooghoud(dz, Ksat, gwl, DitchDepth, DitchSpacing, DitchWidth, Zbot=
 
     return Qz_drain
 
-""" utility functions """
+""" utility functions: vanGenuchten water retention and concuctivity models """
+
+def theta_psi(pF: Dict, x: float):
+    r"""
+    Converts vol. moisture content to water potential
+    
+    Args:
+        pF (dict) - water retention parameters
+        x (float) - vol. water content [m3 m-3]
+    Returns:
+        water potential [m]
+    """
+    
+    ts = pF['ThetaS']
+    tr = pF['ThetaR']
+    a = pF['alpha']
+    n = pF['n']
+    m = 1.0 - np.divide(1.0, n)
+    
+    x = np.minimum(x, ts)
+    x = np.maximum(x, tr)  # checks limits
+    s = (ts - tr) / ((x - tr) + EPS)
+    Psi = -1e-2 / a * (s**(1.0 / m) - 1.0)**(1.0 / n)  # m
+
+    return Psi
+
+def psi_theta(pF: Dict, x: float):
+    r"""
+    Converts water potential to vol. moisture content. h_to_cellmoist does the same but
+    accounts for partially saturated gridcells.
+
+    Args:
+        pF (dict) - water retention parameters
+        x (float) - water potential [m]
+    Returns:
+        vol. water content [m3 m-3]
+    """
+    # converts water potential (m) to water content (m3m-3)
+    x = 100 * np.minimum(x, 0)  # cm
+    ts = pF['ThetaS']
+    tr = pF['ThetaR']
+    a = pF['alpha']
+    n = pF['n']
+    m = 1.0 - np.divide(1.0, n)
+    
+    Th = tr + (ts - tr) / (1.0 + abs(a * x)**n)**m
+    return Th
 
 def h_to_cellmoist(pF: Dict, h: np.ndarray, dz: np.ndarray) -> np.ndarray:
     r""" 
