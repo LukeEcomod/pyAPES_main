@@ -197,6 +197,48 @@ snowpack = {
                                'snow_water_equivalent': 0.0}
         }
 
+# --- pyAPES.snow.snow
+snow = {'physics_options': {
+            'DENSITY' = 0,
+            'HYDRL' = 1,
+            'CONDUCT' = 1
+        },
+        'params': {
+            'asmn': 0.5,            # Minimum albedo for melting snow
+            'asmx': 0.85,           # Maximum albedo for fresh snow
+            'eta0': 3.7e7,          # Reference snow viscosity (Pa s)
+            'hfsn': 0.1,           # Snowcover fraction depth scale (m)
+            'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
+            'rcld': 300,            # Maximum density for cold snow (kg/m^3)
+            'rfix': 300,            # Fixed snow density (kg/m^3)
+            'rgr0': 5e-5,           # Fresh snow grain radius (m)
+            'rhof': 100,             # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
+            'rhow': 300,            # Wind-packed snow density (kg/m^3)
+            'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
+            'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)
+            'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
+            'Talb': -2,             # Snow albedo decay temperature threshold (C)
+            'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
+            'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+            'trho': 200*3600,       # Snow compaction timescale (s)
+            'Wirr': 0.03,           # Irreducible liquid water content of snow
+            'z0sn': 0.001           # Snow roughness length (m)            
+        },
+        'layers': {
+            'Nsmax': 3,                 # Maximum number of snow layers
+            'Dzsnow': [0.1, 0.2, 0.4]   # Minimum snow layer thicknesses (m)
+        },
+        'initial_conditions': {
+            'Nsnow': 0,             # Number of snow layers
+            'Dsnw': 0,              # Snow layer thicknesses (m)
+            'Rgrn': [0, 0, 0],      # Snow layer grain radius (m)
+            'Sice': [0, 0, 0],      # Ice content of snow layers (kg/m^2)
+            'Sliq': [0, 0, 0],      # Liquid content of snow layers (kg/m^2)
+            'Tsnow': [273.15, 273.15, 273.15],   # Snow layer temperatures (K)
+            'Wflx': [0, 0, 0]       # Water flux into snow layer (kg/m^2/s)
+        }
+    }
+
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]

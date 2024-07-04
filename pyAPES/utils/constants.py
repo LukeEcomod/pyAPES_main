@@ -85,4 +85,21 @@ CV_ICE = 1.93e6  # ice
 CV_ORGANIC = 2.50e6  # dry organic matter
 CV_MINERAL = 2.31e6  # soil minerals
 
+#%% for pyAPES.snow
+#: [J kg-1], latent heat of fusion
+LATENT_HEAT_FUSION = 0.334e6
+#: [J kg-1], latent heat of sublimation
+#LATENT_HEAT_SUBMILATION = 2.501e6
+#: [J kg-1 K-1], heat capacity of ice
+SPECIFIC_HEAT_ICE = 2100
+#: [J kg-1 K-1], heat capacity of water at constant pressure
+SPECIFIC_HEAT_WATER = 4180
+# [kg/m/s] Dynamic viscosity of water
+WATER_VISCOCITY = 1.78e-3
+#: [kg m-3], Ice density
+ICE_DENSITY = 917
+#: [K] Melting point
+T_MELT = 273.15
+
+
 # EOF
