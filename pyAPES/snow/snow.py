@@ -9,7 +9,6 @@
 
 import numpy as np
 from typing import Dict, List, Tuple
-from pyFSM2_MODULES import Constants, Layers, Parameters
 from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
                                     LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
