@@ -18,7 +18,8 @@ References:
 import numpy as np
 from typing import List, Dict, Tuple
 import logging
-from pyAPES.microclimate.micromet import e_sat, leaf_boundary_layer_conductance, latent_heat
+from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
+from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.utils.constants import MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
 
 eps = np.finfo(float).eps  # machine epsilon

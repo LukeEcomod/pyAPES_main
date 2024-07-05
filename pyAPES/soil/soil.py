@@ -14,14 +14,14 @@ from matplotlib import pyplot as plt
 from typing import Dict, List, Tuple
 
 from pyAPES.utils.constants import EPS
-from pyAPES.soil.water import Water
-from pyAPES.soil.heat import Heat
+from pyAPES.soil.water import Water_1D
+from pyAPES.soil.heat import Heat_1D
 
 #from .constants import EPS
 #from .water import Water
 #from .heat import Heat
 
-class Soil(object):
+class Soil_1D(object):
 
     def __init__(self, p: Dict):
         r""" 
@@ -107,9 +107,9 @@ class Soil(object):
                                           p['water_model']['lower_boundary'])
 
         # initialize water and heat intance
-        self.water = Water(self.grid, profile_properties, p['water_model'])
+        self.water = Water_1D(self.grid, profile_properties, p['water_model'])
 
-        self.heat = Heat(self.grid, profile_properties, p['heat_model'],
+        self.heat = Heat_1D(self.grid, profile_properties, p['heat_model'],
                                    self._fill(self.water.Wtot, 0.0))
 
     def run(self, dt: float, forcing: dict, water_sink: np.ndarray=None, heat_sink: np.ndarray=None,

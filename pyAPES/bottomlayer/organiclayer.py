@@ -67,7 +67,7 @@ class OrganicLayer(object):
                     - 'theta' (float): curvature parameter [-]
                     - 'beta' (float): co-limitation parameter [-]
                     
-                    - 'gmax' (float): conductance for CO2 at optimum water content [mol m-2 (ground) s-1]
+                    - 'gopt' (float): conductance for CO2 at optimum water content [mol m-2 (ground) s-1]
                     - 'wopt' (flot): parameter of conductance - water content relationship [g g-1]
                     - 'a0' (float): parameter of conductance - water content curve [-]
                     - 'a1' (float): parameter of conductance - water content curve [-]

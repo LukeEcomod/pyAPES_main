@@ -43,7 +43,7 @@ from typing import List, Tuple, Dict
 
 from pyAPES.utils.iotools import initialize_netcdf,  write_ncf
 from pyAPES.canopy.mlm_canopy import CanopyModel
-from pyAPES.soil.soil import Soil
+from pyAPES.soil.soil import Soil_1D
 
 from pyAPES.utils.constants import WATER_DENSITY
 
@@ -65,10 +65,10 @@ def driver(parameters,
 
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
     from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
-    from logging.config import dictConfig
+    #from logging.config import dictConfig
 
     # --- Config logger
-    dictConfig(logging_configuration)
+    logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
     # --- Check parameters
@@ -173,7 +173,7 @@ class MLM_model(object):
         self.Ncanopy_nodes = canopy_para['grid']['Nlayers']
 
         # create soil model instance
-        self.soil = Soil(soil_para)
+        self.soil = Soil_1D(soil_para)
 
         # create canopy model instance
         

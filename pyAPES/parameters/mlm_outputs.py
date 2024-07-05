@@ -1,6 +1,6 @@
 """
 .. module: pyAPES.models.mlm_outputs
-    :synopsis: pyAPES_MLM NetCSF4 outputs and logger configuration
+    :synopsis: pyAPES_MLM NetCDF4 outputs and logger configuration
 .. moduleauthor:: Samuli Launiainen
 
 """
@@ -233,7 +233,7 @@ logging_configuration = {
                         },
                 },
         'loggers': {
-                'pyAPES': {
+                '': { # root logger from pyAPES_mlm
                         'handlers': ['file', 'console'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
@@ -247,7 +247,7 @@ logging_configuration = {
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
-                        },                        
+                        },                          
                 'planttype':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG

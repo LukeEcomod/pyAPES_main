@@ -23,7 +23,7 @@ from pyAPES.utils.constants import K_WATER, K_ICE, K_AIR, K_ORG, K_SAND, K_SILT,
 
 logger = logging.getLogger(__name__)
 
-class Heat(object):
+class Heat_1D(object):
 
     def __init__(self, 
                  grid: Dict, 

@@ -46,8 +46,9 @@ import logging
 from typing import List, Dict, Tuple
 
 from pyAPES.leaf.photo import photo_c3_medlyn_farquhar #, photo_temperature_response
-from pyAPES.microclimate.micromet import leaf_boundary_layer_conductance, e_sat
-from pyAPES.canopy.interception import latent_heat
+from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
+from pyAPES.microclimate.micromet import e_sat, latent_heat
+#from pyAPES.canopy.interception import latent_heat
 from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
 
 from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle

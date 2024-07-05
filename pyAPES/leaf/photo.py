@@ -2,7 +2,7 @@
 """
 .. module: photo
     :synopsis: pyAPES leaf component. Describes coupled leaf/needle-scale photosynthesis and stomatal control using variants of
-Farquhar model and 'A-gs' schemes. Includes also energy balance.
+Farquhar model and 'A-gs' schemes. Includes also leaf energy balance.
 .. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
 Key references:
@@ -19,12 +19,13 @@ import matplotlib.pyplot as plt
 import logging
 from typing import List, Dict, Tuple
 
-from pyAPES.microclimate.micromet import leaf_boundary_layer_conductance, e_sat, latent_heat
+from pyAPES.microclimate.micromet import e_sat, latent_heat
+from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
 GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O
 
 H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
-TN = 25.0 + DEG_TO_KELVIN  # reference temperature [K]
+TN = 25.0 + DEG_TO_KELVIN  # reference temperature, 283.15 [K]
 
 logger = logging.getLogger(__name__)
 
@@ -498,7 +499,7 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
     g1 = photop['g1']  # [kPa^0.5], slope parameter
     g0 = photop['g0'] # [mol m-2 (leaf) s-1], for CO2
     beta = photop['beta']
-    #print beta
+   
     # --- CO2 compensation point -------
     Tau_c = 42.75 * np.exp(37830*(Tk - TN) / (TN * GAS_CONSTANT * Tk))
 
@@ -564,7 +565,6 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
     fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
 
     return An, Rd, fe, gs_opt, ci, cs
-
 
 def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray, 
                  ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float=101300.0) -> Tuple:
@@ -644,7 +644,7 @@ def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray,
         An1 = np.maximum(An, 0.0)
         # bwb -scheme
         gs_opt = g0 + g1 * An1 / ((cs - Tau_c))*RH
-        gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
+        gs_opt = np.maximum(g0, gs_opt)  # g0 is the lower limit
 
         # CO2 supply
         cs = np.maximum(ca - An1 / gb_c, 0.5*ca)  # through boundary layer
@@ -821,25 +821,6 @@ def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     f[f < 0.2] = 0.2
 
     return f
-
-# def topt_deltaS_conversion(xin, Ha, Hd, var_in='deltaS'):
-#     """
-#     Converts between entropy factor Sv (J mol-1) and temperature optimum
-#     Topt (K). Medlyn et al. 2002 PCE 25, 1167-1179 eq.19.
-#     INPUT:
-#         xin, Ha(J mol-1), Hd(J mol-1)
-#         input:'deltaS' [Jmol-1] or 'Topt' [K]
-#     OUT:
-#         xout - Topt or Sv
-#     Farquhar parameters temperature sensitivity
-#     """
-
-#     if var_in.lower() == 'deltas':  # Sv --> Topt
-#         xout = Hd / (xin - GAS_CONSTANT * np.log(Ha / (Hd - Ha)))
-#     else:  # Topt -->Sv
-#         c = GAS_CONSTANT * np.log(Ha / (Hd - Ha))
-#         xout = (Hd + xin * c) / xin
-#     return xout
 
 def topt_deltaS_conversion(Ha: float, Hd: float, dS: float=None, Topt: float=None) -> float:
     """
