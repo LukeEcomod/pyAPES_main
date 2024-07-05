@@ -207,12 +207,12 @@ snow = {'physics_options': {
             'asmn': 0.5,            # Minimum albedo for melting snow
             'asmx': 0.85,           # Maximum albedo for fresh snow
             'eta0': 3.7e7,          # Reference snow viscosity (Pa s)
-            'hfsn': 0.1,           # Snowcover fraction depth scale (m)
+            'hfsn': 0.1,            # Snowcover fraction depth scale (m)
             'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
             'rcld': 300,            # Maximum density for cold snow (kg/m^3)
             'rfix': 300,            # Fixed snow density (kg/m^3)
             'rgr0': 5e-5,           # Fresh snow grain radius (m)
-            'rhof': 100,             # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
+            'rhof': 100,            # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
             'rhow': 300,            # Wind-packed snow density (kg/m^3)
             'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
             'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)

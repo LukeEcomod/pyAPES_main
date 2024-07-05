@@ -10,7 +10,7 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from pyFSM2_MODULES import Constants, Layers, Parameters
-from utils import tridiag
+from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
                                     LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
                                     WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
@@ -19,10 +19,10 @@ from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WAT
 
 EPS = np.finfo(float).eps  # machine epsilon
 
-class SnowModel:
-
-    def __init__(self, properties): -> object:
-        """ Energy balance snowpack model based on FSM2.
+class SnowModel(object):
+    def __init__(self, properties: Dict) -> object:
+        """
+        Energy balance snowpack model based on FSM2.
 
         Args:
             properties (dict)
@@ -53,7 +53,6 @@ class SnowModel:
                 'layers' (dict):
                     'Nsmax' (int):
                     'Dzsnow' (list):
-       
                 'initial_conditions' (dict):
                     temperature (float): [degC]
                     snow_water_equivalent (float): [kg m\ :sup:`-2`\ == mm]
@@ -61,67 +60,44 @@ class SnowModel:
             self (object)
         """
     
-        # from Layers
-        self.Dzsnow = layers.Dzsnow # Minimum snow layer thicknesses (m)
-        self.Dzsoil = layers.Dzsoil # Soil layer thicknesses (m)
-        self.Nsmax = layers.Nsmax # Maximum number of snow layers
-        self.Nsoil = layers.Nsoil # Number of soil layers
+        # from layers
+        self.Dzsnow = properties['layers']['Dzsnow'] # Minimum snow layer thicknesses (m)
+        self.Dzsoil = properties['layers']['Dzsoil'] # Soil layer thicknesses (m)
+        self.Nsmax = properties['layers']['Nsmax'] # Maximum number of snow layers
+        self.Nsoil = properties['layers']['Nsoil'] # Number of soil layers
 
-        # from Parameters
-        self.eta0 = params.eta0 # Reference snow viscosity (Pa s)
-        self.rcld = params.rcld # Maximum density for cold snow (kg/m^3)
-        self.rfix = params.rfix # Fixed snow density (kg/m^3)
-        self.rgr0 = params.rgr0 # Fresh snow grain radius (m)
-        self.rhof = params.rhof # Fresh snow density (kg/m^3)
-        self.rhow = params.rhow # Wind-packed snow density (kg/m^3)
-        self.rmlt = params.rmlt # Maximum density for melting snow (kg/m^3)
-        self.snda = params.snda # Thermal metamorphism parameter (1/s)
-        self.trho = params.trho # Snow compaction timescale (s)
-        self.Wirr = params.Wirr # Irreducible liquid water content of snow
-        self.kfix = params.kfix # 
+        # from parameters
+        self.eta0 = properties['params']['eta0'] # Reference snow viscosity (Pa s)
+        self.rcld = properties['params']['rcld'] # Maximum density for cold snow (kg/m^3)
+        self.rfix = properties['params']['rfix'] # Fixed snow density (kg/m^3)
+        self.rgr0 = properties['params']['rgr0'] # Fresh snow grain radius (m)
+        self.rhof = properties['params']['rhof'] # Fresh snow density (kg/m^3)
+        self.rhow = properties['params']['rhow'] # Wind-packed snow density (kg/m^3)
+        self.rmlt = properties['params']['rmlt'] # Maximum density for melting snow (kg/m^3)
+        self.snda = properties['params']['snda'] # Thermal metamorphism parameter (1/s)
+        self.trho = properties['params']['trho'] # Snow compaction timescale (s)
+        self.Wirr = properties['params']['Wirr'] # Irreducible liquid water content of snow
+        self.kfix = properties['params']['kfix'] # 
 
-        self.HYDROL = 1 # NOTE THIS NEEDS TO COME FROM THE NAMELIST!
-        self.CONDUCT = 1
-        self.DENSITY = 1
+        # from physics options
+        self.HYDROL = properties['physics_options']['HYDROL']
+        self.CONDUCT = properties['physics_options']['CONDUCT']
+        self.DENSITY = properties['physics_options']['DENSITY']
                 
-        # Model state variables (in/out)
-        self.Nsnow = np.zeros(1) # Number of snow layers
-        self.Dsnw = np.zeros(self.Nsmax) # Snow layer thicknesses (m)
-        self.Rgrn = np.zeros(self.Nsmax) # Snow layer grain radius (m)
-        self.Sice = np.zeros(self.Nsmax) # Ice content of snow layers (kg/m^2)
-        self.Sliq = np.zeros(self.Nsmax) # Liquid content of snow layers (kg/m^2)
-        self.Tsnow = np.ones(self.Nsmax)*273.15 # Snow layer temperatures (K)
-        
-        # Soil temp should come from elsewhere!
-        # Tsoil = np.zeros(self.Nsmax) # Soil layer temperatures (K)
+        # Model state variables
+        self.Nsnow = properties['initial_conditions']['Nsnow'] # Number of snow layers
+        self.Dsnw = properties['initial_conditions']['Dsnw'] # Snow layer thicknesses (m)
+        self.Rgrn = properties['initial_conditions']['Rgrn'] # Snow layer grain radius (m)
+        self.Sice = properties['initial_conditions']['Sice'] # Ice content of snow layers (kg/m^2)
+        self.Sliq = properties['initial_conditions']['Sliq'] # Liquid content of snow layers (kg/m^2)
+        self.Tsnow = properties['initial_conditions']['Tsnow'] # Snow layer temperatures (K)
+        self.Wflx = properties['initial_conditions']['Wflx'] # Snow layer temperatures (K)
 
-        # Only out!
-        # Gsoil = np.zeros(1) # Heat flux into soil (W/m^2)
-        # Roff = np.zeros(1) # Runoff from snow (kg/m^2/s)
-        # hs = np.zeros(1) # Snow depth (m)
-        # swe = np.zeros(1) # Total snow mass on ground (kg/m^2)
-        self.Wflx = np.zeros(self.Nsmax) # Water flux into snow layer (kg/m^2/s)
 
-        # no in nor out
-        # i,j = np.zeros(1),np.zeros(1) # Hydrology iteration counters
-        # k = np.zeros(1) # Snow layer counter
-        # knew =  np.zeros(1) # New snow layer pointer
-        # kold = np.zeros(1) # Old snow layer pointer
-        # Nold = np.zeros(1) # Previous number of snow layers
-        # coldcont = np.zeros(1) # Layer cold content (J/m^2)
-        # dnew = np.zeros(1) # New snow layer thickness (m)
-        # dSice = np.zeros(1) # Change in layer ice content (kg/m^2)
-        # Esnow = np.zeros(1) # Snow sublimation rate (kg/m^2/s)
-        # ggr = np.zeros(1) # Grain area growth rate (m^2/s)
-        # mass = np.zeros(1) # Mass of overlying snow (kg/m^2)
-        # rhos = np.zeros(1) # Density of snow layer (kg/m^3)
-        # SliqMax = np.zeros(1) # Maximum liquid content for layer (kg/m^2)
-        # wt = np.zeros(1) # Layer weighting
+        # Below are variables that need to have shape rightaway
         self.a =  np.zeros(self.Nsmax) # Below-diagonal matrix elements
         self.b = np.zeros(self.Nsmax) # Diagonal matrix elements
         self.c = np.zeros(self.Nsmax) # Above-diagonal matrix elements
-
-        # Below are variables that need to have shape rightaway!
         self.csnow = np.zeros(self.Nsmax) # Areal heat capacity of snow (J/K/m^2)
         self.dTs = np.zeros(self.Nsmax) # Temperature increments (k)
         self.D = np.zeros(self.Nsmax) # Layer thickness before adjustment (m)
@@ -129,13 +105,7 @@ class SnowModel:
         self.Gs = np.zeros(self.Nsmax) # Thermal conductivity between layers (W/m^2/k)
         self.phi = np.zeros(self.Nsmax) # Porosity of snow layers
         self.rhs = np.zeros(self.Nsmax) # Matrix equation rhs
-        #self.R = np.zeros(self.Nsmax) # Snow grain radii before adjustment (kg/m^2)
-        #self.S = np.zeros(self.Nsmax) # Ice contents before adjustment (kg/m^2)
         self.U = np.zeros(self.Nsmax) # Layer internal energy contents (J/m^2)
-        #self.W = np.zeros(self.Nsmax) # Liquid contents before adjustment (kg/m^2)   
-        # dth = np.zeros(1) # Hydrology timestep (s)
-
-        # Below are variables that need to have shape rightaway!
         self.dtheta = np.zeros(self.Nsmax) # Change in liquid water content
         self.ksat = np.zeros(self.Nsmax) # Saturated hydraulic conductivity (m/s)
         self.thetar = np.zeros(self.Nsmax) # Irreducible water content
@@ -143,9 +113,35 @@ class SnowModel:
         self.theta0 = np.zeros(self.Nsmax) # Liquid water content at start of timestep
         self.Qw = np.zeros(self.Nsmax+1) # Water flux at snow layer boundaruess (m/s)
     
-    def run_timestep(self, dt, drip, Esrf, Gsrf, ksoil, Melt, Rf, Sf, Ta, trans, Tsrf, unload, Tsoil, ksnow):
-        '''
-        '''
+    
+    def run_timestep(self, dt: float, forcing: Dict) -> Tuple:
+        """
+        Calculates one timestep and updates snowpack state
+
+        Args:
+            dt (float): timestep [s]
+            forcing' (dict):
+                drip:       # Melt water drip from vegetation (kg/m^2)
+                Esrf:       # Moisture flux from the surface (kg/m^2/s)
+                Gsrf        # Heat flux into snow/ground surface (W/m^2)
+                ksoil       # Thermal conductivity of soil layers (W/m/K)
+                Melt        # Surface melt rate (kg/m^2/s)
+                Rf:         # Rainfall rate (kg/m2/s)
+                Sf:         # Snowfall rate (kg/m2/s)
+                Ta:         # Air temperature (K)
+                trans:      # Wind-blown snow transport rate (kg/m^2/s)
+                Tsrf:       # Snow/ground surface temperature (K)
+                unload:     # Snow mass unloaded from vegetation (kg/m^2)
+                Tsoil:      # Soil layer temperatures (K)
+        Returns
+            (tuple):
+            fluxes (dict):
+                soil_heat_flux:     # Heat flux into soil (W/m^2)
+                soil_runoff:        # Runoff from snow (kg/m^2/s)
+            states (dict):
+                snow_water_equivalent: # Total snow mass on ground (kg/m^2)
+                snow_depth:         # Snow depth (m)
+        """
 
         # No snow
         Gsoil = Gsrf.copy()
@@ -154,7 +150,7 @@ class SnowModel:
 
         # Existing snowpack
         if (self.Nsnow > 0):
-            #ksnow = snow_thermal()
+            self.snow_thermal()
             # Heat conduction
             for k in range(self.Nsnow):
                 # Areal heat capacity
@@ -182,7 +178,7 @@ class SnowModel:
             self.b[k] = self.csnow[k] + (self.Gs[k-1] + self.Gs[k])*dt
             self.c[k] = 0
             self.rhs[k] = self.Gs[k-1] * (self.Tsnow[k-1] - self.Tsnow[k])*dt + self.Gs[k]*(Tsoil[0] - self.Tsnow[k]) * dt
-            self.dTs = tridiag(Nvec=self.Nsnow, Nmax=self.Nsmax, a=self.a, b=self.b, c=self.c, r=self.rhs)
+            self.dTs = tridiag(a=self.a, b=self.b, C=self.c, D=self.rhs)
             
             for k in range(self.Nsnow):
                 self.Tsnow[k] = self.Tsnow[k] + self.dTs[k]
@@ -237,12 +233,12 @@ class SnowModel:
             if self.DENSITY == 0:
                 # Fixed snow density
                 for k in range(self.Nsnow):
-                    if (self.Dsnw[k] > self.eps):
+                    if (self.Dsnw[k] > EPS):
                         self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rfix
             if self.DENSITY == 1:
                 # Snow compaction with age
                 for k in range(self.Nsnow):
-                    if self.Dsnw[k] > self.eps: # epsillon different in FSM
+                    if self.Dsnw[k] > EPS: # epsillon different in FSM
                         self.rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
                         if self.Tsnow[k] >= T_MELT:
                             if self.rhos < self.rmlt:
@@ -281,7 +277,7 @@ class SnowModel:
             Esnow = Esrf
         dSice = (Sf - Esnow)*dt
         self.Dsnw[0] = self.Dsnw[0] + dSice / self.rhof
-        if (self.Sice[0] + dSice > self.eps):
+        if (self.Sice[0] + dSice > EPS):
             self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + dSice*self.rgr0) / (self.Sice[0] + dSice)
         self.Sice[0] = self.Sice[0] + dSice
     
@@ -289,10 +285,10 @@ class SnowModel:
         self.rhos = self.rhof
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
         hs = sum(self.Dsnw[:])
-        if (hs > self.eps):
+        if (hs > EPS):
             self.rhos = swe / hs
         self.Dsnw[0] = self.Dsnw[0] + unload / self.rhos
-        if (self.Sice[0] + unload > self.eps):
+        if (self.Sice[0] + unload > EPS):
             self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + unload*self.rgr0) / (self.Sice[0] + unload)
         self.Sice[0] = self.Sice[0] + unload
 
@@ -463,9 +459,30 @@ class SnowModel:
 
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
 
-        # End if existing or new snowpack
+        fluxes = {'soil_heat_flux': Gsoil,
+                  'soil_runoff': Roff,
+                 }
+
+        states = {'snow_water_equivalent': swe,
+                  'snow_depth': hs,
+                 }
         
-        return Gsoil, Roff, hs, swe, self.Wflx, self.Sice, self.Sliq, self.Dsnw, self.Rgrn, self.Tsnow, Tsoil, self.Nsnow
+        # End if existing or new snowpack
+
+        return fluxes, states
+    
+
+    def snow_thermal(self):
+        self.ksnow = np.zeros(self.Nsmax)
+        self.ksnow[:] = self.kfix
+        if self.CONDUCT == 1:
+            for k in range(self.Nsnow):
+                self.rhos = self.rhof
+                if self.DENSITY == 1:
+                    if (self.Dsnw[k] > EPS):
+                        self.rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
+                self.ksnow[k] = 2.224 * (self.rhos / self.rho_wat)**1.885
+    
     
 
 
