@@ -30,31 +30,37 @@ class SnowModel(object):
                     'HYDRL': (int): 0,1,2
                     'CONDUCT': (int): 0,1,2
                 'params' (dict):
-                    'asmn' (float):
-                    'asmx' (float):
-                    'eta0' (float):
-                    'hfsn' (float):
-                    'kfix' (float):
-                    'rcld' (float):
-                    'rfix' (float):
-                    'rgr0' (float):
-                    'rhof' (float):
-                    'rhow' (float):
-                    'rmlt' (float):
-                    'Salb' (float):
-                    'snda' (float):
-                    'Talb' (float):
-                    'tcld' (float):
-                    'tmlt' (float):
-                    'trho' (float):
-                    'Wirr' (float):
-                    'z0sn' (float):
+                    'asmn' (float): # Minimum albedo for melting snow
+                    'asmx' (float): # Maximum albedo for fresh snow
+                    'eta0' (float): # Reference snow viscosity (Pa s)
+                    'hfsn' (float): # Snowcover fraction depth scale (m)
+                    'kfix' (float): # Fixed thermal conductivity of snow (W/m/K)
+                    'rcld' (float): # Maximum density for cold snow (kg/m^3)
+                    'rfix' (float): # Fixed snow density (kg/m^3)
+                    'rgr0' (float): # Fresh snow grain radius (m)
+                    'rhof' (float): # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
+                    'rhow' (float): # Wind-packed snow density (kg/m^3)
+                    'rmlt' (float): # Maximum density for melting snow (kg/m^3)
+                    'Salb' (float): # Snowfall to refresh albedo (kg/m^2)
+                    'snda' (float): # Thermal metamorphism parameter (1/s)
+                    'Talb' (float): # Snow albedo decay temperature threshold (C)
+                    'tcld' (float): # Cold snow albedo decay time scale (s)
+                    'tmlt' (float): # Melting snow albedo decay time scale (s)
+                    'trho' (float): # Snow compaction timescale (s)
+                    'Wirr' (float): # Irreducible liquid water content of snow
+                    'z0sn' (float): # Snow roughness length (m)  
                 'layers' (dict):
-                    'Nsmax' (int):
-                    'Dzsnow' (list):
+                    'Nsmax' (int): # Maximum number of snow layers
+                    'Dzsnow' (list): # Minimum snow layer thicknesses (m)
                 'initial_conditions' (dict):
-                    temperature (float): [degC]
-                    snow_water_equivalent (float): [kg m\ :sup:`-2`\ == mm]
+                    Nsnow (int): # Number of snow layers
+                    Dsnw (float): # Snow layer thicknesses (m)
+                    Rgrn (np.ndarray): # Snow layer grain radius (m)
+                    Tsnow (np.ndarray): # Snow layer temperatures (K)
+                    Sice (np.ndarray): # Liquid content of snow layers (kg/m^2)
+                    Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
+                    Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
+
         Returns:
             self (object)
         """
@@ -76,7 +82,7 @@ class SnowModel(object):
         self.snda = properties['params']['snda'] # Thermal metamorphism parameter (1/s)
         self.trho = properties['params']['trho'] # Snow compaction timescale (s)
         self.Wirr = properties['params']['Wirr'] # Irreducible liquid water content of snow
-        self.kfix = properties['params']['kfix'] # 
+        self.kfix = properties['params']['kfix'] # Fixed thermal conductivity of snow (W/m/K)
 
         # from physics options
         self.HYDROL = properties['physics_options']['HYDROL']
@@ -455,7 +461,6 @@ class SnowModel(object):
                         self.Sice[k] = self.Sice[k] + dSice
                         self.Tsnow[k] = self.Tsnow[k] + LATENT_HEAT_FUSION*dSice/self.csnow[k]
         
-
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
 
         fluxes = {'soil_heat_flux': Gsoil,
