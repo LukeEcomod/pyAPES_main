@@ -20,7 +20,7 @@ Next developments planned:
     - replace bulk soil respiration model with separate soil C module (pyAPES.soil) + autotrophic respiration (pyAPES.planttype)
 
 """
-import numpy as np
+import numpy as np  
 from typing import List, Dict, Tuple
 import logging
 from pyAPES.utils.constants import EPS, MOLAR_MASS_H2O, LATENT_HEAT
@@ -221,7 +221,7 @@ class ForestFloor(object):
             parameters (dict):
                 soil_thermal_conductivity [W m-1 K-1] (if controls['energy balance'] = True)
                 soil_hydraulic_conductivity [m s-1]
-                depth [m] of first soil calculation node
+                soil_depth [m] of first soil calculation node
                 reference_height [m] of first canopy calculation node
            
             controls (dict):
@@ -331,7 +331,7 @@ class ForestFloor(object):
 
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
-                'soil_temperature': forcing['soil_temperature'][0],
+                'soil_temperature': forcing['soil_temperature'],
                 'snow_water_equivalent': states_snow['snow_water_equivalent']}
                 )
 

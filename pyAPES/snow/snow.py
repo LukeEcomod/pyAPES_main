@@ -98,7 +98,6 @@ class SnowModel(object):
         self.Tsnow = properties['initial_conditions']['Tsnow'] # Snow layer temperatures (K)
         self.Wflx = properties['initial_conditions']['Wflx'] # Snow layer temperatures (K)
 
-
         # Below are variables that need to have shape rightaway
         self.a =  np.zeros(self.Nsmax) # Below-diagonal matrix elements
         self.b = np.zeros(self.Nsmax) # Diagonal matrix elements
@@ -222,7 +221,7 @@ class SnowModel(object):
                         self.Sice[k] = self.Sice[k] - dSice
                         dSice = 0
 
-            # Remove wind-trasported snow 
+            # Remove wind-transported snow 
             dSice = trans * dt
             if (dSice > 0):
                 for k in range(self.Nsnow):

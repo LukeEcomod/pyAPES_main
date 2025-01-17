@@ -199,9 +199,9 @@ snowpack = {
 
 # --- pyAPES.snow.snow
 snow = {'physics_options': {
-            'DENSITY' = 0,
-            'HYDRL' = 1,
-            'CONDUCT' = 1
+            'DENSITY': 0,
+            'HYDRL': 1,
+            'CONDUCT': 1
         },
         'params': {
             'asmn': 0.5,            # Minimum albedo for melting snow
