@@ -162,6 +162,7 @@ class Heat_1D(object):
             state (dict):
                 temperature (array|float): [degC]
                 volumetric_ice_content (array|float): [m3 m-3]
+                volumetric_liquid_water_content (array|float): [m3 m-3]
                 volumetric_water_content (array|float): [m3 m-3]
         Returns:
             None
@@ -179,7 +180,10 @@ class Heat_1D(object):
             self.Wliq = state['volumetric_liquid_water_content']
         else:
             self.Wliq = Wtot - self.Wice
-        self.Wair = self.porosity - Wtot
+        
+        self.Wtot = self.Wliq + self.Wice # total water content [m3 m-3]
+        self.Wair = self.porosity - self. Wtot # air content [m3 m-3]
+        
         self.thermal_conductivity = thermal_conductivity(self.porosity, self.Wliq, self.Wice,
                                                          solid_composition=self.solid_composition,
                                                          bedrockL=self.bedrock_thermal_conductivity)

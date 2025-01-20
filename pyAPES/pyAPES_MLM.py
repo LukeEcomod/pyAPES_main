@@ -263,17 +263,27 @@ class MLM_model(object):
                 'zenith_angle': self.forcing['Zen'].iloc[k],        # [rad]
 
                 # from soil model
-                'soil_temperature': self.soil.heat.T[self.canopy_model.ix_roots],         # [deg C]
-                'soil_water_potential': self.soil.water.h[self.canopy_model.ix_roots],    # [m]
-                'soil_volumetric_water': self.soil.heat.Wliq[self.canopy_model.ix_roots], # [m3 m-3]
-                'soil_volumetric_air': self.soil.heat.Wair[self.canopy_model.ix_roots],   # [m3 m-3]
-                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,              # [kg m-2]
+                'soil_temperature': self.soil.heat.T,         # [deg C]
+                'soil_water_potential': self.soil.water.h,    # [m]
+                'soil_volumetric_water': self.soil.heat.Wliq, # total water content [m3 m-3]
+                'soil_volumetric_ice': self.soil.heat.Wice,
+                'soil_volumetric_air': self.soil.heat.Wair,   # [m3 m-3]
+                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,      
+                  
+                # 'soil_temperature': self.soil.heat.T[self.canopy_model.ix_roots],         # [deg C]
+                # 'soil_water_potential': self.soil.water.h[self.canopy_model.ix_roots],    # [m]
+                # 'soil_volumetric_water': self.soil.heat.Wliq[self.canopy_model.ix_roots], # total water content [m3 m-3]
+                # 'soil_volumetric_ice': self.soil.heat.Wice[self.canopy_model.ix_roots],
+                # 'soil_volumetric_air': self.soil.heat.Wair[self.canopy_model.ix_roots],   # [m3 m-3]
+                # 'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,              # [kg m-2]
             }
 
             canopy_parameters = {
                 'soil_depth': self.soil.grid['z'][0],   # [m]
-                'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
-                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],        # [W m-1 K-1]?
+                'soil_porosity': self.soil.heat.porosity, #[m3 m-3]
+                'soil_hydraulic_conductivity': self.soil.water.Kv, # [m s-1]
+                #'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
+                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],        # [W m-1 K-1]
                 # SINGLE SOIL LAYER
                 # 'state_water':{'volumetric_water_content': self.forcing['Wliq'].iloc[k]},
                 #                'state_heat':{'temperature': self.forcing['Tsoil'].iloc[k]}

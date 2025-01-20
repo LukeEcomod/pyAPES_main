@@ -106,20 +106,38 @@ venv.bak/
 sand*.py
 sand*.ipynb
 
-#bryo_ebal.ipynb
+# ipython:
+/__pycache__
+.ipynb_checkpoints
+.spyproject
 
-/figures
+# pyAPES folder specific...
+
+#/figures
 /results
 
-/forcing/Hyytiala/FIHy_forcing_1997-2019.dat
-/forcing/Hyytiala/FIHy_flx_1997-2019.dat
-/forcing/Hyytiala/FIHy_met_1997-2019.dat
+# Example demos
+/Examples/results/*.*
+.ipynb_checkpoints
+
+# datasets --> put in separate storage
+/data/*.*
+
+# model forcing data --> put in separate storage
+#/forcing/Hyytiala/FIHy_forcing_1997-2019.dat
+#/forcing/Hyytiala/FIHy_flx_1997-2019.dat
+#/forcing/Hyytiala/FIHy_met_1997-2019.dat
+
+/forcing/*.*
 
 .DS_Store
 
 *.log
 
 *.sh
+
+# nc files
+*.nc
 
 #Poetry
 pyproject.toml

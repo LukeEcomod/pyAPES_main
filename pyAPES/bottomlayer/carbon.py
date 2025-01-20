@@ -513,7 +513,7 @@ class SoilRespiration(object):
     Soil respiration model. Lumps heterotrophic and autotrophic respiration.
     Rsoil = R10 * Q10*[(T-10)/10] * fmoisture
     """
-    def __init__(self, para: Dict, weights: float=1):
+    def __init__(self, para: Dict, z_soil):
         """
 
         Args:
@@ -522,55 +522,128 @@ class SoilRespiration(object):
                 - 'Q10' (float): [-], temperature sensitivity
                 - 'moisture_coeff' (list): [-], moisture response parameters
 
-            weights (int, optional): weight factors for soil layers
+            z_soil (np.array):
+                - depth of soil layers
         """
         # base rate [umol m-2 s-1] and temperature sensitivity [-]
         self.r10 = para['r10']
         self.q10 = para['q10']
 
-        # moisture response of Skopp et al. 1990
+        # moisture response
         self.moisture_coeff = para['moisture_coeff']
 
-        if weights is not None:
-            # soil respiration computed in layers and weighted
-            self.weights = weights
-            self.Nlayers = len(weights)
+        # soil respiration computed in layers and weighted
+        dz = np.zeros(len(z_soil))
+        dz[0:-1] = z_soil[1:] - z_soil[0:-1]
+        dz[-1] = dz[-2]
+        weights = np.exp(para['beta'] * z_soil)
+        
+        self.weights = weights * dz / sum(weights * dz) 
+        self.Nlayers = len(self.weights)
 
-    def respiration(self, soil_temperature: np.array, volumetric_water: np.array, volumetric_air: np.array) -> float:
-        """ Soil respiration beneath litter/moss.
+    def respiration(self, soil_temperature: np.array, volumetric_liquid_content: np.array, volumetric_ice_content: np.array, volumetric_air_content) -> float:
+        """ Soil respiration
 
-        Heterotrophic and autotrophic respiration rate (CO2-flux) for mineral forest soil, 
-        based on Pumpanen et al. (2003) Soil.Sci.Soc.Am
-
-        Restricts respiration by soil moisuture as in Skopp et al. (1990), Soil.Sci.Soc.Am
+        Moisture response following Moyano et al. 2012 BG, https://doi.org/10.5194/bg-9-1173-2012
+        f = np.minimum(r_min, p[0] + p[1]*Sat + p[2]*Sat)
+        for low bulk density soils, p = [ -0.28, 4.325, -3.65] (fit to data in Fig.3k )
+        for high bulk density soils, p = [-0-38, 3.09, -1.83]
 
         Args:
-
             soil_temperature (float|array) [degC]
-            volumetric_water (float|array) [m3 m-3]
+            volumetric_liquid (float|array) [m3 m-3]
+            volumetric_ice (float|array) [m3 m-3]
             volumetric_air float|array) [m3 m-3]
-            
         Returns:
             soil respiration rate (float): [umol m-2 (ground) s-1]
-
         """
-        # Skopp limitparam [a,b,d,g] for two soil types
-        # sp = {'Yolo':[3.83, 4.43, 1.25, 0.854],
-        #       'Valentine': [1.65,6.15,0.385,1.03]}
 
         # unrestricted respiration rate
         x = self.r10 * np.power(self.q10, (soil_temperature - 10.0) / 10.0)
 
-        # moisture response (substrate diffusion, oxygen limitation)
-        f = np.minimum(self.moisture_coeff[0] * volumetric_water**self.moisture_coeff[2],
-                       self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
+        # moisture response (Skopp et al., substrate diffusion, oxygen limitation)
+        # f = np.minimum(self.moisture_coeff[0] * volumetric_water**self.moisture_coeff[2],
+        #                self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
+        porosity = volumetric_liquid_content + volumetric_ice_content + volumetric_air_content
+
+        M = volumetric_liquid_content / (porosity - volumetric_ice_content)
+        M = np.maximum(0.0, np.minimum(1.0, M))
+
+        f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
         f = np.minimum(f, 1.0)
 
+        # --- testing without soil water limitation
         respiration = x * f
 
-        if hasattr(self, 'weights'):
-            respiration = sum(self.weights * respiration[0:self.Nlayers])
+        respiration = sum(self.weights * respiration[0:self.Nlayers])
 
         return respiration
+    
+# class SoilRespiration(object):
+#     """
+#     Soil respiration model. Lumps heterotrophic and autotrophic respiration.
+#     Rsoil = R10 * Q10*[(T-10)/10] * fmoisture
+#     """
+#     def __init__(self, para: Dict, weights: float=1):
+#         """
+
+#         Args:
+#             para (Dict): 
+#                 - 'r10' (float): [umol m-2 s-1], base rate at 10 degC
+#                 - 'Q10' (float): [-], temperature sensitivity
+#                 - 'moisture_coeff' (list): [-], moisture response parameters
+
+#             weights (int, optional): weight factors for soil layers
+#         """
+#         # base rate [umol m-2 s-1] and temperature sensitivity [-]
+#         self.r10 = para['r10']
+#         self.q10 = para['q10']
+
+#         # moisture response of Skopp et al. 1990
+#         self.moisture_coeff = para['moisture_coeff']
+
+#         if weights is not None:
+#             # soil respiration computed in layers and weighted
+#             self.weights = weights
+#             self.Nlayers = len(weights)
+
+#     def respiration(self, soil_temperature: np.array, volumetric_water: np.array, volumetric_air: np.array) -> float:
+#         """ Soil respiration beneath litter/moss.
+
+#         Heterotrophic and autotrophic respiration rate (CO2-flux) for mineral forest soil, 
+#         based on Pumpanen et al. (2003) Soil.Sci.Soc.Am
+
+#         Restricts respiration by soil moisuture as in Skopp et al. (1990), Soil.Sci.Soc.Am
+
+#         Args:
+
+#             soil_temperature (float|array) [degC]
+#             volumetric_water (float|array) [m3 m-3]
+#             volumetric_air float|array) [m3 m-3]
+            
+#         Returns:
+#             soil respiration rate (float): [umol m-2 (ground) s-1]
+
+#         """
+#         # Skopp limitparam [a,b,d,g] for two soil types
+#         # sp = {'Yolo':[3.83, 4.43, 1.25, 0.854],
+#         #       'Valentine': [1.65,6.15,0.385,1.03]}
+
+#         # unrestricted respiration rate
+#         x = self.r10 * np.power(self.q10, (soil_temperature - 10.0) / 10.0)
+
+#         # moisture response (substrate diffusion, oxygen limitation)
+#         f = np.minimum(self.moisture_coeff[0] * volumetric_water**self.moisture_coeff[2],
+#                        self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
+#         f = np.minimum(f, 1.0)
+
+#         # --- testing without soil water limitation
+#         f = 1.0
+#         respiration = x * f
+
+#         if hasattr(self, 'weights'):
+#             respiration = sum(self.weights * respiration[0:self.Nlayers])
+
+#         return respiration
     
 # EOF

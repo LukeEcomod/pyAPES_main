@@ -60,7 +60,7 @@ class CanopyModel(object):
                     baresoil (dict): baresoil parameters
                     snowpack (dict): smow model parameters
                     initial_conditions (dict): initial conditions for forest floor
-            dz_soil (array): thickness of soilprofile layers, needed for rootzone
+            dz_soil (array): thickness of soilprofile layers, needed for rootzone & soil respiration
 
         Returns:
             self (object): CanopyModel, including following sub-models:
@@ -136,9 +136,12 @@ class CanopyModel(object):
         self.interception = Interception(cpara['interception'], self.lad * self.dz)
 
         # forestfloor. Now soil respiration profile is as root_distr
-        self.forestfloor = ForestFloor(cpara['forestfloor'],
-                                       respiration_profile=self.root_distr)
+        # self.forestfloor = ForestFloor(cpara['forestfloor'],
+        #                                respiration_profile=self.root_distr)
 
+        self.forestfloor = ForestFloor(cpara['forestfloor'],
+                                        z_soil=-np.cumsum(dz_soil))
+        
     def run_daily(self, doy: float, Ta: float, Rew: float=1.0) -> None:
         """
         Computatations occurring once per day.
@@ -191,16 +194,17 @@ class CanopyModel(object):
                 zenith_angle (float): solar zenith angle [rad]
                 PAR' (dict): with keys 'direct', 'diffuse' [W m-2]
                 NIR' (dict): with keys 'direct', 'diffuse' [W m-2]
-                soil_temperature (float): [degC] properties of first soil node
-                soil_water_potential (float): [m] properties of first soil node
-                soil_volumetric_water (float): [m m-3] properties of first soil node
-                soil_volumetric_air (float): [m m-3] properties of first soil node
-                soil_pond_storage(float): [kg m-2] properties of first soil node
+                soil_temperature (float): [degC] at soil nodes
+                soil_water_potential (float): [m] at soil nodes
+                soil_volumetric_water (float): [m m-3] liquid water content at soil nodes
+                soil_volumetric_ice (float): [m m-3] ice content at soil nodes
+                soil_volumetric_air (float): [m m-3] at soil nodes
+                soil_pond_storage(float): [kg m-2] at soil nodes
             parameters (dict):
                 - date (str)
-                - thermal_conductivity (float): [W m-1 K-1] properties of first soil node
-                - hydraulic_conductivity (float): [m s-1] properties of first soil node
-                - depth (float): [m] properties of first soil node
+                - thermal_conductivity (float): [W m-1 K-1] at soil nodes
+                - hydraulic_conductivity (float): [m s-1] at soil nodes
+                - depth (float): [m] depth of first soil node
 
         Returns:
             (tuple):
@@ -470,6 +474,7 @@ class CanopyModel(object):
                 'soil_water_potential': forcing['soil_water_potential'][0],
                 'soil_volumetric_water': forcing['soil_volumetric_water'],
                 'soil_volumetric_air': forcing['soil_volumetric_air'],
+                'soil_volumetric_ice': forcing['soil_volumetric_ice'],
                 'soil_pond_storage': forcing['soil_pond_storage']
             }
 

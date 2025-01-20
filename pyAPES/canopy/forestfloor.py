@@ -36,7 +36,7 @@ class ForestFloor(object):
     ForestFloor computes energy balance, water and carbon exchange
     of forestfloor or peatland ground layer.
    """
-    def __init__(self, para: Dict, respiration_profile: np.ndarray=None) -> object:
+    def __init__(self, para: Dict, z_soil) -> object:
         """
         Initializes forestfloor object
         
@@ -125,7 +125,7 @@ class ForestFloor(object):
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
         self.snowpack = DegreeDaySnow(para['snowpack'])
 
-        self.soilrespiration = SoilRespiration(para['soil_respiration'], weights=respiration_profile)
+        self.soilrespiration = SoilRespiration(para['soil_respiration'], z_soil=z_soil)
 
         # BottomLayer types can include both bryophytes and litter. Append to list and
         # compute area-weighted forest floor temperature and optical properties
@@ -307,10 +307,11 @@ class ForestFloor(object):
             #'emissivity': None
          }
 
-        # --- Soil respiration
+        # --- Soil respiration # Moyano et al. 2012 BG soil moisture response
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
                                         forcing['soil_temperature'],
                                         forcing['soil_volumetric_water'],
+                                        forcing['soil_volumetric_ice'],
                                         forcing['soil_volumetric_air'])
 
         fluxes['respiration'] += fluxes['soil_respiration']

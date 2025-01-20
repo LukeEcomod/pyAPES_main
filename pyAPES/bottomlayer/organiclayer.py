@@ -1181,8 +1181,8 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
     
     if theta is not None:
         Psi,x = theta_psi(theta)
-        if any(psi < -10 for psi in Psi):
-            logger.info(x[0])
+        #if any(psi < -10 for psi in Psi):
+        #    logger.info(x[0])
         return Psi
     else:
         return psi_theta(psi)

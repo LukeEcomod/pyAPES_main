@@ -572,42 +572,38 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     q_sl = q_sh + aDiro  # sunlit leaves diffuse + direct
 
     if PlotFigs:
-        plt.figure(999)
-        plt.subplot(221)
-        plt.title("Source: radiation.canopy_sw_ZhaoQualls")
-
-        plt.plot(f_slo, -Lcumo/Clump, 'r-', (1 - f_slo), -Lcumo/Clump, 'b-')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("sunlit & shaded fractions (-)")
-        plt.legend(('f_{sl}, total = %.2f' % np.sum(f_slo*LAIz), 'f_{sh}, total = %.2f' % np.sum((1 - f_slo)*LAIz)), loc='best')
+        fig, ax = plt.subplots(2,2, figsize=(6,8))
 
         # add input parameter values to fig
-        plt.text(0.05, 0.75, r'$LAI$ = %1.1f m2 m-2' % (LAI))
-        plt.text(0.05, 0.65, r'$Zen$ = %1.3f rad' % (Zen))
-        plt.text(0.05, 0.55, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
-        plt.text(0.05, 0.45, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
+        ax[0,0].text(0.05, 0.65, r'$LAI$ = %1.1f m2 m-2' % (LAI))
+        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.3f ' % (Zen / DEG_TO_RAD))
+        ax[0,0].text(0.70, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
+        ax[0,0].text(1.0, 0.65, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
 
-        plt.subplot(222)
-        plt.plot(Q_sl, -Lcumo/Clump, 'ro-', Q_sh, -Lcumo/Clump, 'bo-')
-        plt.plot(q_sl/(1-LeafAlbedo), -Lcumo/Clump, 'k-', q_sh/(1-LeafAlbedo), -Lcumo/Clump, 'k-')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Incident radiation (Wm-2 (leaf))")
-        plt.legend(('sunlit', 'shaded'), loc='best')
+        ax[0,0].set_title("Source: radiation.canopy_sw_ZhaoQualls")
 
-        plt.subplot(223)
-        plt.plot(SWd, -Lcum/Clump, 'bo', SWdo, -Lcumo/Clump, 'b-', Ib, -Lcum/Clump, 'ro',
+        ax[0,0].plot(f_slo, -Lcumo/Clump, 'r-', (1 - f_slo), -Lcumo/Clump, 'b-')
+        ax[0,0].set_ylabel("-Lcum eff.")
+        ax[0,0].set_xlabel("sunlit & shaded fractions (-)")
+        ax[0,0].legend(('f$_{sl}$, total = %.2f' % np.sum(f_slo*LAIz), 'f$_{sh}$, total = %.2f' % np.sum((1 - f_slo)*LAIz)), loc='best')
+
+        ax[0,1].plot(Q_sl, -Lcumo/Clump, 'ro-', Q_sh, -Lcumo/Clump, 'bo-')
+        ax[0,1].plot(q_sl/(1-LeafAlbedo), -Lcumo/Clump, 'k-', q_sh/(1-LeafAlbedo), -Lcumo/Clump, 'k-')
+        ax[0,1].set_ylabel("-Lcum eff.")
+        ax[0,1].set_xlabel("Incident radiation (Wm-2 (leaf))")
+        ax[0,1].legend(('sunlit', 'shaded'), loc='best')
+
+        ax[1,0].plot(SWd, -Lcum/Clump, 'bo', SWdo, -Lcumo/Clump, 'b-', Ib, -Lcum/Clump, 'ro',
                  SWbo, -Lcumo/Clump, 'r-', SWu, -Lcum/Clump, 'go', SWuo, -Lcumo/Clump, 'g-')
-        plt.legend(('SWd', 'Swdo', 'SWb', 'SWbo', 'SWu', 'SWuo'), loc='best')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Incident SW (Wm-2 )")
+        ax[1,0].legend(('SWd', 'Swdo', 'SWb', 'SWbo', 'SWu', 'SWuo'), loc='best')
+        ax[1,0].set_ylabel("-Lcum eff.")
+        ax[1,0].set_xlabel("Incident SW (Wm-2 )")
 
-        plt.subplot(224)
-        plt.plot(q_sl, -Lcumo/Clump, 'ro-', q_sh, -Lcumo/Clump, 'bo-')
-#        plt.plot((-SWdo[:-1]+SWdo[1:]-SWuo[1:]+SWuo[:-1])/(LAIz[:-1]+EPS),-Lcumo[1:]/Clump,'-k')
-        plt.plot((1-np.exp(-Kd*Lo))*(SWdo + SWuo)/(LAIz+EPS),-Lcumo/Clump,'-k')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Absorbed radiation (Wm-2 (leaf))")
-        plt.legend(('sunlit', 'shaded'), loc='best')
+        ax[1,1].plot(q_sl, -Lcumo/Clump, 'ro-', q_sh, -Lcumo/Clump, 'bo-')
+        ax[1,1].plot((1-np.exp(-Kd*Lo))*(SWdo + SWuo)/(LAIz+EPS),-Lcumo/Clump,'-k')
+        ax[1,1].set_ylabel("-Lcum eff.")
+        ax[1,1].set_xlabel("Absorbed radiation (Wm-2 (leaf))")
+        ax[1,1].legend(('sunlit', 'shaded'), loc='best')
 
     return SWbo, SWdo, SWuo, Q_sl, Q_sh, q_sl, q_sh, q_soil, f_slo, alb
 
@@ -662,7 +658,8 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     IdSky = max(IdSky, 0.0001)
 
     L = Clump*LAIz  # effective layerwise LAI (or PAI) in original grid
-    Lcum = np.flipud(np.cumsum(np.flipud(L), 0.0))  # cumulative plant area from the sky, index 0 = ground
+    Lcum = np.cumsum(np.flipud(L), 0)  # cumulative plant area index from canopy top
+    Lcum = np.flipud(Lcum)  # node 0 is canopy bottom, N is top
     LAI = max(Lcum)
 
     # attenuation coefficients
@@ -696,7 +693,7 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     qb1 = IbSky*np.exp(-Kb*Lcum)  # beam
     qbt1 = (1.0 - rb1)*IbSky*np.exp(-(1.0 - LeafAlbedo)**0.5*Kb*Lcum)  # total beam
     qsc1 = qbt1 - (1.0 - rb1)*qb1  # scattered part of beam
-    # print Lcum, f_sl, qd1, qb1, qsc1
+    #print(Lcum, f_sl, qd1, qb1, qsc1)
 
     # incident fluxes at each layer per unit ground area
     SWd = qd1 + qsc1  # total diffuse
@@ -723,38 +720,36 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     f_sl = Clump*f_sl
 
     if PlotFigs:
-        plt.figure(999)
-        plt.subplot(221)
-        plt.title("Source: radiation.canopy_sw_Spitters")
 
-        plt.plot(f_sl, -Lcum/Clump, 'r-', (1 - f_sl), -Lcum/Clump, 'b-')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("sunlit & shaded fractions (-)")
-        plt.legend(('f_{sl}, total = %.2f' % np.sum(f_sl*LAIz), 'f_{sh}, total = %.2f' % np.sum((1 - f_sl)*LAIz)), loc='best')
+        fig, ax = plt.subplots(2,2, figsize=(6,8))
+  
+        ax[0,0].set_title("Source: radiation.canopy_sw_Spitters")
+
+        ax[0,0].plot(f_sl, -Lcum/Clump, 'r-', (1 - f_sl), -Lcum/Clump, 'b-')
+        ax[0,0].set_ylabel("-Lcum eff.")
+        ax[0,0].set_xlabel("sunlit & shaded fractions (-)")
+        ax[0,0].legend(('f$_{sl}$, total LAI= %.2f' % np.sum(f_sl*LAIz), 'f$_{sh}$, total = %.2f' % np.sum((1 - f_sl)*LAIz)), fontsize=6)
 
         # add input parameter values to fig
-        plt.text(0.05, 0.75, r'$LAI$ = %1.1f m2 m-2' % (LAI))
-        plt.text(0.05, 0.65, r'$ZEN$ = %1.3f rad' % (Zen))
-        plt.text(0.05, 0.55, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
-        plt.text(0.05, 0.45, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
+        ax[0,0].text(0.05, 0.65, r'$LAI$ = %1.1f m2 m-2' % (LAI))
+        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.3f ' % (Zen / DEG_TO_RAD))
+        ax[0,0].text(0.70, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
+        ax[0,0].text(1.0, 0.65, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
 
-        plt.subplot(222)
-        plt.plot(Q_sl, -Lcum/Clump, 'ro-', Q_sh, -Lcum/Clump, 'bo-')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Incident radiation (Wm-2 (leaf))")
-        plt.legend(('sunlit', 'shaded'), loc='best')
+        ax[0,1].plot(Q_sl, -Lcum/Clump, 'ro-', Q_sh, -Lcum/Clump, 'bo-')
+        ax[0,1].set_ylabel("-Lcum eff.")
+        ax[0,1].set_xlabel("Incident radiation (Wm-2 (leaf))")
+        ax[0,1].legend(('sunlit', 'shaded'),  fontsize=6)
 
-        plt.subplot(223)
-        plt.plot(SWd, -Lcum/Clump, 'bo', SWb, -Lcum/Clump, 'ro')
-        plt.legend(('SWd', 'SWb'), loc='best')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Incident SW (Wm-2 )")
+        ax[1,0].plot(SWd, -Lcum/Clump, 'bo', SWb, -Lcum/Clump, 'ro')
+        ax[1,0].legend(('SWd', 'SWb'), loc='best', fontsize=6)
+        ax[1,0].set_ylabel("-Lcum eff.")
+        ax[1,0].set_xlabel("Incident SW (Wm-2 )")
 
-        plt.subplot(224)
-        plt.plot(q_sl, -Lcum/Clump, 'ro-', q_sh, -Lcum/Clump, 'bo-')
-        plt.ylabel("-Lcum eff.")
-        plt.xlabel("Absorbed radiation (Wm-2 (leaf))")
-        plt.legend(('sunlit', 'shaded'), loc='best')
+        ax[1,1].plot(q_sl, -Lcum/Clump, 'ro-', q_sh, -Lcum/Clump, 'bo-')
+        ax[1,1].set_ylabel("-Lcum eff.")
+        ax[1,1].set_xlabel("Absorbed radiation (Wm-2 (leaf))")
+        ax[1,1].legend(('sunlit', 'shaded'), loc='best', fontsize=6)
 
     return SWb, SWd, Q_sl, Q_sh, q_sl, q_sh, q_soil, f_sl, alb
 
