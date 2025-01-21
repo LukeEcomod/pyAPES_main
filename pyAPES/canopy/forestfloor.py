@@ -331,7 +331,7 @@ class ForestFloor(object):
 
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
-                'soil_temperature': forcing['soil_temperature'],
+                'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI
                 'snow_water_equivalent': states_snow['snow_water_equivalent']}
                 )
 

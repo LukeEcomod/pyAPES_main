@@ -134,7 +134,7 @@ class DegreeDaySnow(object):
         states = {'snow_water_equivalent': swe,
                   'temperature': forcing['air_temperature']
                  }
-
+        
         return fluxes, states
 
 # EOF
