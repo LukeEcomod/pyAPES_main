@@ -19,7 +19,9 @@ from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WAT
 EPS = np.finfo(float).eps  # machine epsilon
 
 class SnowModel(object):
-    def __init__(self, properties: Dict) -> object:
+    def __init__(self, 
+                 properties: Dict,
+                 soil_dz: float) -> object:
         """
         Energy balance snowpack model based on FSM2.
 
@@ -60,6 +62,7 @@ class SnowModel(object):
                     Sice (np.ndarray): # Liquid content of snow layers (kg/m^2)
                     Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
                     Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
+            soil_dz (float): uppermost soil layer thickness
 
         Returns:
             self (object)
@@ -67,9 +70,9 @@ class SnowModel(object):
     
         # from layers
         self.Dzsnow = properties['layers']['Dzsnow'] # Minimum snow layer thicknesses (m)
-        self.Dzsoil = properties['layers']['Dzsoil'] # Soil layer thicknesses (m)
         self.Nsmax = properties['layers']['Nsmax'] # Maximum number of snow layers
-        self.Nsoil = properties['layers']['Nsoil'] # Number of soil layers
+        self.Dzsoil = soil_dz # Soil layer thicknesses (m)
+        #self.Nsoil = properties['layers']['Nsoil'] # Number of soil layers
 
         # from parameters
         self.eta0 = properties['params']['eta0'] # Reference snow viscosity (Pa s)
@@ -85,7 +88,7 @@ class SnowModel(object):
         self.kfix = properties['params']['kfix'] # Fixed thermal conductivity of snow (W/m/K)
 
         # from physics options
-        self.HYDROL = properties['physics_options']['HYDROL']
+        self.HYDROL = properties['physics_options']['HYDRL']
         self.CONDUCT = properties['physics_options']['CONDUCT']
         self.DENSITY = properties['physics_options']['DENSITY']
                 
@@ -374,7 +377,7 @@ class SnowModel(object):
 
         # Diagnose snow layer temperatures            
         for k in range(self.Nsnow):
-            self.csnow[k] = self.Sice[k]*SPECIFIC_HEAT_ICE + self.Sliq[k]SPECIFIC_HEAT_WATER
+            self.csnow[k] = self.Sice[k]*SPECIFIC_HEAT_ICE + self.Sliq[k]*SPECIFIC_HEAT_WATER
             self.Tsnow[k] = T_MELT + self.U[k] / self.csnow[k]
             self.Rgrn[k] = self.Rgrn[k] / self.Sice[k]
 

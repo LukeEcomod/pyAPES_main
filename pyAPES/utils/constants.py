@@ -89,7 +89,7 @@ CV_MINERAL = 2.31e6  # soil minerals
 #: [J kg-1], latent heat of fusion
 LATENT_HEAT_FUSION = 0.334e6
 #: [J kg-1], latent heat of sublimation
-#LATENT_HEAT_SUBMILATION = 2.501e6
+LATENT_HEAT_SUBMILATION = LATENT_HEAT * LATENT_HEAT_FUSION
 #: [J kg-1 K-1], heat capacity of ice
 SPECIFIC_HEAT_ICE = 2100
 #: [J kg-1 K-1], heat capacity of water at constant pressure
@@ -101,5 +101,13 @@ ICE_DENSITY = 917
 #: [K] Melting point
 T_MELT = 273.15
 
+
+#%% for pyAPES.srfebal
+#: [J/K/kg] Gas constant for air
+GAS_CONSTANT_AIR = 287
+#: [J/K/kg] Gas constant for water vapour 
+GAS_CONSTANT_WATER_VAPOUR = 462
+#: [Pa] Saturation vapour pressure at melting point
+self.e0 = 611.213
 
 # EOF

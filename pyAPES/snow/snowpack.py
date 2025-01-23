@@ -35,7 +35,7 @@ class DegreeDaySnow(object):
        
                 initial_conditions (dict):
                     temperature (float): [degC]
-                    snow_water_equivalent (float): [kg m\ :sup:`-2`\ == mm]
+                    snow_water_equivalent (float): [kg m-2 == mm]
         Returns:
             self (object)
         """
@@ -87,7 +87,7 @@ class DegreeDaySnow(object):
                potential_infiltration: [kg m-2 s-1]
                water_closure: [kg m-2 s-1]
             states (dict):
-               snow_water_equivalent: [kg m-2 s-1]
+               snow_water_equivalent: [kg m-2]
                temperature: [degC]
         """
 
@@ -126,6 +126,7 @@ class DegreeDaySnow(object):
                                  'swe': swe,
                                  'ice': ice,
                                  'liq': liq}
+        
 
         fluxes = {'potential_infiltration': pot_inf / dt,
                   'water_closure': water_closure / dt
