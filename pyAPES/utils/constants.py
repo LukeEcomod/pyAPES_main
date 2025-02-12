@@ -100,7 +100,8 @@ WATER_VISCOCITY = 1.78e-3
 ICE_DENSITY = 917
 #: [K] Melting point
 T_MELT = 273.15
-
+#: [-] Pi
+PI = 3.14159
 
 #%% for pyAPES.srfebal
 #: [J/K/kg] Gas constant for air
@@ -108,6 +109,8 @@ GAS_CONSTANT_AIR = 287
 #: [J/K/kg] Gas constant for water vapour 
 GAS_CONSTANT_WATER_VAPOUR = 462
 #: [Pa] Saturation vapour pressure at melting point
-self.e0 = 611.213
+SATURATION_VAPOUR_PRESSURE_MELT = 611.213
+#: [-] Ratio of molecular weights of water and dry air
+R_RATIO = 0.622
 
 # EOF

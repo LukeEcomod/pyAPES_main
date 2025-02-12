@@ -198,10 +198,16 @@ snowpack = {
         }
 
 # --- pyAPES.snow.snow
-snow = {'physics_options': {
+snowpara = {'physics_options': {
             'DENSITY': 0,
             'HYDRL': 1,
-            'CONDUCT': 1
+            'CONDUCT': 1,
+            'SETPAR': 2,
+            'ZOFFST': 0,
+            'CANMOD': 0,
+            'EXCHNG': 0,
+            'ALBEDO': 2,
+            'SNFRAC': 1,
         },
         'params': {
             'asmn': 0.5,            # Minimum albedo for melting snow
@@ -222,22 +228,58 @@ snow = {'physics_options': {
             'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
             'trho': 200*3600,       # Snow compaction timescale (s)
             'Wirr': 0.03,           # Irreducible liquid water content of snow
-            'z0sn': 0.001           # Snow roughness length (m)            
+            'z0sn': 0.001,          # Snow roughness length (m)
+            'gsnf': 0.01,           # Snow-free vegetation moisture conductance (m/s)
+            'hbas': 2.0,            # Canopy base height (m)
+            'kext': 0.5,            # Vegetation light extinction coefficient
+            'leaf': 20,             # Leaf boundary resistance (s/m)^(1/2)
+            'wcan': 2.5,            # Canopy wind decay coefficient
+            'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
+            'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
+            'z0sf': 0.1,            # Snow-free surface roughness length (m)
+            'z0sn': 0.001,          # Snow roughness length (m)
+            'VAI': 0.0,             # Vegetation area index
+            'vegh': 0.0,            # Canopy height (m)
+            'zT': 2.0,              # Temperature measurement height with offset (m)
+            'zU': 5.0,              # Wind measurement height with offset (m)
+            'hfsn': 0.1,
+            'acn0': 0.1,
+            'acns': 0.4,
+            'lveg': 0.0,
+            'elev': 100.0
         },
         'layers': {
             'Nsmax': 3,                 # Maximum number of snow layers
-            'Dzsnow': [0.1, 0.2, 0.4]   # Minimum snow layer thicknesses (m)
+            'Ncnpy': 1,                 # Number of canopy layers
+            'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
+            'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
+            'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
+            'Nsoil': 3,
+            'Dzsoil': np.array([0.1, 0.2, 0.4]),
         },
         'initial_conditions': {
             'Nsnow': 0,             # Number of snow layers
-            'Dsnw': 0,              # Snow layer thicknesses (m)
-            'Rgrn': [0, 0, 0],      # Snow layer grain radius (m)
-            'Sice': [0, 0, 0],      # Ice content of snow layers (kg/m^2)
-            'Sliq': [0, 0, 0],      # Liquid content of snow layers (kg/m^2)
-            'Tsnow': [273.15, 273.15, 273.15],   # Snow layer temperatures (K)
-            'Wflx': [0, 0, 0]       # Water flux into snow layer (kg/m^2/s)
+            'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
+            'Rgrn': np.array([0.0, 0.0, 0.0]),      # Snow layer grain radius (m)
+            'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
+            'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
+            'Tsnow': np.array([273.15, 273.15, 273.15]),   # Snow layer temperatures (K)
+            'Tsoil': np.array([273.15, 273.15, 273.15]),   # Soil layer temperatures (K)
+            'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
+            'Tsrf': 273.15,         # Snow/ground surface temperature (K)
+            'fsnow': 0.0,           # Snow cover fraction
+            'fcans': 0.0,
+            'Vsmc': np.array([0.3, 0.3, 0.3])
+        },
+        'soilprops': {
+            'fcly': 0.3,
+            'fsnd': 0.6,
+            'gsat': 0.01,
+            'z0sf': 0.1,
+            'alb0': 0.2
         }
     }
+
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
 soil_respiration = {

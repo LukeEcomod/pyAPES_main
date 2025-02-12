@@ -9,21 +9,56 @@
 
 import numpy as np
 from typing import Dict, List, Tuple
-from pyAPES.utils.utilities import tridiag
+from pyAPES.utils.utilities import tridiag, ludcmp
 from pyAPES.utils.constants import SPECIFIC_HEAT_AIR, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
                                     LATENT_HEAT, LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
                                     WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
                                     T_MELT, STEFAN_BOLTZMANN, VON_KARMAN, \
                                     GAS_CONSTANT_AIR, GAS_CONSTANT_WATER_VAPOUR, \
-                                    SATURATION_VAPOUR_PRESSURE_MELT
-
-from utils import ludcmp
+                                    SATURATION_VAPOUR_PRESSURE_MELT, R_RATIO
 
 EPS = np.finfo(float).eps  # machine epsilon
 
 class EnergyBalance:
     def __init__(self,
                  properties: Dict):
+        """
+        Energy balance module based on FSM2.
+
+        Args:
+            properties (dict)
+                'physics_options' (dict):
+                    'SETPAR' (int): 0,1,2
+                    'DENSITY': (int): 0,1,2
+                    'ZOFFST': (int): 0,1,2
+                    'CANMOD': (int): 0,1,2
+                    'EXCHNG': (int): 0,1,2
+                'params' (dict):
+                    'gsnf' (float): # Snow-free vegetation moisture conductance (m/s)
+                    'hbas' (float): # Canopy base height (m)
+                    'kext' (float): # Vegetation light extinction coefficient
+                    'leaf' (float): # Leaf boundary resistance (s/m)^(1/2)
+                    'wcan' (float): # Canopy wind decay coefficient
+                    'z0sf' (float): # Snow-free surface roughness length (m)
+                    'z0sn' (float): # Snow roughness length (m)
+                'layers' (dict):
+                    'Nsmax' (int): # Maximum number of snow layers
+                    'Ncnpy' (int): # Number of canopy layers
+                    'fvg1' (float): # Fraction of vegetation in upper canopy layer
+                    'zsub' (float): # Subcanopy wind speed diagnostic height (m)
+                'initial_conditions' (dict):
+                    Nsnow (int): # Number of snow layers
+                    Dsnw (np.ndarray): # Snow layer thicknesses (m)
+                    Rgrn (np.ndarray): # Snow layer grain radius (m)
+                    Tsnow (np.ndarray): # Snow layer temperatures (K)
+                    Sice (np.ndarray): # Liquid content of snow layers (kg/m^2)
+                    Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
+                    Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
+            soil_dz (float): uppermost soil layer thickness
+
+        Returns:
+            self (object)
+        """        
 
         # From Layers
         self.Ncnpy = properties['layers']['Ncnpy'] # Number of canopy layers
@@ -40,16 +75,27 @@ class EnergyBalance:
         self.z0sf = properties['params']['z0sf'] # Snow-free surface roughness length (m)
         self.z0sn = properties['params']['z0sn'] # Snow roughness length (m)
 
+        self.VAI = properties['params']['VAI']
+        self.vegh = properties['params']['vegh']
+        self.zT = properties['params']['zT']
+        self.zU = properties['params']['zU']
+
+        #self.fcans = properties['params']['fcans']
+        #self.lveg = properties['params']['lveg']
+
         self.SETPAR = properties['physics_options']['SETPAR']
         self.DENSITY = properties['physics_options']['DENSITY']
         self.ZOFFST = properties['physics_options']['ZOFFST']
         self.CANMOD = properties['physics_options']['CANMOD']
         self.EXCHNG = properties['physics_options']['EXCHNG']
 
+        # Model state variables
+        self.Tsrf = properties['initial_conditions']['Tsrf']
+
         # Coming IN!
         #self.Ds1 = np.zeros(1) # Surface layer thickness (m)
         #self.dt = np.zeros(1) # Timestep (s)
-        self.fsnow = np.zeros(1) # Ground snowcover fraction
+        #self.fsnow = np.zeros(1) # Ground snowcover fraction
         #self.gs1 = np.zeros(1) # Surface moisture conductance (m/s)
         #self.ks1 = np.zeros(1) # Surface layer thermal conductivity (W/m/K)
         #self.LW = np.zeros(1) # Incoming longwave radiation (W/m2)
@@ -61,10 +107,10 @@ class EnergyBalance:
         #self.Ua = np.zeros(1) # Wind speed (m/s)
 
         # These also coming IN but probably should be taken from parameter file etc. and read in initizaliation!
-        self.VAI = np.zeros(1) # Vegetation area index
-        self.vegh = np.zeros(1) # Canopy height (m)
-        self.zT = np.zeros(1)+2 # Temperature and humidity measurement height (m)
-        self.zU = np.zeros(1)+5 # Wind speed measurement height (m)
+        #self.VAI = np.zeros(1) # Vegetation area index
+        #self.vegh = np.zeros(1) # Canopy height (m)
+        self.zT = 2 # Temperature and humidity measurement height (m)
+        self.zU = 5 # Wind speed measurement height (m)
 
         # Canopy related (some coming only IN)
         #self.cveg = np.zeros(self.Ncnpy) # Vegetation heat capacities (J/K/m^2)
@@ -100,7 +146,7 @@ class EnergyBalance:
 
         # State fluxes
         #self.B = np.zeros(1) # Kinematic bouyancy flux (Km/s)
-        self.d = np.zeros(1) #  Displacement height (m)
+        self.d = 0 #  Displacement height (m)
         #self.Dsrf = np.zeros(1) # dQsat/dT at ground surface temperature (1/K)
         #self.dEs = np.zeros(1) # Change in surface moisture flux (kg/m^2/s)
         #self.dGs = np.zeros(1) # Change in surface heat flux (kg/m^2/s)
@@ -109,7 +155,7 @@ class EnergyBalance:
         #self.E = np.zeros(1) # Moisture flux to the atmosphere (kg/m^2/s)
         #self.ebal = np.zeros(1) # Surface energy balance closure (W/m^2)
         #self.Ecan = np.zeros(1) # Within-canopy moisture flux (kg/m^2/s)
-        self.fveg = np.zeros(1) # Vegetation weighting
+        self.fveg = 0 # Vegetation weighting
         #self.ga = np.zeros(1) # Aerodynamic conductance to the atmosphere (m/s)
         #self.gc = np.zeros(1) # Conductance within canopy air space (m/s)
         #self.gs = np.zeros(1) # Surface to canopy air space conductance (m/s)
@@ -125,7 +171,7 @@ class EnergyBalance:
         #self.rL = np.zeros(1) # Reciprocal of Obukhov length (1/m)
         #self.ro = np.zeros(1) # Open aerodynamic resistance (s/m)
         #self.Rsrf = np.zeros(1) # Net radiation absorbed by the surface (W/m^2)
-        #self.Ssub = np.zeros(1) # Mass of snow available for sublimation (kg/m^2)
+        self.Ssub = 0 # Mass of snow available for sublimation (kg/m^2)
         #self.Uc = np.zeros(1) # Within-canopy wind speed (m/s)
         #self.Uh = np.zeros(1) # Wind speed at canopy top (m/s)
         #self.usd = np.zeros(1) # Dense canopy friction velocity (m/s)
@@ -157,8 +203,6 @@ class EnergyBalance:
         #self.J = np.array(3*Ncnpy+1,3*Ncnpy+1) # Jacobian of energy and mass balance equations
         #self.f = np.array(3*Ncnpy+1) # Residuals of energy and mass balance equations
         #self.x = np.array(3*Ncnpy+1) # Temperature and humidity increments
-
-        self.Tsrf = 273.15 # initial guess
  
         if self.ZOFFST == 0:
             # Heights specified above ground
@@ -177,20 +221,18 @@ class EnergyBalance:
             self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
             self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh    
 
-    def run_timestep(self, dt: float, forcing: Dict) -> Tuple:
+    def run(self, dt: float, forcing: Dict) -> Tuple:
         """
         Calculates one timestep and updates surface temperature
 
         Args:
             dt (float): timestep [s]
             forcing' (dict):
-                cveg: 
                 Ds1: 
                 fcans:
                 fsnow:
                 gs1:
                 ks1:
-                lveg:
                 LW:
                 Ps:
                 RH:
@@ -200,9 +242,7 @@ class EnergyBalance:
                 Ta:
                 tdif:
                 Ts1:
-                Tveg0:
                 Ua:
-                VAI:
                 vegh:
                 zT:
                 zU:
@@ -223,16 +263,39 @@ class EnergyBalance:
             states (dict):
                 Tsrf:
         """
+        #cveg = forcing['cveg']
+        Ds1 = forcing['Ds1']
+        #fcans = forcing['fcans']
+        fsnow = forcing['fsnow']
+        gs1 = forcing['gs1']
+        ks1 = forcing['ks1']
+        #lveg = forcing['lveg']
+        LW = forcing['LW']
+        Ps = forcing['Ps']
+        RH = forcing['RH']
+        SWsrf = forcing['SWsrf']
+        #Sveg = forcing['Sveg']
+        #SWveg = forcing['SWveg']
+        Ta = forcing['Ta']
+        tdif = forcing['tdif']
+        Ts1 = forcing['Ts1']
+        #Tveg0 = forcing['Tveg0']
+        Ua = forcing['Ua']
+        #VAI = forcing['VAI']
+        #vegh = forcing['vegh']
+        #zT = forcing['zT']
+        #zU = forcing['zU']
+        Sice = forcing['Sice']
 
         # Convert relative to specific humidity
         Tc = Ta - T_MELT
         es = SATURATION_VAPOUR_PRESSURE_MELT * np.exp(17.5043*Tc/(241.3 + Tc))
-        Qa = (RH/100)*EPS*es/Ps
+        Qa = (RH/100)*R_RATIO*es/Ps
 
         # Roughness lengths
         self.fveg = 1 - np.exp(-self.kext * self.VAI)
         self.d = 0.67 * self.fveg * self.vegh
-        self.z0g = (self.z0sn**fsnow) * (self.z0sf**(1 - self.fsnow))
+        self.z0g = (self.z0sn**fsnow) * (self.z0sf**(1 - fsnow))
         self.z0h = 0.1 * self.z0g
         self.z0v = ((0.05 * self.vegh)**self.fveg) * (self.z0g**(1 - self.fveg))
 
@@ -247,7 +310,7 @@ class EnergyBalance:
         Dsrf = Lsrf * Qsrf / (GAS_CONSTANT_WATER_VAPOUR * self.Tsrf**2)
         rho = Ps / (GAS_CONSTANT_AIR * Ta)
 
-        if (VAI == 0):  # open
+        if (self.VAI == 0.0):  # open
             self.Eveg[:] = 0
             self.Hveg[:] = 0
             ustar = VON_KARMAN * Ua / np.log(self.zU1/self.z0g)
@@ -258,14 +321,20 @@ class EnergyBalance:
                     if (ne < 10):
                         B = ga * (self.Tsrf - Ta)
                     if (Ta * ustar**3) != 0:
+                        print("B:", B)
                         rL = -VON_KARMAN * B / (Ta * ustar**3)
                         rL = max(min(rL,2.),-2.)
-                    else:
-                        rL = 0
+                        print("rL:", rL)
+                else:
+                    rL = 0
+
                     ustar = VON_KARMAN * Ua / (np.log(self.zU1/self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL))
                     ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL)) # !+ 2/(rho * SPECIFIC_HEAT_AIR)
+
                     if ~np.isfinite(ga):
                         break
+                    if np.iscomplexobj(ga):
+                        raise ValueError(f"ga became complex: {ga}")
                 
                 # Surface water availability
                 if (Qa > Qsrf):
@@ -299,7 +368,7 @@ class EnergyBalance:
                     dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
                     if (self.Tsrf + dTs < T_MELT):
                         Qsrf = self.qsat(Ps=Ps,T=T_MELT)
-                        Esrf = rho * wsrf * ga * (Qsrf - Qa)  
+                        Esrf = rho * wsrf * ga * (Qsrf - Qa)
                         self.Gsrf = 2 * ks1 * (T_MELT - Ts1)/Ds1
                         Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (T_MELT - Ta)
                         Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * T_MELT**4 
@@ -318,8 +387,7 @@ class EnergyBalance:
                 # Diagnostics
                 ebal = SWsrf + LW - STEFAN_BOLTZMANN * self.Tsrf**4 - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt
                 LWout = STEFAN_BOLTZMANN * self.Tsrf**4
-                LWsub = LW
-
+                LWsub = LW                
                 Usub = (ustar / VON_KARMAN) * (np.log(self.zsub/self.z0g) - self.psim(self.zsub,rL) + self.psim(self.z0g,rL))
 
                 if (ne > 4) & (abs(ebal) < 0.01):
@@ -514,16 +582,16 @@ class EnergyBalance:
             '''
         # Sublimation limited by available snow
         subl = 0
-        Ssub = sum(Sice[:]) - Melt * dt
-        if (Ssub > 0) | (self.Tsrf < T_MELT):
-            Esrf = min(Esrf, Ssub / dt)
+        self.Ssub = sum(Sice[:]) - Melt * dt
+        if (self.Ssub > 0) | (self.Tsrf < T_MELT):
+            Esrf = min(Esrf, self.Ssub / dt)
             subl = Esrf
 
-        if (VAI > 0):
-            for k in range(Ncnpy):
-                if (Sveg[k] > 0) | (Tveg[k] < T_MELT):
-                    Eveg[k] = min(Eveg[k], Sveg[k] / dt)
-                    subl = subl + Eveg[k]
+        #if (self.VAI > 0):
+        #    for k in range(Ncnpy):
+        #        if (Sveg[k] > 0) | (Tveg[k] < T_MELT):
+        #            Eveg[k] = min(Eveg[k], Sveg[k] / dt)
+        #            subl = subl + Eveg[k]
                 
         # Fluxes to the atmosphere
         E = float(Esrf + np.sum(self.Eveg[:]))
@@ -534,19 +602,20 @@ class EnergyBalance:
         Eveg = self.Eveg
         Hveg = self.Hveg
 
-        fluxes = {'evaporation_surface': Esrf,
-                  'ground_heat': Gsrf,
-                  'sensible_heat': H,
-                  'latent_heat': LE,
-                  'outgoing_longwave': LWout,
-                  'subcanopy_longwave': LWsub,
-                  'melt': Melt,
-                  'sublimation': subl,
-                  'subcanopy_wind': Usub,
-                  'evaporation_vegetation': Eveg,
+
+        fluxes = {'Esrf': Esrf,
+                  'Gsrf': Gsrf,
+                  'H': H,
+                  'LE': LE,
+                  'LWout': LWout,
+                  'LWsub': LWsub,
+                  'Melt': Melt,
+                  'subl': subl,
+                  'Usub': Usub,
+                  'Eveg': Eveg,
                  }
 
-        states = {'surface_temperature': Tsrf,}
+        states = {'Tsrf': Tsrf}
                     
         return fluxes, states
 
@@ -561,12 +630,12 @@ class EnergyBalance:
         else:
             es = SATURATION_VAPOUR_PRESSURE_MELT * np.exp(22.4422 * Tc / (272.186 + Tc))
 
-        Qsrf = EPS * es / Ps
+        Qsrf = R_RATIO * es / Ps
 
         return Qsrf
 
 
-    def psim(self, z, rL):
+    def psim_old(self, z, rL):
         '''
         '''
         zeta = z * rL
@@ -580,6 +649,25 @@ class EnergyBalance:
         return psim
 
 
+    def psim(self, z, rL):
+        '''
+        Stability function for momentum
+        '''
+        zeta = z * rL
+        stable = -5 * zeta  # For stable conditions (zeta > 0)
+
+        # Ensure the argument of fractional powers is not negative
+        unstable_input = np.maximum(1 - 16 * zeta, 1e-6)  
+
+        unstable = (2 * np.log((1 + unstable_input ** 0.25) / 2) + 
+                    np.log((1 + unstable_input ** 0.5) / 2) - 
+                    2 * np.arctan(unstable_input ** 0.25) + 
+                    np.pi / 2)
+
+        return np.where(zeta > 0, stable, unstable)
+
+
+
     def psih(self, z, rL):
         '''
         '''
@@ -589,8 +677,3 @@ class EnergyBalance:
                         2 * np.log((1 + (1 - 16 * zeta) ** 0.5) / 2))
         
         return psih
-    
-    
-
-
-
