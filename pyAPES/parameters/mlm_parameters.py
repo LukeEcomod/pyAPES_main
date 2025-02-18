@@ -199,15 +199,15 @@ snowpack = {
 
 # --- pyAPES.snow.snow
 snowpara = {'physics_options': {
-            'DENSITY': 0,
+            'DENSTY': 1,
             'HYDRL': 1,
-            'CONDUCT': 1,
-            'SETPAR': 2,
+            'CONDCT': 1,
             'ZOFFST': 0,
             'CANMOD': 0,
-            'EXCHNG': 0,
+            'EXCHNG': 1,
             'ALBEDO': 2,
             'SNFRAC': 1,
+            'SWPART': 0,
         },
         'params': {
             'asmn': 0.5,            # Minimum albedo for melting snow
@@ -240,8 +240,8 @@ snowpara = {'physics_options': {
             'z0sn': 0.001,          # Snow roughness length (m)
             'VAI': 0.0,             # Vegetation area index
             'vegh': 0.0,            # Canopy height (m)
-            'zT': 2.0,              # Temperature measurement height with offset (m)
-            'zU': 5.0,              # Wind measurement height with offset (m)
+            'zT': 18.,              # Temperature measurement height with offset (m)
+            'zU': 18.,              # Wind measurement height with offset (m)
             'hfsn': 0.1,
             'acn0': 0.1,
             'acns': 0.4,
@@ -250,7 +250,7 @@ snowpara = {'physics_options': {
         },
         'layers': {
             'Nsmax': 3,                 # Maximum number of snow layers
-            'Ncnpy': 1,                 # Number of canopy layers
+            'Ncnpy': 0,                 # Number of canopy layers
             'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
             'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
             'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
@@ -263,10 +263,10 @@ snowpara = {'physics_options': {
             'Rgrn': np.array([0.0, 0.0, 0.0]),      # Snow layer grain radius (m)
             'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
             'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
-            'Tsnow': np.array([273.15, 273.15, 273.15]),   # Snow layer temperatures (K)
-            'Tsoil': np.array([273.15, 273.15, 273.15]),   # Soil layer temperatures (K)
+            'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)
+            'Tsoil': np.array([285., 285., 285.]),   # Soil layer temperatures (K)
             'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
-            'Tsrf': 273.15,         # Snow/ground surface temperature (K)
+            'Tsrf': 285.,         # Snow/ground surface temperature (K)
             'fsnow': 0.0,           # Snow cover fraction
             'fcans': 0.0,
             'Vsmc': np.array([0.3, 0.3, 0.3])

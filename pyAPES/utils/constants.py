@@ -27,8 +27,10 @@ MOLAR_MASS_AIR = 29.0e-3
 SPECIFIC_HEAT_H2O = 4.18e3
 #: [J kg-1 K-1], specific heat of organic matter
 SPECIFIC_HEAT_ORGANIC_MATTER = 1.92e3
-#: [J kg-1 K-1], heat capacity of dry air at constant pressure
-SPECIFIC_HEAT_AIR = 29.3
+#: [J mol-1 K-1], specific heat capacity of dry air at constant pressure
+#SPECIFIC_HEAT_AIR = 29.3
+#: [J kg-1 K-1], specific heat capacity of dry air at constant pressure
+SPECIFIC_HEAT_AIR = 1005
 #: [W m-2 K-4], Stefan-Boltzmann constant
 STEFAN_BOLTZMANN = 5.6697e-8
 #: [-], von Karman constant
@@ -74,9 +76,11 @@ K_WATER = 0.57 # liquid phase
 K_ICE = 2.2 # ice-phase
 K_AIR = 0.025 # air
 K_ORG = 0.25 # organic matter
-K_SAND = 7.7  # Tian et al. 2016
+#K_SAND = 7.7  # Tian et al. 2016
+K_SAND = 1.57  # Essery et al. 2025
 K_SILT = 2.74  # Tian et al. 2016
-K_CLAY = 1.93  # Tian et al. 2016
+#K_CLAY = 1.93  # Tian et al. 2016
+K_CLAY = 1.16  # Essery et al. 2025
 
 #: volumetric heat capacities  [J m-3 -1]
 CV_AIR = 1297.0  # air at 101kPa
@@ -88,16 +92,18 @@ CV_MINERAL = 2.31e6  # soil minerals
 #%% for pyAPES.snow
 #: [J kg-1], latent heat of fusion
 LATENT_HEAT_FUSION = 0.334e6
+#: [J kg-1], latent heat of vaporisation
+LATENT_HEAT_VAPORISATION = 2.501e6
 #: [J kg-1], latent heat of sublimation
-LATENT_HEAT_SUBMILATION = LATENT_HEAT * LATENT_HEAT_FUSION
+LATENT_HEAT_SUBMILATION = LATENT_HEAT_VAPORISATION + LATENT_HEAT_FUSION
 #: [J kg-1 K-1], heat capacity of ice
-SPECIFIC_HEAT_ICE = 2100
+SPECIFIC_HEAT_ICE = 2100.
 #: [J kg-1 K-1], heat capacity of water at constant pressure
-SPECIFIC_HEAT_WATER = 4180
+SPECIFIC_HEAT_WATER = 4180.
 # [kg/m/s] Dynamic viscosity of water
 WATER_VISCOCITY = 1.78e-3
 #: [kg m-3], Ice density
-ICE_DENSITY = 917
+ICE_DENSITY = 917.
 #: [K] Melting point
 T_MELT = 273.15
 #: [-] Pi
@@ -105,9 +111,9 @@ PI = 3.14159
 
 #%% for pyAPES.srfebal
 #: [J/K/kg] Gas constant for air
-GAS_CONSTANT_AIR = 287
+GAS_CONSTANT_AIR = 287.
 #: [J/K/kg] Gas constant for water vapour 
-GAS_CONSTANT_WATER_VAPOUR = 462
+GAS_CONSTANT_WATER_VAPOUR = 462.
 #: [Pa] Saturation vapour pressure at melting point
 SATURATION_VAPOUR_PRESSURE_MELT = 611.213
 #: [-] Ratio of molecular weights of water and dry air

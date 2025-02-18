@@ -43,8 +43,8 @@ class Thermal:
                     'Vsat' (float): Saturated soil moisture content
                 'physics_options' (dict):
                     'HYDROL' (int): Hydrology scheme selection
-                    'CONDUCT' (int): Soil thermal conductivity scheme selection
-                    'DENSITY' (int): Snow density scheme selection
+                    'CONDCT' (int): Soil thermal conductivity scheme selection
+                    'DENSTY' (int): Snow density scheme selection
 
         Returns:
             self (object)
@@ -52,7 +52,6 @@ class Thermal:
 
         self.kfix = properties['params']['kfix']
         self.rhof = properties['params']['rhof']
-
 
         self.Nsoil = properties['layers']['Nsoil']
         self.Nsmax = properties['layers']['Nsmax']
@@ -62,16 +61,10 @@ class Thermal:
         self.fcly = properties['soilprops']['fcly']
         self.fsnd = properties['soilprops']['fsnd']
         self.gsat = properties['soilprops']['gsat']
-        #self.bch = properties['soilprops']['bch']
-        #self.hcap_soil = properties['soilprops']['hcap_soil']
-        #self.hcon_soil = properties['soilprops']['hcon_soil']
-        #self.sathh = properties['soilprops']['sathh']
-        #self.Vcrit = properties['soilprops']['Vcrit']
-        #self.Vsat = properties['soilprops']['Vsat']
 
         self.HYDRL = properties['physics_options']['HYDRL']
-        self.CONDUCT = properties['physics_options']['CONDUCT']
-        self.DENSITY = properties['physics_options']['DENSITY']
+        self.CONDCT = properties['physics_options']['CONDCT']
+        self.DENSTY = properties['physics_options']['DENSTY']
 
         # Soil properties
         self.bch = 3.1 + 15.7*self.fcly - 0.3*self.fsnd
@@ -106,16 +99,16 @@ class Thermal:
         Tsoil = forcing['Tsoil']
         Vsmc = forcing['Vsmc']
 
-        # Here could add routine to create fixed ksnow
         ksoil = np.zeros(int(self.Nsoil))
         ksnow = np.zeros(int(self.Nsmax))
         csoil = np.zeros(int(self.Nsoil))
 
         ksnow[:] = self.kfix
-        if self.CONDUCT == 1:
-            for k in range(int(Nsnow)):
+
+        if self.CONDCT == 1:
+            for k in range(Nsnow):
                 self.rhos = self.rhof
-                if self.DENSITY == 1:
+                if self.DENSTY != 0:
                     if (Dsnw[k] > EPS):
                         self.rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224 * (self.rhos / WATER_DENSITY)**1.885
@@ -156,10 +149,10 @@ class Thermal:
         Ds1 = max(self.Dzsoil[0], Dsnw[0])
         Ts1 = Tsoil[0] + (Tsnow[0] - Tsoil[0])*Dsnw[0]/self.Dzsoil[0]
         ks1 = self.Dzsoil[0]/(2*Dsnw[0]/ksnow[0] + (self.Dzsoil[0] - 2*Dsnw[0])/ksoil[0])
-        snd = sum(Dsnw)
-        if (snd > 0.5*self.Dzsoil[0]):
+        hs = np.sum(Dsnw)
+        if (hs > 0.5*self.Dzsoil[0]):
             ks1 = ksnow[0]
-        if (snd > self.Dzsoil[0]):
+        if (hs > self.Dzsoil[0]):
             Ts1 = Tsnow[0]
 
         fluxes = {}
@@ -172,8 +165,6 @@ class Thermal:
                   'ksnow': ksnow,
                   'ksoil': ksoil,
                  }
-        
-        # End if existing or new snowpack
 
         return fluxes, states        
 

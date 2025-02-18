@@ -20,8 +20,7 @@ class SWrad(object):
         Args:
             properties (dict):
                 'physics_options' (dict):
-                    'SETPAR' (int): Snow parameterization scheme (0,1,2)
-                    'DENSITY' (int): Snow density scheme (0,1,2)
+                    'DENSTY' (int): Snow density scheme (0,1,2)
                     'ALBEDO' (int): Snow albedo scheme (0,1,2)
                     'SNFRAC' (int): Snow cover fraction scheme (0,1,2)
                 'params' (dict):
@@ -58,13 +57,12 @@ class SWrad(object):
         self.tcld = properties['params']['tcld']         # Cold snow albedo decay time scale (s)
         self.tmlt = properties['params']['tmlt']         # Melting snow albedo decay time scale (s)
         self.alb0 = properties['soilprops']['alb0']
-        #self.fcans = properties['params']['fcans']
+        self.elev = properties['params']['elev']
         #self.lveg = properties['params']['lveg']
         #self.elev = properties['params']['elev']
  
         # from physics options
-        self.SETPAR = properties['physics_options']['SETPAR']
-        self.DENSITY = properties['physics_options']['DENSITY']
+        self.DENSTY = properties['physics_options']['DENSTY']
         self.ALBEDO = properties['physics_options']['ALBEDO']
         self.SNFRAC = properties['physics_options']['SNFRAC']
 
