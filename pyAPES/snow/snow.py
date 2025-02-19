@@ -219,14 +219,14 @@ class SnowModel(object):
                 if (dSice > 0):
                     if (dSice > self.Sice[k]):  # Layer melts completely
                         dSice = dSice - self.Sice[k]
-                        self.Dsnw[k] = 0
+                        self.Dsnw[k] = 0.
                         self.Sliq[k] = self.Sliq[k] + self.Sice[k]
-                        self.Sice[k] = 0
+                        self.Sice[k] = 0.
                     else:                       # Layer melts partially
                         self.Dsnw[k] = (1 - dSice/self.Sice[k])*self.Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
                         self.Sliq[k] = self.Sliq[k] + dSice
-                        dSice = 0
+                        dSice = 0.
                     
             # Remove snow by sublimation 
             dSice = Esrf * dt
@@ -234,12 +234,12 @@ class SnowModel(object):
                 for k in range(self.Nsnow):
                     if (dSice > self.Sice[k]):  # Layer sublimates completely
                         dSice = dSice - self.Sice[k]
-                        self.Dsnw[k] = 0
-                        self.Sice[k] = 0
+                        self.Dsnw[k] = 0.
+                        self.Sice[k] = 0.
                     else:                       # Layer sublimates partially
                         self.Dsnw[k] = (1 - dSice/self.Sice[k])*self.Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
-                        dSice = 0
+                        dSice = 0.
 
             # Remove wind-transported snow 
             dSice = trans * dt
@@ -247,12 +247,12 @@ class SnowModel(object):
                 for k in range(self.Nsnow):
                     if (dSice > self.Sice[k]):  # Layer completely removed
                         dSice = dSice - self.Sice[k]
-                        self.Dsnw[k] = 0
-                        self.Sice[k] = 0
+                        self.Dsnw[k] = 0.
+                        self.Sice[k] = 0.
                     else:                       # Layer partially removed
                         self.Dsnw[k] = (1 - dSice/self.Sice[k])*self.Dsnw[k]
                         self.Sice[k] = self.Sice[k] - dSice
-                        dSice = 0
+                        dSice = 0.
 
             if self.DENSTY == 0:
                 # Fixed snow density
@@ -262,15 +262,15 @@ class SnowModel(object):
             if self.DENSTY == 1:
                 # Snow compaction with age
                 for k in range(self.Nsnow):
-                    if self.Dsnw[k] > EPS: # epsillon different in FSM
-                        self.rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
+                    if self.Dsnw[k] > EPS:
+                        rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
                         if self.Tsnow[k] >= T_MELT:
-                            if self.rhos < self.rmlt:
-                                self.rhos = self.rmlt + (self.rhos - self.rmlt) * np.exp(-dt / self.trho)
+                            if rhos < self.rmlt:
+                                rhos = self.rmlt + (rhos - self.rmlt) * np.exp(-dt / self.trho)
                         else:
-                            if self.rhos < self.rcld:
-                                self.rhos = self.rcld + (self.rhos - self.rcld) * np.exp(-dt / self.trho)
-                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / self.rhos
+                            if rhos < self.rcld:
+                                rhos = self.rcld + (rhos - self.rcld) * np.exp(-dt / self.trho)
+                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
                         
             if self.DENSTY == 2:
                 # Snow compaction by overburden
@@ -278,10 +278,10 @@ class SnowModel(object):
                 for k in range(self.Nsnow):
                     mass = mass + 0.5*(self.Sice[k] + self.Sliq[k]) 
                     if (self.Dsnw[k] > EPS):
-                        self.rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
-                        self.rhos = self.rhos + (self.rhos*GRAVITY*mass*dt/(self.eta0*np.exp(-(self.Tsnow[k] - T_MELT)/12.4 + self.rhos/55.6)) + 
-                                                 dt * self.rhos*self.snda*np.exp((self.Tsnow[k] - T_MELT)/23.8 - max(self.rhos - 150, 0.)/21.7))
-                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / self.rhos
+                        rhos = (self.Sice[k] + self.Sliq[k]) / self.Dsnw[k]
+                        rhos = rhos + (rhos*GRAVITY*mass*dt/(self.eta0*np.exp(-(self.Tsnow[k] - T_MELT)/12.4 + rhos/55.6)) + 
+                                                 dt * rhos*self.snda*np.exp((self.Tsnow[k] - T_MELT)/23.8 - max(rhos - 150, 0.)/21.7))
+                        self.Dsnw[k] = (self.Sice[k] + self.Sliq[k]) / rhos
                     mass = mass + 0.5*(self.Sice[k] + self.Sliq[k])
 
             # Snow grain growth
@@ -306,12 +306,12 @@ class SnowModel(object):
         self.Sice[0] = self.Sice[0] + dSice
     
         # Add canopy unloading to layer 1 with bulk snow density and grain size
-        self.rhos = self.rhof
+        rhos = self.rhof
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
         hs = sum(self.Dsnw[:])
         if (hs > EPS):
-            self.rhos = swe / hs
-        self.Dsnw[0] = self.Dsnw[0] + unload / self.rhos
+            rhos = swe / hs
+        self.Dsnw[0] = self.Dsnw[0] + unload / rhos
         if (self.Sice[0] + unload > EPS):
             self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + unload*self.rgr0) / (self.Sice[0] + unload)
         self.Sice[0] = self.Sice[0] + unload
@@ -319,7 +319,7 @@ class SnowModel(object):
         # Add wind-blown snow to layer 1 with wind-packed density and fresh grain size
         dSice = - trans*dt
         if (dSice > 0):
-            self.Dsnw[0] = self.Dsnw[0] + dSice / rhow
+            self.Dsnw[0] = self.Dsnw[0] + dSice / self.rhow
             self.Rgrn[0] = (self.Sice[0]*self.Rgrn[0] + dSice*self.rgr0) / (self.Sice[0] + dSice)
             self.Sice[0] = self.Sice[0] + dSice
 
@@ -334,6 +334,7 @@ class SnowModel(object):
         R = self.Rgrn[:].copy()
         S = self.Sice[:].copy()
         W = self.Sliq[:].copy()
+
         if self.Nsnow > 0:
             for k in range(self.Nsnow):
                 self.csnow[k] = self.Sice[k]*SPECIFIC_HEAT_ICE + self.Sliq[k]*SPECIFIC_HEAT_WATER
@@ -399,11 +400,7 @@ class SnowModel(object):
 
 
         # Diagnose snow layer temperatures
-        #print('Rgrn', self.Rgrn)    
-        #rint('Sice', self.Sice)
-
         for k in range(self.Nsnow):
-            #print('k', k)
             self.csnow[k] = self.Sice[k]*SPECIFIC_HEAT_ICE + self.Sliq[k]*SPECIFIC_HEAT_WATER
             self.Tsnow[k] = T_MELT + self.U[k] / self.csnow[k]
             self.Rgrn[k] = self.Rgrn[k] / self.Sice[k]
@@ -494,7 +491,7 @@ class SnowModel(object):
                         self.Tsnow[k] = self.Tsnow[k] + LATENT_HEAT_FUSION*dSice/self.csnow[k]
         
         swe = sum(self.Sice[:]) + sum(self.Sliq[:])
-
+        
         fluxes = {'Gsoil': Gsoil,
                   'Roff': Roff,
                  }

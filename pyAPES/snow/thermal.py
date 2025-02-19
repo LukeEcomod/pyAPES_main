@@ -107,11 +107,11 @@ class Thermal:
 
         if self.CONDCT == 1:
             for k in range(Nsnow):
-                self.rhos = self.rhof
+                rhos = self.rhof
                 if self.DENSTY != 0:
                     if (Dsnw[k] > EPS):
-                        self.rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
-                ksnow[k] = 2.224 * (self.rhos / WATER_DENSITY)**1.885
+                        rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
+                ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
             
         # Heat capacity and thermal conductivity of soil
         dPsidT = -ICE_DENSITY*LATENT_HEAT_FUSION/(WATER_DENSITY*GRAVITY*T_MELT)
@@ -143,7 +143,7 @@ class Thermal:
                 hcon_sat = self.hcon_soil*(K_WATER**thwat)*(K_ICE**thice) / (K_AIR**self.Vsat)
                 ksoil[k] = (hcon_sat - self.hcon_soil)*(Smf + Smu) + self.hcon_soil
                 if (k == 1):
-                    gs1 = self.gsat*max((Smu*self.Vsat/self.Vcrit)**2, 1.)
+                    gs1 = self.gsat*np.maximum((Smu*self.Vsat/self.Vcrit)**2, 1.)
 
         # Surface layer
         Ds1 = max(self.Dzsoil[0], Dsnw[0])

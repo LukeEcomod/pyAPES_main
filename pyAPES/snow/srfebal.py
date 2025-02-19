@@ -320,7 +320,7 @@ class EnergyBalance:
                         rL = -VON_KARMAN * B / (Ta * ustar**3)
                         rL = np.clip(rL, -2., 2.)
                     else:
-                        #rL = -2.0 if B > 0 else 2.0  # Assign based on sign of B
+                        rL = -2.0 if B > 0 else 2.0  # Assign based on sign of B
                         #rL = 0.
                         #rL = 2.
                         #rL = -2.
@@ -355,9 +355,6 @@ class EnergyBalance:
                 dEs = rho * wsrf * ga * Dsrf * dTs
                 dGs = 2 * ks1 * dTs / Ds1 
                 dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
-                
-                #print('Tsrf', self.Tsrf)
-                #print('dTs', dTs)
 
                 # Surface melting
                 if (self.Tsrf + dTs > T_MELT) and (Sice[0] > 0):
@@ -375,9 +372,9 @@ class EnergyBalance:
                         Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * T_MELT**4 
                         Melt = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / LATENT_HEAT_FUSION
                         Melt = np.maximum(Melt, 0)
-                        dEs = 0
-                        dGs = 0
-                        dHs = 0
+                        dEs = 0.
+                        dGs = 0.
+                        dHs = 0.
                         dTs = T_MELT - self.Tsrf
                 
                 # Update surface temperature and fluxes
