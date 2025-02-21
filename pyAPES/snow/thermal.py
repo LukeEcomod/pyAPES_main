@@ -11,11 +11,12 @@ import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
-                                    LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
-                                    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
-                                    T_MELT, K_AIR, K_ICE, K_WATER, K_SAND, K_CLAY
+    LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
+    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
+    T_MELT, K_AIR, K_ICE, K_WATER, K_SAND, K_CLAY
 
 EPS = np.finfo(float).eps  # machine epsilon
+
 
 class Thermal:
     def __init__(self, properties: Dict) -> object:
@@ -48,7 +49,7 @@ class Thermal:
 
         Returns:
             self (object)
-        """             
+        """
 
         self.kfix = properties['params']['kfix']
         self.rhof = properties['params']['rhof']
@@ -56,7 +57,6 @@ class Thermal:
         self.Nsoil = properties['layers']['Nsoil']
         self.Nsmax = properties['layers']['Nsmax']
         self.Dzsoil = properties['layers']['Dzsoil']
-
 
         self.fcly = properties['soilprops']['fcly']
         self.fsnd = properties['soilprops']['fsnd']
@@ -68,16 +68,19 @@ class Thermal:
 
         # Soil properties
         self.bch = 3.1 + 15.7*self.fcly - 0.3*self.fsnd
-        self.hcap_soil = (2.128*self.fcly + 2.385*self.fsnd)*1e6 / (self.fcly + self.fsnd)
+        self.hcap_soil = (2.128*self.fcly + 2.385*self.fsnd) * \
+            1e6 / (self.fcly + self.fsnd)
         self.sathh = 10**(0.17 - 0.63*self.fcly - 1.58*self.fsnd)
         self.Vsat = 0.505 - 0.037*self.fcly - 0.142*self.fsnd
         self.Vcrit = self.Vsat*(self.sathh/3.364)**(1/self.bch)
-        self.hcon_soil = (K_AIR**self.Vsat) * ((K_CLAY**self.fcly)*(K_SAND**(1 - self.fcly))**(1 - self.Vsat))
+        self.hcon_soil = (K_AIR**self.Vsat) * ((K_CLAY**self.fcly)
+                                               * (K_SAND**(1 - self.fcly))**(1 - self.Vsat))
 
     def run(self, forcing: Dict) -> Tuple:
         """
         Calculates one timestep and updates thermal state.
 
+        
         Args:
             forcing (dict):
                 'Nsnow' (int): Number of snow layers
@@ -87,7 +90,7 @@ class Thermal:
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
                 'Tsoil' (np.ndarray): Soil layer temperatures (K)
                 'Vsmc' (np.ndarray): Volumetric soil moisture content (-)
-        
+
         Returns:
             (tuple):
         """
@@ -112,43 +115,53 @@ class Thermal:
                     if (Dsnw[k] > EPS):
                         rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
-            
+
         # Heat capacity and thermal conductivity of soil
         dPsidT = -ICE_DENSITY*LATENT_HEAT_FUSION/(WATER_DENSITY*GRAVITY*T_MELT)
         for k in range(self.Nsoil):
             csoil[k] = self.hcap_soil*self.Dzsoil[k]
             ksoil[k] = self.hcon_soil
             if (Vsmc[k] > EPS):
-                dthudT = 0
+                dthudT = 0.
                 sthu = Vsmc[k]
-                sthf = 0
+                sthf = 0.
                 Tc = Tsoil[k] - T_MELT
-                Tmax = T_MELT + (self.sathh/dPsidT)*(self.Vsat/Vsmc[k])**self.bch
+                Tmax = T_MELT + (self.sathh/dPsidT) * \
+                    (self.Vsat/Vsmc[k])**self.bch
                 if (Tsoil[k] < Tmax):
-                    dthudT = (-dPsidT*self.Vsat/(self.bch*self.sathh)) * (dPsidT*Tc/self.sathh)**(-1/self.bch - 1)
-                    sthu = self.Vsat*(dPsidT*Tc/self.sathh)**(-1/self.bch)
-                    sthu = min(sthu, Vsmc[k])
+                    dthudT = (-dPsidT*self.Vsat/(self.bch*self.sathh)) * \
+                        (dPsidT*Tc/self.sathh)**((-1/self.bch) - 1.)
+
+                    sthu = self.Vsat*(dPsidT*Tc/self.sathh)**(-1./self.bch)
+                    sthu = np.minimum(sthu, Vsmc[k])
                     sthf = (Vsmc[k] - sthu)*WATER_DENSITY/ICE_DENSITY
                 Mf = ICE_DENSITY*self.Dzsoil[k]*sthf
                 Mu = WATER_DENSITY*self.Dzsoil[k]*sthu
-                csoil[k] = self.hcap_soil*self.Dzsoil[k] + SPECIFIC_HEAT_ICE*Mf + SPECIFIC_HEAT_WATER*Mu + WATER_DENSITY*self.Dzsoil[k]*((SPECIFIC_HEAT_WATER - SPECIFIC_HEAT_ICE)*Tc + LATENT_HEAT_FUSION)*dthudT
+                csoil[k] = self.hcap_soil*self.Dzsoil[k] + SPECIFIC_HEAT_ICE*Mf + SPECIFIC_HEAT_WATER*Mu + \
+                    WATER_DENSITY * \
+                    self.Dzsoil[k]*((SPECIFIC_HEAT_WATER - SPECIFIC_HEAT_ICE)
+                                    * Tc + LATENT_HEAT_FUSION)*dthudT
                 Smf = ICE_DENSITY*sthf/(WATER_DENSITY*self.Vsat)
                 Smu = sthu/self.Vsat
-                thice = 0
+                thice = 0.
                 if (Smf > 0):
                     thice = self.Vsat*Smf/(Smu + Smf)
-                thwat = 0
+                thwat = 0.
                 if (Smu > 0):
                     thwat = self.Vsat*Smu/(Smu + Smf)
-                hcon_sat = self.hcon_soil*(K_WATER**thwat)*(K_ICE**thice) / (K_AIR**self.Vsat)
-                ksoil[k] = (hcon_sat - self.hcon_soil)*(Smf + Smu) + self.hcon_soil
-                if (k == 1):
-                    gs1 = self.gsat*np.maximum((Smu*self.Vsat/self.Vcrit)**2, 1.)
+                hcon_sat = self.hcon_soil * \
+                    (K_WATER**thwat)*(K_ICE**thice) / (K_AIR**self.Vsat)
+                ksoil[k] = (hcon_sat - self.hcon_soil) * \
+                    (Smf + Smu) + self.hcon_soil
+                if (k == 0):
+                    gs1 = self.gsat * \
+                        np.maximum((Smu*self.Vsat/self.Vcrit)**2, 1.)
 
         # Surface layer
-        Ds1 = max(self.Dzsoil[0], Dsnw[0])
+        Ds1 = np.maximum(self.Dzsoil[0], Dsnw[0])
         Ts1 = Tsoil[0] + (Tsnow[0] - Tsoil[0])*Dsnw[0]/self.Dzsoil[0]
-        ks1 = self.Dzsoil[0]/(2*Dsnw[0]/ksnow[0] + (self.Dzsoil[0] - 2*Dsnw[0])/ksoil[0])
+        ks1 = self.Dzsoil[0]/(2*Dsnw[0]/ksnow[0] +
+                              (self.Dzsoil[0] - 2*Dsnw[0])/ksoil[0])
         hs = np.sum(Dsnw)
         if (hs > 0.5*self.Dzsoil[0]):
             ks1 = ksnow[0]
@@ -164,7 +177,6 @@ class Thermal:
                   'csoil': csoil,
                   'ksnow': ksnow,
                   'ksoil': ksoil,
-                 }
+                  }
 
-        return fluxes, states        
-
+        return fluxes, states

@@ -50,18 +50,19 @@ def central_diff(y, dx) -> np.ndarray:
 
     return dydx
 
+
 def tridiag_fsm(Nvec, Nmax, a, b, c, r):
     '''
-    Input
-    Nvec: Vector length
-    Nmax: Maximum vector length
-    a: Below-diagonal matrix elements
-    b: Diagonal matrix elements
-    c: Above-diagonal matrix elements
-    r: Matrix equation rhs
+    Input:
+    - Nvec: Vector length
+    - Nmax: Maximum vector length
+    - a: Below-diagonal matrix elements
+    - b: Diagonal matrix elements
+    - c: Above-diagonal matrix elements
+    - r: Matrix equation rhs
         
-    Output
-    x: Solution vector
+    Output:
+    - x: Solution vector
     '''
 
     x = np.zeros(Nmax)
@@ -71,11 +72,11 @@ def tridiag_fsm(Nvec, Nmax, a, b, c, r):
     x[0] = r[0] / beta
 
     for n in range(1, Nvec):
-        g[n] = c[n-1] / beta
+        g[n] = c[n - 1] / beta
         beta = b[n] - a[n] * g[n]
-        x[n] = (r[n] - a[n] * x[n-1]) / beta
+        x[n] = (r[n] - a[n] * x[n - 1]) / beta
 
-    for n in range(Nvec - 2, 0, -1):
+    for n in range(Nvec - 2, -1, -1):
         x[n] = x[n] - g[n + 1] * x[n + 1]
 
     return x

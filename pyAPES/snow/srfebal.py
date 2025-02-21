@@ -312,21 +312,20 @@ class EnergyBalance:
             ustar = VON_KARMAN * Ua / np.log(self.zU1 / self.z0g)
             ga = VON_KARMAN * ustar / np.log(self.zT1 / self.z0h)
 
+            # ustar should not be 0
+            ustar = np.maximum(ustar, 0.001)
+
             for ne in range(20):  # Iterating for stability adjustments
                 if self.EXCHNG == 1:
                     if ne < 10:
                         B = ga * (self.Tsrf - Ta)
-                    if (Ta * ustar**3) != 0:
                         rL = -VON_KARMAN * B / (Ta * ustar**3)
                         rL = np.clip(rL, -2., 2.)
-                    else:
-                        rL = -2.0 if B > 0 else 2.0  # Assign based on sign of B
-                        #rL = 0.
-                        #rL = 2.
-                        #rL = -2.
 
                 # Update ustar and ga in every iteration
                 ustar = VON_KARMAN * Ua / (np.log(self.zU1 / self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL))
+                # ustar should not be 0               
+                ustar = np.maximum(ustar, 0.001)
                 ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL)) 
 
                 if not np.isfinite(ga):  # Ensure ga remains valid

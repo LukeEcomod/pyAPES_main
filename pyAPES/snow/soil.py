@@ -76,10 +76,7 @@ class SoilModel:
             Gsoil = forcing['Gsoil']
             csoil = forcing['csoil']
             ksoil = forcing['ksoil']
-            #Tsoil = forcing['Tsoil']
 
-            #for k in range(self.Nsoil-1):
-            #    self.gs[k] = 2 / (self.Dzsoil[k]/ksoil[k] + self.Dzsoil[k+1]/ksoil[k+1])
             self.gs[0] = 2 / (self.Dzsoil[0]/ksoil[0] + self.Dzsoil[1]/ksoil[1])
             self.a[0] = 0
             self.b[0] = csoil[0] + self.gs[0]*dt
@@ -111,7 +108,6 @@ class SoilModel:
             states = {'Tsoil': self.Tsoil,
                     'Vsmc': self.Vsmc}
             
-            #print('Tsoil[0]', self.Tsoil[0])
             return fluxes, states
 
 

@@ -254,8 +254,8 @@ snowpara = {'physics_options': {
             'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
             'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
             'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
-            'Nsoil': 3,
-            'Dzsoil': np.array([0.1, 0.2, 0.4]),
+            'Nsoil': 4,
+            'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]),
         },
         'initial_conditions': {
             'Nsnow': 0,             # Number of snow layers
@@ -264,12 +264,12 @@ snowpara = {'physics_options': {
             'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
             'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
             'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)
-            'Tsoil': np.array([285., 285., 285.]),   # Soil layer temperatures (K)
+            'Tsoil': np.array([285., 285., 285., 285.]),   # Soil layer temperatures (K)
             'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
             'Tsrf': 285.,         # Snow/ground surface temperature (K)
             'fsnow': 0.0,           # Snow cover fraction
             'fcans': 0.0,
-            'Vsmc': np.array([0.3, 0.3, 0.3])
+            'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])
         },
         'soilprops': {
             'fcly': 0.3,
