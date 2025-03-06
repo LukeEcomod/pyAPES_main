@@ -1,0 +1,19 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.0.15 Chrome/132.0.6834.196 Electron/34.2.0 Safari/537.36" version="26.0.15">
+  <diagram name="Page-1" id="6slvv6IzBOBA_isSImfn">
+    <mxGraphModel dx="934" dy="371" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="uFLB6n6X3wPtEoQjT_Hl-1" value="Luokkadiagrammi&lt;div&gt;- pakettien nimet&lt;br&gt;&lt;div&gt;-mooduulien nimet&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="28" width="120" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="uFLB6n6X3wPtEoQjT_Hl-2" value="Sekvenssidiagrammi ylätaso&lt;div&gt;moodulien run-funktiolle asti&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="190" y="30" width="180" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="uFLB6n6X3wPtEoQjT_Hl-3" value="Käyttäjälle olisi hyvä&lt;div&gt;- parametrien esittely kuvamuodossa, jossa näkee,&lt;/div&gt;&lt;div&gt;että mitkä parametrit liityvät mihinkin moduuliin&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="414" y="20" width="290" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
