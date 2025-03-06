@@ -183,8 +183,11 @@ pt2 = { 'name': 'shrubs',
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
-# --- pyAPES.snow.snowpack.DegreeDaySnow
-snowpack = {
+# --- pyAPES.snowpack
+snow_model = {'type': 'fsm2'} # snowpack model either 'degreeday' or 'fsm2'
+
+# --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
+degreeday = {
         'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
         'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
         'retention': 0.2,  # max fraction of liquid water in snow [-]
@@ -194,11 +197,12 @@ snowpack = {
                 'albedo': {'PAR': 0.8, 'NIR': 0.8}
                 },
         'initial_conditions': {'temperature': 0.0,
-                               'snow_water_equivalent': 0.0}
+                               'snow_water_equivalent': 0.0,
+                               }
         }
 
-# --- pyAPES.snow.snow
-snowpara = {'physics_options': {
+# --- pyAPES.snow.energybalance.fsm2.FSM2
+fsm2 = {'physics_options': {
             'DENSTY': 1,
             'HYDRL': 1,
             'CONDCT': 1,
@@ -218,7 +222,7 @@ snowpara = {'physics_options': {
             'rcld': 300,            # Maximum density for cold snow (kg/m^3)
             'rfix': 300,            # Fixed snow density (kg/m^3)
             'rgr0': 5e-5,           # Fresh snow grain radius (m)
-            'rhof': 100,            # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
+            'rhof': 100,            # Fresh snow density (kg/m^3)
             'rhow': 300,            # Wind-packed snow density (kg/m^3)
             'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
             'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)
@@ -242,11 +246,11 @@ snowpara = {'physics_options': {
             'vegh': 0.0,            # Canopy height (m)
             'zT': 18.,              # Temperature measurement height with offset (m)
             'zU': 18.,              # Wind measurement height with offset (m)
-            'hfsn': 0.1,
-            'acn0': 0.1,
-            'acns': 0.4,
-            'lveg': 0.0,
-            'elev': 100.0
+            'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+            'acn0': 0.1,            # Snow-free dense canopy albedo
+            'acns': 0.3,            # Snow-covered dense canopy albedo
+            #'lveg': 0.0,
+            #'elev': 100.0
         },
         'layers': {
             'Nsmax': 3,                 # Maximum number of snow layers
@@ -254,8 +258,8 @@ snowpara = {'physics_options': {
             'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
             'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
             'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
-            'Nsoil': 4,
-            'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]),
+            'Nsoil': 4,                 # Soil layers
+            'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]), # Soil layer thicknesses
         },
         'initial_conditions': {
             'Nsnow': 0,             # Number of snow layers
@@ -269,14 +273,14 @@ snowpara = {'physics_options': {
             'Tsrf': 285.,         # Snow/ground surface temperature (K)
             'fsnow': 0.0,           # Snow cover fraction
             'fcans': 0.0,
-            'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])
+            'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])  # Volumetric water content in soil
         },
         'soilprops': {
-            'fcly': 0.3,
-            'fsnd': 0.6,
-            'gsat': 0.01,
-            'z0sf': 0.1,
-            'alb0': 0.2
+            'fcly': 0.3,    # Fraction of clay
+            'fsnd': 0.6,    # Fraction of sand
+            'gsat': 0.01,   # Surface conductance for saturated soil (m/s)
+            'z0sf': 0.1,    # Surface roughness length
+            'alb0': 0.2     # Snow-free surface roughness length (m)
         }
     }
 
@@ -419,7 +423,8 @@ forestfloor = {
         'forest_moss': Forest_moss,
         #'sphagnum': Sphagnum,
     },
-    'snowpack': snowpack,
+    'snow_model': snow_model,
+    'snowpack': {'degreeday': degreeday, 'fsm2': fsm2}.get(snow_model.get('type')),
     'soil_respiration': soil_respiration
 }
 

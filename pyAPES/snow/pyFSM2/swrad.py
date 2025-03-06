@@ -57,9 +57,8 @@ class SWrad(object):
         self.tcld = properties['params']['tcld']         # Cold snow albedo decay time scale (s)
         self.tmlt = properties['params']['tmlt']         # Melting snow albedo decay time scale (s)
         self.alb0 = properties['soilprops']['alb0']
-        self.elev = properties['params']['elev']
-        #self.lveg = properties['params']['lveg']
         #self.elev = properties['params']['elev']
+        #self.lveg = properties['params']['lveg']
  
         # from physics options
         self.DENSTY = properties['physics_options']['DENSTY']

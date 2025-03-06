@@ -26,7 +26,7 @@ import logging
 from pyAPES.utils.constants import EPS, MOLAR_MASS_H2O, LATENT_HEAT
 
 from pyAPES.bottomlayer.organiclayer import OrganicLayer
-from pyAPES.snow.snowpack import DegreeDaySnow
+from pyAPES.snow.snowpack import Snowpack
 from pyAPES.bottomlayer.carbon import SoilRespiration
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class ForestFloor(object):
         """
 
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
-        self.snowpack = DegreeDaySnow(para['snowpack'])
+        self.snowpack = Snowpack(para['snow_model'], para['snowpack'])
 
         self.soilrespiration = SoilRespiration(para['soil_respiration'], weights=respiration_profile)
 
@@ -172,7 +172,7 @@ class ForestFloor(object):
         """ 
         Updates forestfloor-object state variables
         """
-        self.snowpack.update()
+        self.snowpack.snowpack.update()
 
         for bt in self.bottomlayer_types:
             bt.update_state()
@@ -322,6 +322,11 @@ class ForestFloor(object):
             'precipitation_snow': forcing['precipitation_snow'],
             'air_temperature': forcing['air_temperature'],
         }
+        
+        # -- Snow: energy balance snow model'
+        #snow_forcing = {
+        #        
+        #}
 
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 
