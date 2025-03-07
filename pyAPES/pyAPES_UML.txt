@@ -1,0 +1,237 @@
+@startuml
+package "pyAPES" {
+    package "bottomlayer" {
+        component "baresoil" {
+            class Baresoil {
+                run()
+                update()
+                restore()
+                heat_balance()
+            }
+        }
+        component "organiclayer" {
+            class OrganicLayer{
+                run()
+                update_state()
+                heat_and_water_exchange()
+                water_heat_tendencies()
+                water_exchange()
+                reflectance()
+                thermal_conductivity()
+                surface_atm_conductance()
+                evaporation_through_organic_layer()
+                water_retention_curve()
+                theta_psi()
+                psi_theta()
+                hydraulic_conductivity()
+                saturation_vapor_pressure()
+                moss_atm_conductance()
+                soil_boundary_layer_conductance()
+            }
+        }
+        component "carbon" {
+            class BryophyteFarquhar {
+                co2_exchange()
+                conductance()
+                relative_capacity()
+                photo_farquhar()
+                topt_deltaS_conversion()
+            }
+            class OrganicRespiration {
+                respiration()
+            }
+            class BryophyteCarbon {
+                carbon_exchange()
+            }
+            class SoilRespiration {
+                respiration()
+            }
+        }
+        OrganicLayer -> BryophyteFarquhar
+        OrganicLayer -> OrganicRespiration
+
+    }
+    package "canopy" {
+        component "forestfloor" {
+            class ForestFloor {
+                run()
+                update()
+            }
+        }
+        component "mlm_canopy" {
+            class CanopyModel {
+                run()
+                run_daily()
+                #_restore()
+            }
+        }
+        component "interception" {
+            class Interception {
+                run()
+                update()
+            }
+        }
+        ForestFloor -> OrganicLayer
+        ForestFloor -> SoilRespiration
+        ForestFloor -> DegreeDaySnow
+        CanopyModel -> PlantType
+        CanopyModel -> ForestFloor
+        CanopyModel -> Radiation
+        CanopyModel -> Micromet
+        CanopyModel -> Interception
+
+    }
+    package "leaf" {
+        component "boundarylayer" {
+            leaf_boundary_layer_conductance()
+        }
+        component "photo" {
+            lead_Ags_ebal()
+            photo_c3_analytical()
+            photo_c3_medlyn()
+            photo_c3_medlyn_farquhar()
+            photo_c3_bwb()
+            photo_farquhar()
+            photo_temperature_response()
+            apparent_photocapacity()
+            topt_deltaS_conversion()
+            photo_Toptima()
+        }
+    }
+    package "microclimate" {
+        component "micromet" {
+            class Micromet {
+                normalized_flow_stats()
+                update_state()
+                scalar_profiles()
+                closure_1_model_U()
+                closure_1_model_scalar()
+                mixing_length()
+                e_sat()
+                latent_heat()
+            }
+        }
+        component "radiation" {
+            class Radiation {
+                shortwave_profiles()
+                longwave_profiles()
+                solar_angles()
+                kbeam()
+                kdiffuse()
+                canopy_sw_ZhaoQualls()
+                canopy_sw_Spitters()
+                compute_clouds_rad()
+                canopy_lw()
+                canopy_lw_ZhaoQualls()
+                test_radiation_functions()
+            }
+        }
+    }
+    package "planttype" {
+        component "phenology" {
+            class Photo_cycle {
+                run()
+            }
+            class LAI_cycle {
+                run()
+                daylength()
+            }
+        }
+        component "planttype" {
+            class PlantType {
+                run()
+                update_daily()
+                leaf_gas_exchange()
+                #_outputs()
+            }
+        }
+        component "rootzone" {
+            class RootUptake {
+                wateruptake()
+                RootDistribution()
+            }
+        }
+        PlantType -> Photo_cycle
+        PlantType -> LAI_cycle
+        PlantType -> RootUptake
+    }
+    package "snow" {
+        [snowpack]
+    }
+    package "soil" {
+        component "soil" {
+            class Soil_1D {
+                run()
+                #_fill()
+                form_profile()
+            }
+        }
+        component "heat" {
+            class Heat_1D {
+                run()
+                update_state()
+                heatflow1D()
+                heat_content()
+                heat_balance()
+                frozen_water()
+                solid_volumetric_heat_capacity()
+                volumetric_heat_capacity()
+                thermal_conductivity()
+            }
+        }
+        component "water" {
+            class Water_1D {
+                run()
+                update_state()
+            }
+            class WaterBucket {
+                update_state()
+                run()
+                waterFlow1D()
+                waterStorage1D()
+                drainage_hooghoud()
+                theta_psi()
+                psi_theta()
+                h_to_cellmoist()
+                diff_wcapa()
+                hydraulic_conductivity()
+                relcond()
+                gwl_Wsto()
+                get_gwl()
+                rew()
+                wrc()
+                theta_psi()
+                psi_theta()
+            }
+        }
+        Soil_1D->Water_1D
+        Soil_1D->Heat_1D
+    }
+    package "parameters" {
+        [mlm_outputs]
+        [mlm_parameters]
+        [parameter_tools]
+        [parametersets]
+    }
+    package "utils" {
+        [constant]
+        [iotools]
+        [utilities]
+    }
+    package "pyAPES_utilities" {
+        package "soiltypes" {
+            [mineral]
+            [organic]
+            [sphagnum_peat]
+        }
+        [dataprocessing_scripts]
+        [directory_structure]
+        [parameter_utilities]
+        [plotting]
+        [timeseries_tools]
+    }
+    [parallelAPES]
+    [pyAPES_MLM]
+}
+
+@enduml
