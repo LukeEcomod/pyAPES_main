@@ -1,4 +1,5 @@
 @startuml
+allowmixing
 package "pyAPES" {
     package "bottomlayer" {
         component "baresoil" {
@@ -49,7 +50,6 @@ package "pyAPES" {
         }
         OrganicLayer -> BryophyteFarquhar
         OrganicLayer -> OrganicRespiration
-
     }
     package "canopy" {
         component "forestfloor" {
@@ -83,19 +83,23 @@ package "pyAPES" {
     }
     package "leaf" {
         component "boundarylayer" {
-            leaf_boundary_layer_conductance()
+            entity "StaticFunctions" {
+                leaf_boundary_layer_conductance()
+            }
         }
         component "photo" {
-            lead_Ags_ebal()
-            photo_c3_analytical()
-            photo_c3_medlyn()
-            photo_c3_medlyn_farquhar()
-            photo_c3_bwb()
-            photo_farquhar()
-            photo_temperature_response()
-            apparent_photocapacity()
-            topt_deltaS_conversion()
-            photo_Toptima()
+            entity "StaticFunctions" {
+                lead_Ags_ebal()
+                photo_c3_analytical()
+                photo_c3_medlyn()
+                photo_c3_medlyn_farquhar()
+                photo_c3_bwb()
+                photo_farquhar()
+                photo_temperature_response()
+                apparent_photocapacity()
+                topt_deltaS_conversion()
+                photo_Toptima()
+            }
         }
     }
     package "microclimate" {
@@ -156,7 +160,11 @@ package "pyAPES" {
         PlantType -> RootUptake
     }
     package "snow" {
-        [snowpack]
+        component "snowpack" {
+            class DegreeDaySnow {
+                update()
+                run()
+        }
     }
     package "soil" {
         component "soil" {
@@ -208,30 +216,30 @@ package "pyAPES" {
         Soil_1D->Heat_1D
     }
     package "parameters" {
-        [mlm_outputs]
-        [mlm_parameters]
-        [parameter_tools]
-        [parametersets]
+        component "mlm_outputs"
+        component "mlm_parameters"
+        component "parameter_tools"
+        component "parametersets"
     }
     package "utils" {
-        [constant]
-        [iotools]
-        [utilities]
+        component "constant"
+        component "iotools"
+        component "utilities"
     }
     package "pyAPES_utilities" {
         package "soiltypes" {
-            [mineral]
-            [organic]
-            [sphagnum_peat]
+            component "mineral"
+            component "organic"
+            component "sphagnum_peat"
         }
-        [dataprocessing_scripts]
-        [directory_structure]
-        [parameter_utilities]
-        [plotting]
-        [timeseries_tools]
+        component "dataprocessing_scripts"
+        component "directory_structure"
+        component "parameter_utilities"
+        component "plotting"
+        component "timeseries_tools"
     }
-    [parallelAPES]
-    [pyAPES_MLM]
+    component "parallelAPES"
+    component "pyAPES_MLM"
+    }
 }
-
 @enduml
