@@ -85,4 +85,8 @@ CV_ICE = 1.93e6  # ice
 CV_ORGANIC = 2.50e6  # dry organic matter
 CV_MINERAL = 2.31e6  # soil minerals
 
+# H2O molar density [mol m-3]
+H2O_MOLARDENSITY = 55.5e3
+# H2 18O diffusivity [m2 s-1]
+H2_18O_DIFFYSIVITY = 2.66e-9
 # EOF
