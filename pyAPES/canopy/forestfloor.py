@@ -23,7 +23,7 @@ Next developments planned:
 import numpy as np  
 from typing import List, Dict, Tuple
 import logging
-from pyAPES.utils.constants import EPS, MOLAR_MASS_H2O, LATENT_HEAT
+from pyAPES.utils.constants import EPS, MOLAR_MASS_H2O, LATENT_HEAT, DEG_TO_KELVIN
 
 from pyAPES.bottomlayer.organiclayer import OrganicLayer
 from pyAPES.snow.snowpack import Snowpack
@@ -123,7 +123,8 @@ class ForestFloor(object):
         """
 
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
-        self.snowpack = Snowpack(para['snow_model'], para['snowpack'])
+        self.snow_model = para['snow_model']
+        self.snowpack = Snowpack(self.snow_model, para['snowpack'])
 
         self.soilrespiration = SoilRespiration(para['soil_respiration'], weights=respiration_profile)
 
@@ -316,17 +317,30 @@ class ForestFloor(object):
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
 
-        # --- Snow: now using simple degree-day model
-        snow_forcing = {
-            'precipitation_rain': forcing['precipitation_rain'],
-            'precipitation_snow': forcing['precipitation_snow'],
-            'air_temperature': forcing['air_temperature'],
-        }
-        
-        # -- Snow: energy balance snow model'
-        #snow_forcing = {
-        #        
-        #}
+        if self.snow_model['type'] == 'degreeday':
+        # --- Snow: degree-day model
+            snow_forcing = {
+                'precipitation_rain': forcing['precipitation_rain'],
+                'precipitation_snow': forcing['precipitation_snow'],
+                'air_temperature': forcing['air_temperature'],
+            }
+        elif self.snow_model['type'] == 'fsm2':
+            # -- Snow: energy balance snow model'
+            snow_forcing = {
+                'SWsrf': forcing['par'] + forcing['nir'],
+                'Sf': forcing['precipitation_snow'],
+                'Rf': forcing['precipitation_rain'],
+                'LW': forcing['lw_dn'],
+                'Ps': forcing['air_pressure'],
+                'RH': 80.,
+                'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
+                'Ua': 2.,
+                'Tsoil': forcing['soil_temperature'],
+                'Vsmc': forcing['soil_volumetric_water']
+            }
+            
+        else:
+            print('*** snow_model unknown ***')
 
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 

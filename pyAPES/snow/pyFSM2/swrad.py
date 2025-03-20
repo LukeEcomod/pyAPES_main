@@ -143,12 +143,12 @@ class SWrad(object):
                 tdec = self.tmlt
             alim = (self.asmn/tdec + self.asmx*Sf/self.Salb)/(1/tdec + Sf/self.Salb)
             self.albs = alim + (self.albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
-        self.albs = max(min(self.albs,self.asmx),self.asmn)
+        self.albs = np.maximum(np.minimum(self.albs,self.asmx),self.asmn)
 
         # Partial snowcover on ground
         hs = sum(Dsnw[:])
         if self.SNFRAC == 1:
-            self.fsnow = min(hs/self.hfsn, 1.)
+            self.fsnow = np.minimum(hs/self.hfsn, 1.)
         if self.SNFRAC == 2:
             self.fsnow = hs / (hs + self.hfsn)
 

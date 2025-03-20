@@ -76,7 +76,7 @@ class Thermal:
         self.hcon_soil = (K_AIR**self.Vsat) * ((K_CLAY**self.fcly)
                                                * (K_SAND**(1 - self.fcly))**(1 - self.Vsat))
 
-    def run(self, forcing: Dict) -> Tuple:
+    def run(self, forcing: Dict, solve_soil=True) -> Tuple:
         """
         Calculates one timestep and updates thermal state.
 
@@ -90,7 +90,7 @@ class Thermal:
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
                 'Tsoil' (np.ndarray): Soil layer temperatures (K)
                 'Vsmc' (np.ndarray): Volumetric soil moisture content (-)
-
+ 
         Returns:
             (tuple):
         """

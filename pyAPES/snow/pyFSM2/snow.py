@@ -65,6 +65,7 @@ class SnowModel(object):
                     Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
             soil_dz (float): uppermost soil layer thickness
 
+
         Returns:
             self (object)
         """
@@ -150,12 +151,11 @@ class SnowModel(object):
 
         Args:
             dt (float): timestep [s]
-            forcing' (dict):
+            forcing (dict):
                 drip:       # Melt water drip from vegetation (kg/m^2)
                 Esrf:       # Moisture flux from the surface (kg/m^2/s)
                 Gsrf        # Heat flux into snow/ground surface (W/m^2)
-                ksoil       # Thermal conductivity of soil layers (W/m/K)
-                ksoil       # Thermal conductivity of snow layers (W/m/K)
+                ksow       # Thermal conductivity of snow layers (W/m/K)
                 Melt        # Surface melt rate (kg/m^2/s)
                 Rf:         # Rainfall rate (kg/m2/s)
                 Sf:         # Snowfall rate (kg/m2/s)
@@ -177,7 +177,6 @@ class SnowModel(object):
         drip = forcing['drip']
         Esrf = forcing['Esrf']
         Gsrf = forcing['Gsrf']
-        ksoil = forcing['ksoil']
         ksnow = forcing['ksnow']
         Melt = forcing['Melt']
         Rf = forcing['Rf']
@@ -187,6 +186,7 @@ class SnowModel(object):
         Tsrf = forcing['Tsrf']
         unload = forcing['unload']
         Tsoil = forcing['Tsoil']
+        ksoil = forcing['ksoil']
 
         # No snow
         Gsoil = Gsrf.copy()

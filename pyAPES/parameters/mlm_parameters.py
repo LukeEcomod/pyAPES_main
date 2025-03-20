@@ -184,7 +184,7 @@ pt2 = { 'name': 'shrubs',
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
 # --- pyAPES.snowpack
-snow_model = {'type': 'fsm2'} # snowpack model either 'degreeday' or 'fsm2'
+snow_model = {'type': 'degreeday'} # snowpack model either 'degreeday' or 'fsm2'
 
 # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
 degreeday = {

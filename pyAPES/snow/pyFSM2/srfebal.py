@@ -53,7 +53,6 @@ class EnergyBalance:
                     Sice (np.ndarray): # Liquid content of snow layers (kg/m^2)
                     Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
                     Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
-            soil_dz (float): uppermost soil layer thickness
 
         Returns:
             self (object)
@@ -199,7 +198,8 @@ class EnergyBalance:
         #self.J = np.array(3*Ncnpy+1,3*Ncnpy+1) # Jacobian of energy and mass balance equations
         #self.f = np.array(3*Ncnpy+1) # Residuals of energy and mass balance equations
         #self.x = np.array(3*Ncnpy+1) # Temperature and humidity increments
- 
+
+
         if self.ZOFFST == 0:
             # Heights specified above ground
             self.zU1 = self.zU
@@ -240,9 +240,8 @@ class EnergyBalance:
                 Ts1:
                 Ua:
                 vegh:
-                zT:
-                zU:
                 Sice: 
+
         Returns
             (tuple):
             fluxes (dict):
@@ -279,8 +278,6 @@ class EnergyBalance:
         Ua = forcing['Ua']
         #VAI = forcing['VAI']
         #vegh = forcing['vegh']
-        #zT = forcing['zT']
-        #zU = forcing['zU']
         Sice = forcing['Sice']
 
         # Convert relative to specific humidity
@@ -327,7 +324,7 @@ class EnergyBalance:
                 # ustar should not be 0               
                 ustar = np.maximum(ustar, 0.001)
                 ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL)) 
-
+                
                 if not np.isfinite(ga):  # Ensure ga remains valid
                     break
                 if np.iscomplex(ga):
