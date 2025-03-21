@@ -213,6 +213,7 @@ class ForestFloor(object):
                 co2 [ppm]
                 air_temperature [degC]
                 air_pressure [Pa]
+                wind_speed [m/s]
                 soil_temperature': [degC]
                 soil_water_potential [Pa]
                 soil_volumetric_water [m3 m-3]
@@ -332,9 +333,9 @@ class ForestFloor(object):
                 'Rf': forcing['precipitation_rain'],
                 'LW': forcing['lw_dn'],
                 'Ps': forcing['air_pressure'],
-                'RH': 80.,
+                'RH': 80., # NOTE THIS NEEDS TO BE UPDATED!
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
-                'Ua': 2.,
+                'Ua': forcing['wind_speed'],
                 'Tsoil': forcing['soil_temperature'],
                 'Vsmc': forcing['soil_volumetric_water']
             }
@@ -342,6 +343,7 @@ class ForestFloor(object):
         else:
             print('*** snow_model unknown ***')
 
+        # --- solve snowpack
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 
         # --- solve bottomlayer types and aggregate forest floor fluxes & state

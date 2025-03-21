@@ -145,6 +145,7 @@ class FSM2(object):
                         'Tsoil': soil_states['Tsoil'],
                         'ksnow': thermal_states['ksnow'],
                         }
+        
         snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
 
         soil_forcing = {'Gsoil': snow_fluxes['Gsoil'],
