@@ -15,7 +15,6 @@ from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.soil import SoilModel
 from pyAPES.snow.pyFSM2.thermal import Thermal
 from pyAPES.snow.pyFSM2.swrad import SWrad
-from pyAPES.snow.pyFSM2.solarpos import SolarPos
 
 EPS = np.finfo(float).eps  # machine epsilon
 
@@ -34,7 +33,6 @@ class FSM2(object):
         self.snow = SnowModel(snowpara, soil_dz=self.soil.Dzsoil)
         self.thermal = Thermal(snowpara)
         self.swrad = SWrad(snowpara)
-        self.solarpos = SolarPos()
 
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
 
@@ -85,6 +83,7 @@ class FSM2(object):
         Ta = forcing['Ta']
         Ua = forcing['Ua']
 
+        # initial states
         snow_states = {'Sice': self.snow.Sice,
                        'Sliq': self.snow.Sliq,
                        'Nsnow': self.snow.Nsnow,
@@ -96,14 +95,16 @@ class FSM2(object):
                        }
         ebal_states = {'Tsrf': self.ebal.Tsrf}
 
+        # RUN (shortwave radiation partitioning)
         swrad_forcing = {'Sdif': SWsrf*1.0,
                          'Sdir': 0,  # SWsrf*0.7,
                          'Sf': Sf,
                          'Tsrf': ebal_states['Tsrf'],
                          'Dsnw': snow_states['Dsnw']}
-
         swrad_fluxes, swrad_states = self.swrad.run(dt, swrad_forcing)
+        ##
 
+        # RUN (thermal properties of snow and soil)
         thermal_forcing = {'Nsnow': snow_states['Nsnow'],
                            'Dsnw': snow_states['Dsnw'],
                            'Sice': snow_states['Sice'],
@@ -111,9 +112,14 @@ class FSM2(object):
                            'Tsnow': snow_states['Tsnow'],
                            'Tsoil': soil_states['Tsoil'],
                            'Vsmc': soil_states['Vsmc']}
-
+        # Coupling with pyAPES:
+        # most of thermal_states and _fluxes are forcing or parameters in forestfloor.py
+        # coupling with soil or organiclayer?
+        # ksnow calculation should be moved to ebal (srfebal.py)
         thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
+        ##
 
+        # RUN (surface energy balance for snow or soil)       
         ebal_forcing = {'Ds1': thermal_states['Ds1'],
                         'fsnow': swrad_states['fsnow'],
                         'gs1': thermal_states['gs1'],
@@ -129,7 +135,9 @@ class FSM2(object):
                         }
 
         ebal_fluxes, ebal_states = self.ebal.run(dt, ebal_forcing)
+        ##
 
+        # RUN (snow thermodynamics and hydrology)       
         snow_forcing = {'drip': 0,
                         'Esrf': ebal_fluxes['Esrf'],
                         'Gsrf': ebal_fluxes['Gsrf'],
@@ -143,15 +151,18 @@ class FSM2(object):
                         'Tsrf': ebal_states['Tsrf'],
                         'unload': 0,
                         'Tsoil': soil_states['Tsoil'],
-                        'ksnow': thermal_states['ksnow'],
                         }
         
         snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
+        ##
 
+        # RUN (soil thermodynamics)
         soil_forcing = {'Gsoil': snow_fluxes['Gsoil'],
                         'csoil': thermal_states['csoil'],
                         'ksoil': thermal_states['ksoil']}
+        # Coupling with pyAPES:
         soil_fluxes, soil_states = self.soil.run(dt, soil_forcing)
+        ##
 
         # store iteration state
         self.iteration_state = {'temperature': ebal_states['Tsrf'],

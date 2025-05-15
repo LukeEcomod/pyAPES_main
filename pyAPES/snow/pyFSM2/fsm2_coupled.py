@@ -12,7 +12,6 @@ from typing import Dict, List, Tuple
 
 from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
-from pyAPES.snow.pyFSM2.thermal import Thermal
 from pyAPES.snow.pyFSM2.swrad import SWrad
 from pyAPES.snow.pyFSM2.solarpos import SolarPos
 
@@ -30,7 +29,6 @@ class FSM2(object):
         # initializing process modules
         self.ebal = EnergyBalance(snowpara)
         self.snow = SnowModel(snowpara)
-        self.thermal = Thermal(snowpara)
         self.swrad = SWrad(snowpara)
         self.solarpos = SolarPos()
 
@@ -162,7 +160,6 @@ class FSM2(object):
                            'Dzsoil': Dzsoil}
         
         snow_fluxes, snow_states = self.snow.run(dt, snow_forcing, snow_parameters)
-
 
         # store iteration state
         self.iteration_state = {'temperature': ebal_states['Tsrf'],

@@ -93,7 +93,17 @@ class Thermal:
  
         Returns:
             (tuple):
+            fluxes (dict):
+            states (dict):
+                Ds1 (float): Surface layer thickness (m)
+                gs1 (float): Surface moisture conductance (m/s)
+                ks1 (float): Surface layer thermal conductivity (W/m/K)
+                Ts1 (float): Surface layer temperature (K)
+                csoil (np.ndarray): Areal heat capacity of soil layers (J/K/m^2)
+                ksnow (np.ndarray): Thermal conductivity of snow layers (W/m/K)
+                ksoil (np.ndarray): Thermal conductivity of soil layers (W/m/K)
         """
+        
         Nsnow = forcing['Nsnow']
         Dsnw = forcing['Dsnw']
         Sice = forcing['Sice']
