@@ -40,6 +40,7 @@ class EnergyBalance:
                     'wcan' (float): # Canopy wind decay coefficient
                     'z0sf' (float): # Snow-free surface roughness length (m)
                     'z0sn' (float): # Snow roughness length (m)
+                    'kfix' (float): # Fixed thermal conductivity of snow (W/m/K)
                 'layers' (dict):
                     'Nsmax' (int): # Maximum number of snow layers
                     'Ncnpy' (int): # Number of canopy layers
@@ -72,6 +73,8 @@ class EnergyBalance:
         self.wcan = properties['params']['wcan'] # Canopy wind decay coefficient
         self.z0sf = properties['params']['z0sf'] # Snow-free surface roughness length (m)
         self.z0sn = properties['params']['z0sn'] # Snow roughness length (m)
+        self.kfix = properties['params']['kfix'] 
+        self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
 
         self.VAI = properties['params']['VAI']
         self.vegh = properties['params']['vegh']
@@ -85,7 +88,7 @@ class EnergyBalance:
         self.ZOFFST = properties['physics_options']['ZOFFST']
         self.CANMOD = properties['physics_options']['CANMOD']
         self.EXCHNG = properties['physics_options']['EXCHNG']
-
+        self.CONDCT = properties['physics_options']['CONDCT']
         # Model state variables
         self.Tsrf = properties['initial_conditions']['Tsrf']
 
@@ -241,7 +244,10 @@ class EnergyBalance:
                 Ua:
                 vegh:
                 Sice: 
-
+                Nsnow
+                Sice
+                Sliq
+                Dsnw
         Returns
             (tuple):
             fluxes (dict):
@@ -279,6 +285,10 @@ class EnergyBalance:
         #VAI = forcing['VAI']
         #vegh = forcing['vegh']
         Sice = forcing['Sice']
+        Nsnow = forcing['Nsnow']
+        Sice = forcing['Sice']
+        Sliq = forcing['Sliq']
+        Dsnw = forcing['Dsnw']
 
         # Convert relative to specific humidity
         Tc = Ta - T_MELT
@@ -592,7 +602,19 @@ class EnergyBalance:
         H = float(Hsrf + np.sum(self.Hveg[:]))
         LE = float(Lsrf * Esrf) #+ sum(Lcan[:]*self.Eveg[:])
                 
-        
+        # Computing snow thermal conductivity
+        ksnow = np.zeros(int(self.Nsmax))
+        ksnow[:] = self.kfix
+
+        if self.CONDCT == 1:
+            for k in range(Nsnow):
+                rhos = self.rhof
+                if self.DENSTY != 0:
+                    if (Dsnw[k] > EPS):
+                        rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
+                ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
+
+
         fluxes = {'Esrf': Esrf,
                   'Gsrf': Gsrf,
                   'H': H,
@@ -604,7 +626,8 @@ class EnergyBalance:
                   'Usub': Usub,
                  }
 
-        states = {'Tsrf': self.Tsrf}
+        states = {'Tsrf': self.Tsrf,
+                  'ksnow': ksnow}
                     
         return fluxes, states
 

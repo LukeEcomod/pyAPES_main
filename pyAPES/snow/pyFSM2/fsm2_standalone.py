@@ -132,6 +132,9 @@ class FSM2(object):
                         'Ts1': thermal_states['Ts1'],
                         'Ua': Ua,
                         'Sice': snow_states['Sice'],
+                        'Sliq': snow_states['Sliq'],
+                        'Dsnw': snow_states['Dsnw'],
+                        'Nsnow': snow_states['Nsnow']
                         }
 
         ebal_fluxes, ebal_states = self.ebal.run(dt, ebal_forcing)
