@@ -16,7 +16,7 @@ from pyAPES.snow.pyFSM2.soil import SoilModel
 from pyAPES.snow.pyFSM2.thermal import Thermal
 from pyAPES.snow.pyFSM2.swrad import SWrad
 
-EPS = np.finfo(float).eps  # machine epsilon
+from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
 
 class FSM2(object):
     def __init__(self, snowpara) -> object:
@@ -71,8 +71,6 @@ class FSM2(object):
                     snow_water_equivalent (float):
                     snow_depth (float):
         """
-
-        fluxes = {}
 
         SWsrf = forcing['SWsrf']
         Sf = forcing['Sf']
@@ -174,10 +172,10 @@ class FSM2(object):
                                 'liq': snow_states['Sliq']}
 
         fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                  }
+                  'snow_heat_flux': snow_fluxes['Gsoil']}  # heat flux to organiclayer
 
         states = {'snow_water_equivalent': snow_states['swe'],
-                  'temperature': ebal_states['Tsrf'],
+                  'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                   'snow_depth': snow_states['hs']
                   }
 

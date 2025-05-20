@@ -151,6 +151,9 @@ class OrganicLayer(object):
         #: [m\ :sup:`3` m\ :sup:`-3`\ ]
         self.volumetric_water = (self.water_content / WATER_DENSITY * self.bulk_density)
 
+        # [W m-1 K-1]
+        self.thermal_conductivity = thermal_conductivity(self.volumetric_water)
+
         #: [m]
         self.water_potential = water_retention_curve(
             self.water_retention,
@@ -178,6 +181,7 @@ class OrganicLayer(object):
         self.water_content = self.iteration_results['water_content']
         self.volumetric_water = self.iteration_results['volumetric_water']
         self.water_potential = self.iteration_results['water_potential']
+        self.thermal_conductivity = self.iteration_results['thermal_conductivity']
 
         #self.Carbon.carbon_pool = self.iteration_results['carbon_pool']
 
@@ -220,7 +224,14 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            fluxes, states = self.heat_and_water_exchange(
+            if forcing['snow_water_equivalent'] > 0:
+                fluxes, states = self.heat_and_water_exchange_under_snow(
+                                dt=dt,
+                                forcing=forcing,
+                                parameters=parameters
+                                )
+            else:
+                fluxes, states = self.heat_and_water_exchange(
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
@@ -759,6 +770,171 @@ class OrganicLayer(object):
         dudt[11] = ground_heat_flux
         
         return dudt, Ts
+    
+    def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
+        """
+        Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
+        Args:
+            - dt (float): timestep [s]
+            - forcing (dict):
+                - 'precipitation' (float): [kg m-2 s-1]
+                - 'wind_speed' (float): [m s-1]
+                - 'friction_velocity' (float): [m s-1]
+                - 'h2o' (float): [mol mol-1]
+                - 'air_temperature' (float): [degC]
+                - 'air_pressure' (float): [Pa]
+                - 'soil_pond_storage' (float): [m]
+                - 'soil_temperature' (float): [degC]
+                - 'soil_water_potential' (float): [Pa]
+                - 'snow_heat_flux' (float): [W m-2]
+            - parameters (dict):
+                - 'soil_depth' (float): [m]
+                - 'soil_hydraulic_conductivity' (float): [m s-1]
+                - 'soil_thermal_conductivity' (float): [K m-1 s-1]
+                - 'reference_height' (float): [m]
+
+        Returns:
+            - fluxes (dict):
+                - 'latent_heat' [W m-2]
+                - 'sensible_heat' [W m-2] (always zero)
+                - 'ground_heat' [W m-2] (negative towards soil)
+                - 'evaporation' [kg m-2 s-1]
+                - 'interception' [kg m-2 s-1]
+                - 'pond_recharge' [kg m-2 s-1]
+                - 'capillary_rise'[kg m-2 s-1]
+                - 'throughfall' [kg m-2 s-1]
+
+            - states (dict):
+                - 'temperature'(float): [degC]
+                - 'volumetric_water'(float): [m3 m-3]
+                - 'water_potential'(float): [m]
+                - 'water_content'(float): [g g-1]
+                - 'water_storage'(float):[kg m-2]
+                - 'hydraulic_conductivity'(float): [m s-1]
+                - 'thermal_conductivity' (float): [K m-1 s-1]
+        """
+        # --- Water exchange --- (no evaporation because under snow)
+        # [kg m-2] or [mm]
+        water_storage = self.water_storage
+        max_storage = self.max_water_content * self.dry_mass
+        min_storage = self.min_water_content * self.dry_mass
+        symplast_storage = self.max_symplast_water * self.dry_mass
+
+        # change in water storage during dt [kg m-2]
+        d_water_storage = 0.0
+
+        #--- interception of rainfall and recharge from ponding water during dt [kg m-2 == mm]
+        # use assumptotic function
+        interception = ((max_storage - (water_storage + d_water_storage)) *
+                        (1.0 - np.exp(-(1.0 / max_storage)
+                          * forcing['precipitation'] * dt)))
+        d_water_storage += interception
+
+        pond_recharge = min(max_storage - (water_storage + d_water_storage),
+                            forcing['max_pond_recharge'] * dt)
+        d_water_storage += pond_recharge
+
+        #--- capillary rise from underlying soil during dt [kg m-2]
+        # water potential[m]
+        water_potential = water_retention_curve(self.water_retention, self.volumetric_water)
+
+        # hydraulic conductivity from soil to moss [m s-1]
+        Km = hydraulic_conductivity(self.water_retention, self.volumetric_water)
+        Ks = parameters['soil_hydraulic_conductivity']
+
+        zm = 0.5 * self.height
+        zs = abs(parameters['soil_depth'])
+
+        # conductance of layer [s-1]
+        g_moss = Km / zm
+        g_soil = Ks / zs
+
+        # hydr. conductivity [m s-1]
+        Kh = (g_moss * g_soil / (g_moss + g_soil)) * (zm + zs)
+
+        #[kg m-2]
+        capillary_rise = (max(0.0, - Kh * (
+            (water_potential - forcing['soil_water_potential'])
+            / (zm + zs) + 1.0)) * WATER_DENSITY * dt)
+
+        capillary_rise = min(max_storage - (water_storage + d_water_storage),
+                             capillary_rise)
+        d_water_storage += capillary_rise
+
+        #--- compute new state
+        water_storage = (water_storage + d_water_storage)  # [kg m-2]
+        water_content = water_storage / self.dry_mass  # [g g-1]
+        volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)  # [m3 m-3]
+
+        water_potential = water_retention_curve(self.water_retention, volumetric_water) # [m]
+
+        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water) #[m s-1]
+
+        # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
+
+        # heat conduction between moss and soil [W m-2 K-1]
+        moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+
+        # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
+        g_moss = moss_thermal_conductivity / zm
+        g_soil = parameters['soil_thermal_conductivity'] / zs
+
+        thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
+
+        # [J m-2 s-1 == W m-2]
+        ground_heat_flux = thermal_conductance *(self.temperature - forcing['soil_temperature'])
+
+        # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
+        heat_advection = SPECIFIC_HEAT_H2O * (
+                        interception * 0.0  # melt water is always zero?
+                        + capillary_rise * forcing['soil_temperature']
+                        + pond_recharge * forcing['soil_temperature']
+                        )
+
+        # heat capacities [J K-1]
+        heat_capacity_old = (
+            SPECIFIC_HEAT_ORGANIC_MATTER
+            * self.dry_mass
+            + SPECIFIC_HEAT_H2O * self.water_storage)  # old water storage
+
+        heat_capacity_new = (
+            SPECIFIC_HEAT_ORGANIC_MATTER
+            * self.dry_mass
+            + SPECIFIC_HEAT_H2O * water_storage)  # new water storage
+
+        # calculate new temperature from heat balance
+        heat_fluxes = (
+                + forcing['snow_heat_flux']
+                + heat_advection
+                - ground_heat_flux
+                )
+
+        # in case with no snow solving is done in 60 s subtimesteps, here just one.. is that a problem?
+        temperature = (heat_fluxes * dt + heat_capacity_old * self.temperature) / heat_capacity_new
+
+        fluxes = {
+            'evaporation': 0.0,  # [kg m-2 s-1 == mm s-1]
+            'capillary_rise': capillary_rise / dt,  # [kg m-2 s-1]
+            'pond_recharge': pond_recharge / dt,  # [kg m-2 s-1]
+            'throughfall': forcing['precipitation'] - interception / dt,  # [kg m-2 s-1]
+            'interception': interception / dt,
+            'ground_heat': ground_heat_flux,  # [W m-2]
+            'latent_heat': 0.0,  # [W m-2]
+            'sensible_heat': 0.0,  # [W m-2]
+        }
+
+        states = {
+            'volumetric_water': volumetric_water,  # [m3 m-3]
+            'water_potential': water_potential,  # [m]
+            'water_content': water_content,  # [g g-1]
+            'water_storage': water_storage,  # [kg m-2 == mm]
+            'hydraulic_conductivity': Kliq,  # [m s-1]
+            'thermal_conductivity': moss_thermal_conductivity,  # [W m-1 K-1]
+            'temperature': temperature,  # [degC]
+            'surface_temperature': temperature # [degC]   # surface temperature not separately calculated under snow
+        }
+
+        return fluxes, states
 
     def water_exchange(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
         """
@@ -1156,12 +1332,16 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
     Returns (float):
         - theta [m3 m-3] or psi [m]
     """
-
-    Ts = np.array(pF['theta_s'], ndmin=1)
-    Tr = np.array(pF['theta_r'], ndmin=1)
-    alfa = np.array(pF['alpha'], ndmin=1)
-    n = np.array(pF['n'], ndmin=1)
+    Ts = pF['theta_s']
+    Tr = pF['theta_r']
+    alfa = pF['alpha']
+    n = pF['n']
     m = 1.0 - np.divide(1.0, n)
+    # Ts = np.array(pF['theta_s'], ndmin=1)
+    # Tr = np.array(pF['theta_r'], ndmin=1)
+    # alfa = np.array(pF['alpha'], ndmin=1)
+    # n = np.array(pF['n'], ndmin=1)
+    # m = 1.0 - np.divide(1.0, n)
 
     def theta_psi(x):
         # converts water content (m3m-3) to potential (m)
@@ -1170,7 +1350,7 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
         x = np.maximum(x, Tr + 0.001) # avoids water potential of -1e17
         s = (Ts - Tr) / ((x - Tr) + EPS)
         Psi = -1e-2 / alfa*(s**(1.0 / m) - 1.0)**(1.0 / n)  # m
-        Psi[np.isnan(Psi)] = 0.0
+        # Psi[np.isnan(Psi)] = 0.0
         return Psi,x
 
     def psi_theta(x):
@@ -1181,8 +1361,8 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
     
     if theta is not None:
         Psi,x = theta_psi(theta)
-        if any(psi < -10 for psi in Psi):
-            logger.info(x[0])
+        # if any(psi < -10 for psi in Psi):
+        #     logger.info(x[0])
         return Psi
     else:
         return psi_theta(psi)

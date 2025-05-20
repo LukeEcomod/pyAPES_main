@@ -24,7 +24,7 @@ class Snowpack(object):
         Args:
         Returns:
         """
-
+        
         if snow_model['type'] == 'degreeday':
             self.snowpack = DegreeDaySnow(snowpara)
 
@@ -35,8 +35,6 @@ class Snowpack(object):
             raise NotImplementedError(f"Snow model type is not implemented.")
             # importataan loggeri ja logger error (katso muista moduuleista mallia)
             # esim heat.py stä
-
-        self.swe = self.snowpack.swe
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
