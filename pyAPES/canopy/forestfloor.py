@@ -155,7 +155,7 @@ class ForestFloor(object):
         self.bottomlayer_types = bltypes
         logger.info('Forestfloor has %s bottomlayer types', len(self.bottomlayer_types))
 
-        if self.snowpack.snowpack.swe > 0:  # not available from fsm2 at first timestep!
+        if self.snowpack.snowpack.swe > 0:
             # self.surface_temperature = self.snowpack.temperature   # NOT USED?
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
@@ -174,9 +174,9 @@ class ForestFloor(object):
         self.water_storage = sum([bt.coverage * bt.water_storage
                                   for bt in self.bottomlayer_types])
         self.height = sum([bt.coverage * bt.height
-                                  for bt in self.bottomlayer_types])
+                                  for bt in self.bottomlayer_types]) # used as parameter for snowpack
         self.thermal_conductivity =  sum([bt.coverage * bt.thermal_conductivity
-                                      for bt in self.bottomlayer_types])
+                                      for bt in self.bottomlayer_types]) # used as parameter for snowpack
 
     def update(self) -> None:
         """ 
@@ -191,7 +191,7 @@ class ForestFloor(object):
             # self.surface_temperature = self.snowpack.temperature
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
-        else: # NOTE! forestfloor temperature is weighted average of moss temperature
+        else: 
             self.albedo['PAR'] = sum([bt.coverage * bt.albedo['PAR']
                                       for bt in self.bottomlayer_types])
             self.albedo['NIR'] = sum([bt.coverage * bt.albedo['NIR']
@@ -200,13 +200,14 @@ class ForestFloor(object):
             #                                  for bt in self.bottomlayer_types])
             self.emissivity = sum([bt.coverage * bt.emissivity
                                    for bt in self.bottomlayer_types])
-
+        
+        # NOTE! forestfloor temperature is weighted average of moss temperature
         self.temperature = sum([bt.coverage * bt.temperature
                                 for bt in self.bottomlayer_types])  # used as boundary for snowpack
         self.water_storage = sum([bt.coverage * bt.water_storage
                                       for bt in self.bottomlayer_types])
-        self.thermal_conductivity =  sum([bt.coverage * bt.thermal_conductivity  # used as boundary for snowpack
-                                      for bt in self.bottomlayer_types])
+        self.thermal_conductivity =  sum([bt.coverage * bt.thermal_conductivity
+                                      for bt in self.bottomlayer_types])  # used as parameter for snowpack
 
     def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple:
         """

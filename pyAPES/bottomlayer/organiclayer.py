@@ -870,6 +870,10 @@ class OrganicLayer(object):
 
         Kliq = hydraulic_conductivity(self.water_retention, volumetric_water) #[m s-1]
 
+       # water balance closure [kg m-2 s-1] or [mm s-1]
+        water_closure = (water_storage - self.water_storage 
+                         - capillary_rise - interception - pond_recharge) / dt
+
         # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
 
         # heat conduction between moss and soil [W m-2 K-1]
@@ -912,6 +916,11 @@ class OrganicLayer(object):
         # in case with no snow solving is done in 60 s subtimesteps, here just one.. is that a problem?
         temperature = (heat_fluxes * dt + heat_capacity_old * self.temperature) / heat_capacity_new
 
+        energy_closure =  ((heat_capacity_new * temperature - heat_capacity_old * self.temperature) / dt
+                           - heat_fluxes)
+
+        # return fluxes and state variables
+
         fluxes = {
             'evaporation': 0.0,  # [kg m-2 s-1 == mm s-1]
             'capillary_rise': capillary_rise / dt,  # [kg m-2 s-1]
@@ -921,6 +930,9 @@ class OrganicLayer(object):
             'ground_heat': ground_heat_flux,  # [W m-2]
             'latent_heat': 0.0,  # [W m-2]
             'sensible_heat': 0.0,  # [W m-2]
+            'heat_advection': heat_advection,  # [W m-2]
+            'water_closure': water_closure,  # [mm s-1]
+            'energy_closure': energy_closure,  # [W m-2]
         }
 
         states = {
