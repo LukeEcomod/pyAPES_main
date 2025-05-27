@@ -78,8 +78,8 @@ class EnergyBalance:
 
         self.VAI = properties['params']['VAI']
         self.vegh = properties['params']['vegh']
-        self.zT = properties['params']['zT']
-        self.zU = properties['params']['zU']
+        #self.zT = properties['params']['zT']
+        #self.zU = properties['params']['zU']
 
         #self.fcans = properties['params']['fcans']
         #self.lveg = properties['params']['lveg']
@@ -203,22 +203,22 @@ class EnergyBalance:
         #self.x = np.array(3*Ncnpy+1) # Temperature and humidity increments
 
 
-        if self.ZOFFST == 0:
-            # Heights specified above ground
-            self.zU1 = self.zU
-            self.zT1 = self.zT
+        #if self.ZOFFST == 0:
+        #    # Heights specified above ground
+        #    self.zU1 = self.zU
+        #    self.zT1 = self.zT
 
-        if self.ZOFFST == 1:
-            # Heights specified above canopy top
-            self.zU1 = self.zU + self.vegh
-            self.zT1 = self.zT + self.vegh
+        #if self.ZOFFST == 1:
+        #    # Heights specified above canopy top
+        #    self.zU1 = self.zU + self.vegh
+        #    self.zT1 = self.zT + self.vegh
 
-        if self.CANMOD == 1:
-            self.zh[0] = self.hbas + 0.5 * (self.vegh - self.hbas)
+        #if self.CANMOD == 1:
+        #    self.zh[0] = self.hbas + 0.5 * (self.vegh - self.hbas)
 
-        if self.CANMOD == 2:
-            self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
-            self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh    
+        #if self.CANMOD == 2:
+        #    self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
+        #    self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh    
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
@@ -289,6 +289,25 @@ class EnergyBalance:
         Sice = forcing['Sice']
         Sliq = forcing['Sliq']
         Dsnw = forcing['Dsnw']
+        zU = forcing['reference_height']
+        zT = forcing['reference_height']
+
+        if self.ZOFFST == 0:
+            # Heights specified above ground
+            self.zU1 = zU
+            self.zT1 = zT
+
+        if self.ZOFFST == 1:
+            # Heights specified above canopy top
+            self.zU1 = zU + self.vegh
+            self.zT1 = zT + self.vegh
+
+        if self.CANMOD == 1:
+            self.zh[0] = self.hbas + 0.5 * (self.vegh - self.hbas)
+
+        if self.CANMOD == 2:
+            self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
+            self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh 
 
         # Convert relative to specific humidity
         Tc = Ta - T_MELT

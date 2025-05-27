@@ -126,7 +126,7 @@ class ForestFloor(object):
         self.snow_model = para['snow_model']
         self.snowpack = Snowpack(self.snow_model, para['snowpack'])
 
-        # THES SHOULD COME FROM FSM2 AND BE UPDATED
+        # !! THES SHOULD COME FROM FSM2 AND BE UPDATED
         self.snowpack.snowpack.optical_properties = {
                 'emissivity': 0.97,
                 'albedo': {'PAR': 0.8, 'NIR': 0.8}
@@ -177,6 +177,8 @@ class ForestFloor(object):
                                   for bt in self.bottomlayer_types]) # used as parameter for snowpack
         self.thermal_conductivity =  sum([bt.coverage * bt.thermal_conductivity
                                       for bt in self.bottomlayer_types]) # used as parameter for snowpack
+        #self.surface_h2o_conductance =  sum([bt.coverage * bt.thermal_conductivity
+        #                              for bt in self.bottomlayer_types]) # used as parameter for snowpack
 
     def update(self) -> None:
         """ 
@@ -349,12 +351,13 @@ class ForestFloor(object):
                 'RH': 80., # NOTE THIS NEEDS TO BE UPDATED!
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
-                'Tsoil': self.temperature + DEG_TO_KELVIN,  # forestfloor (moss) temperature, input isnt used in fsm yet (this and k could also be used from last iteration_results..?)
-                'ksoil': self.thermal_conductivity,  # forestfloor (moss) k, input isnt used in fsm yet
-                'dzsoil': self.height / 2,  # half of forestfloor (moss) height, input isnt used in fsm yet, should be half or whole height?
-                'Vsmc': forcing['soil_volumetric_water']  # not necessary if ksoil given? 
+                'reference_height': parameters['reference_height'],
+                'Dzsoil': self.height, # Moss layer thickness [m]
+                'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
+                'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)
+                'Vsmc': forcing['soil_volumetric_water'],
+                'gs1': 0., # !! Surface moisture conductance (m/s)
             }
-            
         else:
             print('*** snow_model unknown ***')
 

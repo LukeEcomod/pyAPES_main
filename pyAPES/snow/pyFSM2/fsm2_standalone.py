@@ -30,7 +30,7 @@ class FSM2(object):
         # initializing process modules
         self.ebal = EnergyBalance(snowpara)
         self.soil = SoilModel(snowpara)
-        self.snow = SnowModel(snowpara, soil_dz=self.soil.Dzsoil)
+        self.snow = SnowModel(snowpara)
         self.thermal = Thermal(snowpara)
         self.swrad = SWrad(snowpara)
 
@@ -72,6 +72,15 @@ class FSM2(object):
                     snow_depth (float):
         """
 
+        #SWsrf = forcing['SWsrf']
+        #Sf = forcing['Sf']
+        #Rf = forcing['Rf']
+        #LW = forcing['LW']
+        #Ps = forcing['Ps']
+        #RH = forcing['RH']
+        #Ta = forcing['Ta']
+        #Ua = forcing['Ua']
+
         SWsrf = forcing['SWsrf']
         Sf = forcing['Sf']
         Rf = forcing['Rf']
@@ -79,7 +88,14 @@ class FSM2(object):
         Ps = forcing['Ps']
         RH = forcing['RH']
         Ta = forcing['Ta']
-        Ua = forcing['Ua']
+        Ua = forcing['Ua'] 
+        gs1 = forcing['gs1'] # ADD THIS! # Surface moisture conductance (m/s), used in ebal
+        Tsoil = forcing['Tsoil'] # ADD THIS! # Uppermost soil temperature, used in snow
+        ksoil = forcing['ksoil'] # ADD THIS! # Soil layer thermal conductivity (W/m/K), used in ebal
+        Dzsoil = forcing['Dzsoil'] # ADD THIS! # Soil layer thickness, used in snow
+        Vsmc = forcing['Vsmc'] # ADD THIS! # Soil volumetric water content, used in thermal
+        zU = forcing['reference_height'] # ADD THIS!
+        zT = forcing['reference_height'] # ADD THIS!
 
         # initial states
         snow_states = {'Sice': self.snow.Sice,

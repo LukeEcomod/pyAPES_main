@@ -90,6 +90,7 @@ class Thermal:
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
                 'Tsoil' (np.ndarray): Soil layer temperatures (K)
                 'Vsmc' (np.ndarray): Volumetric soil moisture content (-)
+                'Dzsoil' (np.ndarray): Soil layer thickness (m)
  
         Returns:
             (tuple):
