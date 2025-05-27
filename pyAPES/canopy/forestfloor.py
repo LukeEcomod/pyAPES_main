@@ -397,6 +397,9 @@ class ForestFloor(object):
 
         if states_snow['snow_water_equivalent'] > 0:
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
+            fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
+        else:
+            fluxes['snow_heat_flux'] = 0.0
 
         state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
 
