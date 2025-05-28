@@ -25,6 +25,8 @@ MOLAR_MASS_C = 12.01e-3
 MOLAR_MASS_AIR = 29.0e-3
 #: [J kg-1 K-1], specific heat of H2O
 SPECIFIC_HEAT_H2O = 4.18e3
+#: [J kg-1 K-1], specific heat of H2O
+SPECIFIC_HEAT_ICE = 2.09e3
 #: [J kg-1 K-1], specific heat of organic matter
 SPECIFIC_HEAT_ORGANIC_MATTER = 1.92e3
 #: [J mol-1 K-1], specific heat capacity of dry air at constant pressure
