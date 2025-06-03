@@ -93,11 +93,12 @@ class Thermal:
                 ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
 
         # Surface layer
-        Ds1 = np.maximum(Dzsoil, Dsnw[0])
-        Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil
+        Ds1 = np.maximum(Dzsoil, Dsnw[0]) # thickness
+        #Ds1 = np.maximum(0.3, Dsnw[0]) # thickness
+        Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil # temperature
         ks1 = Dzsoil/(2*Dsnw[0]/ksnow[0] +
-                              (Dzsoil - 2*Dsnw[0])/ksoil)
-        hs = np.sum(Dsnw)
+                              (Dzsoil - 2*Dsnw[0])/ksoil) # thermal conductivity
+        hs = np.sum(Dsnw) # snow depth
         if (hs > 0.5*Dzsoil):
             ks1 = ksnow[0]
         if (hs > Dzsoil):

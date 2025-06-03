@@ -216,7 +216,8 @@ class SWrad(object):
                   'tdif': self.tdif
                  }
 
-        states = {'albs': self.albs,
+        states = {'snow_albedo': self.albs,
+                  'srf_albedo': asrf,
                   'fsnow': self.fsnow
                  }
         

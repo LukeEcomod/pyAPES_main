@@ -184,13 +184,14 @@ class ForestFloor(object):
         """ 
         Updates forestfloor-object state variables
         """
-        self.snowpack.snowpack.update()
+        #self.snowpack.snowpack.update()
 
         for bt in self.bottomlayer_types:
             bt.update_state()
 
         if self.snowpack.snowpack.swe > 0:
             # self.surface_temperature = self.snowpack.temperature
+            self.snowpack.snowpack.update()
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
         else: 
@@ -318,7 +319,7 @@ class ForestFloor(object):
             'surface_temperature': 0.0,  # [degC]
             'water_storage': 0.0, # [kg m-2]
             'thermal_conductivity': 0.0,  # [W m-1 K-1]
-            'snow_water_equivalent': 0.0, # [kg m-2]
+            #'snow_water_equivalent': 0.0, # [kg m-2]
             # not needed as we take optical properties from previous dt
             #'albedo': None,
             #'emissivity': None
@@ -355,14 +356,45 @@ class ForestFloor(object):
                 'Dzsoil': self.height, # Moss layer thickness [m]
                 'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
                 'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)
-                'Vsmc': forcing['soil_volumetric_water'],
-                'gs1': 0., # !! Surface moisture conductance (m/s)
+                'gs1': 0., #1e-3, # !! Surface moisture conductance (m/s),
             }
         else:
             print('*** snow_model unknown ***')
 
         # --- solve snowpack
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
+
+        '''
+        # --- solve existing snowpack
+        if self.snowpack.snowpack.swe > 0.:
+            snow_forcing.update(
+                {'Tsrf': state['surface_temperature']}
+            )
+            fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
+        # --- solve new snowpack
+        elif forcing['precipitation_snow'] > 0.:
+            snow_forcing.update(
+                {'Tsrf': state['surface_temperature'] + DEG_TO_KELVIN}
+            )
+            fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)      
+        else:
+            fluxes_snow = {'snow_heat_flux': 0.,
+                           'potential_infiltration': forcing['precipitation_rain'],
+                           'snow_longwave_out': None,
+                           'snow_sensible_heat': None,
+                           'snow_latent_heat': None,
+                           'snow_ustar': None,
+                           'snow_ga': None,
+                           }
+            states_snow = {'snow_water_equivalent': 0.,
+                           'snow_depth': 0.,
+                           'snow_albedo': None,
+                           'srf_albedo': None,
+                           'snow_fraction': None,
+                           'snow_stability_factor': None,
+                           'temperature': state['surface_temperature'] + DEG_TO_KELVIN,
+                           }      
+        '''
 
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
@@ -398,6 +430,7 @@ class ForestFloor(object):
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
 
+        #if self.snowpack.snowpack.swe > 0.:
         if states_snow['snow_water_equivalent'] > 0:
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
             fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
@@ -405,6 +438,18 @@ class ForestFloor(object):
             fluxes['snow_heat_flux'] = 0.0
 
         state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
+        state['snow_depth'] = states_snow['snow_depth']
+        state['snow_albedo'] = states_snow['snow_albedo']
+        state['srf_albedo'] = states_snow['srf_albedo']
+        state['snow_fraction'] = states_snow['snow_fraction']
+        fluxes['snow_longwave_out'] = fluxes_snow['snow_longwave_out']
+        fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
+        fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
+        state['snow_stability_factor'] = states_snow['snow_stability_factor']
+        fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
+        fluxes['snow_ga'] = fluxes_snow['snow_ga']
+        state['fsm_surface_temperature'] = states_snow['temperature']
+
 
         # bottomlayer_type specific results (fluxes & state): convert list of dicts to dict of lists
         blt_outputs = {}

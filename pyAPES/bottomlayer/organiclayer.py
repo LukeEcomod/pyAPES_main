@@ -107,7 +107,6 @@ class OrganicLayer(object):
         self.bulk_density = properties['bulk_density']
         self.porosity = properties['porosity']
 
-
         # --- hydraulic properties
         self.max_water_content = properties['max_water_content']
         self.max_symplast_water = self.max_water_content * properties['water_content_ratio']
@@ -229,7 +228,7 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            if forcing['snow_water_equivalent'] > 0:
+            if forcing['snow_water_equivalent'] > 0.: # !! TEST
                 fluxes, states = self.heat_and_water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,

@@ -291,6 +291,7 @@ class EnergyBalance:
         Dsnw = forcing['Dsnw']
         zU = forcing['reference_height']
         zT = forcing['reference_height']
+        self.Tsrf = forcing['Tsrf']
 
         if self.ZOFFST == 0:
             # Heights specified above ground
@@ -317,7 +318,7 @@ class EnergyBalance:
         # Roughness lengths
         self.fveg = 1 - np.exp(-self.kext * self.VAI)
         self.d = 0.67 * self.fveg * self.vegh
-        self.z0g = (self.z0sn**fsnow) * (self.z0sf**(1 - fsnow))
+        self.z0g = (self.z0sn**fsnow) * (self.z0sf**(1 - fsnow)) # !! here roughness length should come from organiclayer properties
         self.z0h = 0.1 * self.z0g
         self.z0v = ((0.05 * self.vegh)**self.fveg) * (self.z0g**(1 - self.fveg))
 
@@ -335,24 +336,25 @@ class EnergyBalance:
         if (self.VAI == 0.0):  # open
             self.Eveg[:] = 0
             self.Hveg[:] = 0
-            ustar = VON_KARMAN * Ua / np.log(self.zU1 / self.z0g)
+            ustar = np.maximum(
+                VON_KARMAN * Ua / np.log(self.zU1 / self.z0g),
+                0.01)            # ustar should not be 0
             ga = VON_KARMAN * ustar / np.log(self.zT1 / self.z0h)
 
-            # ustar should not be 0
-            ustar = np.maximum(ustar, 0.001)
-
-            for ne in range(20):  # Iterating for stability adjustments
-                if self.EXCHNG == 1:
-                    if ne < 10:
+            for ne in range(10):  # Iterating for stability adjustments
+                if self.EXCHNG == 0:
+                    rL = 0.
+                elif self.EXCHNG == 1:
+                    if ne < 8:
                         B = ga * (self.Tsrf - Ta)
                         rL = -VON_KARMAN * B / (Ta * ustar**3)
                         rL = np.clip(rL, -2., 2.)
 
                 # Update ustar and ga in every iteration
-                ustar = VON_KARMAN * Ua / (np.log(self.zU1 / self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL))
-                # ustar should not be 0               
-                ustar = np.maximum(ustar, 0.001)
-                ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL)) 
+                ustar = np.maximum(
+                    VON_KARMAN * Ua / (np.log(self.zU1 / self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL)),
+                    0.01) # ustar should not be 0               
+                ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL))
                 
                 if not np.isfinite(ga):  # Ensure ga remains valid
                     break
@@ -643,10 +645,13 @@ class EnergyBalance:
                   'Melt': Melt,
                   'subl': subl,
                   'Usub': Usub,
+                  'ustar': ustar,
+                  'ga': ga
                  }
 
         states = {'Tsrf': self.Tsrf,
-                  'ksnow': ksnow}
+                  'ksnow': ksnow,
+                  'rL': rL}
                     
         return fluxes, states
 

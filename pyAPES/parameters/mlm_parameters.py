@@ -208,7 +208,7 @@ fsm2 = {'physics_options': {
             'CONDCT': 1,
             'ZOFFST': 0,
             'CANMOD': 0,
-            'EXCHNG': 1,
+            'EXCHNG': 0,
             'ALBEDO': 2,
             'SNFRAC': 1,
             'SWPART': 0,
@@ -232,7 +232,6 @@ fsm2 = {'physics_options': {
             'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
             'trho': 200*3600,       # Snow compaction timescale (s)
             'Wirr': 0.03,           # Irreducible liquid water content of snow
-            'z0sn': 0.001,          # Snow roughness length (m)
             'gsnf': 0.01,           # Snow-free vegetation moisture conductance (m/s)
             'hbas': 2.0,            # Canopy base height (m)
             'kext': 0.5,            # Vegetation light extinction coefficient
@@ -240,7 +239,7 @@ fsm2 = {'physics_options': {
             'wcan': 2.5,            # Canopy wind decay coefficient
             'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
             'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
-            'z0sf': 0.1,            # Snow-free surface roughness length (m)
+            'z0sf': 0.01,           # Snow-free surface roughness length (m) # !! needs to be removed
             'z0sn': 0.001,          # Snow roughness length (m)
             'VAI': 0.0,             # Vegetation area index
             'vegh': 0.0,            # Canopy height (m)
@@ -280,7 +279,7 @@ fsm2 = {'physics_options': {
             'fsnd': 0.6,    # Fraction of sand
             'gsat': 0.01,   # Surface conductance for saturated soil (m/s)
             'z0sf': 0.1,    # Surface roughness length
-            'alb0': 0.2     # Snow-free surface roughness length (m)
+            'alb0': 0.2     # Snow-free surface albedo
         }
     }
 
