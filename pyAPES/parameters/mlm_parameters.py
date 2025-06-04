@@ -239,7 +239,7 @@ fsm2 = {'physics_options': {
             'wcan': 2.5,            # Canopy wind decay coefficient
             'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
             'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
-            'z0sf': 0.01,           # Snow-free surface roughness length (m) # !! needs to be removed
+            'z0sf': 0.01,           # Snow-free surface roughness length (m)
             'z0sn': 0.001,          # Snow roughness length (m)
             'VAI': 0.0,             # Vegetation area index
             'vegh': 0.0,            # Canopy height (m)

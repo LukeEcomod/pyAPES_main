@@ -46,17 +46,17 @@ class SWrad(object):
         self.Nsmax = properties['layers']['Nsmax']       # Maximum number of snow layers
 
         # Parameters
-        self.acn0 = properties['params']['acn0']         # Snow-free dense canopy albedo
-        self.acns = properties['params']['acns']         # Snow-covered dense canopy albedo
+        #self.acn0 = properties['params']['acn0']         # Snow-free dense canopy albedo
+        #self.acns = properties['params']['acns']         # Snow-covered dense canopy albedo
         self.asmx = properties['params']['asmx']         # Maximum albedo for fresh snow
         self.asmn = properties['params']['asmn']         # Minimum albedo for melting snow
         self.hfsn = properties['params']['hfsn']         # Snowcover fraction depth scale (m)
-        self.kext = properties['params']['kext']         # Vegetation light extinction coefficient
+        #self.kext = properties['params']['kext']         # Vegetation light extinction coefficient
         self.Salb = properties['params']['Salb']         # Snowfall to refresh albedo (kg/m^2)
         self.Talb = properties['params']['Talb']         # Snow albedo decay temperature threshold (C)
         self.tcld = properties['params']['tcld']         # Cold snow albedo decay time scale (s)
         self.tmlt = properties['params']['tmlt']         # Melting snow albedo decay time scale (s)
-        self.alb0 = properties['soilprops']['alb0']
+        #self.alb0 = properties['soilprops']['alb0']
         #self.elev = properties['params']['elev']
         #self.lveg = properties['params']['lveg']
  
@@ -66,7 +66,7 @@ class SWrad(object):
         self.SNFRAC = properties['physics_options']['SNFRAC']
 
         # initial state
-        self.albs = self.alb0
+        #self.albs = self.alb0
         self.fsnow = properties['initial_conditions']['fsnow']
 
         #alb0,              &! Snow-free ground albedo
@@ -131,10 +131,13 @@ class SWrad(object):
         Sf = forcing['Sf']
         Tsrf = forcing['Tsrf']
         Dsnw = forcing['Dsnw']
+        alb0 = forcing['alb0']
+
+        albs = alb0 # initial albedo
 
         if self.ALBEDO == 1:
             # Diagnostic snow albedo
-            self.albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
+            albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
         
         if self.ALBEDO == 2:
             # Prognostic snow albedo
@@ -142,8 +145,8 @@ class SWrad(object):
             if (Tsrf >= T_MELT):
                 tdec = self.tmlt
             alim = (self.asmn/tdec + self.asmx*Sf/self.Salb)/(1/tdec + Sf/self.Salb)
-            self.albs = alim + (self.albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
-        self.albs = np.maximum(np.minimum(self.albs,self.asmx),self.asmn)
+            albs = alim + (albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
+        albs = np.maximum(np.minimum(albs,self.asmx),self.asmn)
 
         # Partial snowcover on ground
         hs = sum(Dsnw[:])
@@ -153,13 +156,14 @@ class SWrad(object):
             self.fsnow = hs / (hs + self.hfsn)
 
         # Surface and vegetation net shortwave radiation
-        asrf = (1 - self.fsnow)*self.alb0 + self.fsnow * self.albs
+        asrf = (1 - self.fsnow)*alb0 + self.fsnow * albs
         SWsrf = (1 - asrf)*(Sdif + Sdir)
         self.SWveg[:] = 0
         SWout = asrf*(Sdif + Sdir)
         SWsub = Sdif + Sdir
         self.tdif[:] = 0
         self.tdir[:] = 0
+
         '''
         if (lveg(1) > 0):
             if CANRAD == 1:
@@ -216,7 +220,7 @@ class SWrad(object):
                   'tdif': self.tdif
                  }
 
-        states = {'snow_albedo': self.albs,
+        states = {'snow_albedo': albs,
                   'srf_albedo': asrf,
                   'fsnow': self.fsnow
                  }

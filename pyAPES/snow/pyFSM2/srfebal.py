@@ -71,7 +71,7 @@ class EnergyBalance:
         self.kext = properties['params']['kext'] # Vegetation light extinction coefficient
         self.leaf = properties['params']['leaf'] # Leaf boundary resistance (s/m)^(1/2)
         self.wcan = properties['params']['wcan'] # Canopy wind decay coefficient
-        self.z0sf = properties['params']['z0sf'] # Snow-free surface roughness length (m)
+        #self.z0sf = properties['params']['z0sf'] # Snow-free surface roughness length (m)
         self.z0sn = properties['params']['z0sn'] # Snow roughness length (m)
         self.kfix = properties['params']['kfix'] 
         self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
@@ -292,6 +292,7 @@ class EnergyBalance:
         zU = forcing['reference_height']
         zT = forcing['reference_height']
         self.Tsrf = forcing['Tsrf']
+        z0sf = forcing['z0sf']
 
         if self.ZOFFST == 0:
             # Heights specified above ground
@@ -318,7 +319,7 @@ class EnergyBalance:
         # Roughness lengths
         self.fveg = 1 - np.exp(-self.kext * self.VAI)
         self.d = 0.67 * self.fveg * self.vegh
-        self.z0g = (self.z0sn**fsnow) * (self.z0sf**(1 - fsnow)) # !! here roughness length should come from organiclayer properties
+        self.z0g = (self.z0sn**fsnow) * (z0sf**(1 - fsnow)) # !! here roughness length should come from organiclayer properties
         self.z0h = 0.1 * self.z0g
         self.z0v = ((0.05 * self.vegh)**self.fveg) * (self.z0g**(1 - self.fveg))
 
@@ -362,7 +363,7 @@ class EnergyBalance:
                     raise ValueError(f"ga became complex: {ga}")
                 
                 # Surface water availability
-                if (Qa > Qsrf):
+                if (Qa > Qsrf): # specific humidity > saturation specific humidity at surface temperature 
                     wsrf = 1.
                 else:
                     wsrf = fsnow + (1 - fsnow) * gs1 / (gs1 + ga)
@@ -378,7 +379,7 @@ class EnergyBalance:
 
                 # Surface energy balance increments without melt
                 dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / \
-                        (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR + Lsrf * Dsrf * wsrf) * ga) # NOTE CHECK THIS / &
+                        (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR + Lsrf * Dsrf * wsrf) * ga)
                 dEs = rho * wsrf * ga * Dsrf * dTs
                 dGs = 2 * ks1 * dTs / Ds1 
                 dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
@@ -387,7 +388,8 @@ class EnergyBalance:
                 if (self.Tsrf + dTs > T_MELT) and (Sice[0] > 0):
                     Melt = np.sum(Sice) / dt
                     dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt) \
-                            / (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1/Ds1 + rho*(SPECIFIC_HEAT_AIR + LATENT_HEAT_SUBMILATION * Dsrf * wsrf) * ga) # NOTE line change
+                            / (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1/Ds1 \
+                               + rho*(SPECIFIC_HEAT_AIR + LATENT_HEAT_SUBMILATION * Dsrf * wsrf) * ga)
                     dEs = rho * wsrf * ga * Dsrf * dTs
                     dGs = 2 * ks1 * dTs/Ds1
                     dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
@@ -627,13 +629,13 @@ class EnergyBalance:
         ksnow = np.zeros(int(self.Nsmax))
         ksnow[:] = self.kfix
 
-        if self.CONDCT == 1:
-            for k in range(Nsnow):
-                rhos = self.rhof
-                if self.DENSTY != 0:
-                    if (Dsnw[k] > EPS):
-                        rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
-                ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
+        #if self.CONDCT == 1:
+        #    for k in range(Nsnow):
+        #        rhos = self.rhof
+        #        if self.DENSTY != 0:
+        #            if (Dsnw[k] > EPS):
+        #                rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
+        #        ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
 
 
         fluxes = {'Esrf': Esrf,
@@ -646,11 +648,12 @@ class EnergyBalance:
                   'subl': subl,
                   'Usub': Usub,
                   'ustar': ustar,
-                  'ga': ga
+                  'ga': ga,
+                  'ebal': ebal
                  }
 
         states = {'Tsrf': self.Tsrf,
-                  'ksnow': ksnow,
+                  #'ksnow': ksnow,
                   'rL': rL}
                     
         return fluxes, states
