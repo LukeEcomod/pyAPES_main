@@ -106,7 +106,7 @@ class SoilModel:
             # Return the updated soil temperature profile; no fluxes are produced.
             fluxes = {}
             states = {'Tsoil': self.Tsoil,
-                    'Vsmc': self.Vsmc}
+                        'Vsmc': self.Vsmc}
             
             return fluxes, states
 

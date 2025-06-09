@@ -319,7 +319,7 @@ class EnergyBalance:
         # Roughness lengths
         self.fveg = 1 - np.exp(-self.kext * self.VAI)
         self.d = 0.67 * self.fveg * self.vegh
-        self.z0g = (self.z0sn**fsnow) * (z0sf**(1 - fsnow)) # !! here roughness length should come from organiclayer properties
+        self.z0g = (self.z0sn**fsnow) * (z0sf**(1 - fsnow))
         self.z0h = 0.1 * self.z0g
         self.z0v = ((0.05 * self.vegh)**self.fveg) * (self.z0g**(1 - self.fveg))
 
@@ -339,10 +339,10 @@ class EnergyBalance:
             self.Hveg[:] = 0
             ustar = np.maximum(
                 VON_KARMAN * Ua / np.log(self.zU1 / self.z0g),
-                0.01)            # ustar should not be 0
+                0.001)            # ustar should not be 0
             ga = VON_KARMAN * ustar / np.log(self.zT1 / self.z0h)
 
-            for ne in range(10):  # Iterating for stability adjustments
+            for ne in range(20):  # Iterating for stability adjustments
                 if self.EXCHNG == 0:
                     rL = 0.
                 elif self.EXCHNG == 1:
@@ -354,7 +354,7 @@ class EnergyBalance:
                 # Update ustar and ga in every iteration
                 ustar = np.maximum(
                     VON_KARMAN * Ua / (np.log(self.zU1 / self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL)),
-                    0.01) # ustar should not be 0               
+                    0.001) # ustar should not be 0               
                 ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL))
                 
                 if not np.isfinite(ga):  # Ensure ga remains valid

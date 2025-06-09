@@ -81,7 +81,7 @@ class SWrad(object):
         #lveg(Ncnpy)         ! Canopy layer vegetation area indices
 
         #real, intent(inout) :: &
-        #self.albs = np.zeros(1)                # Snow albedo
+        self.albs = 0.1               # initial albedo
 
         #real, intent(out) :: &
         #fsnow,             &! Ground snowcover fraction
@@ -133,11 +133,9 @@ class SWrad(object):
         Dsnw = forcing['Dsnw']
         alb0 = forcing['alb0']
 
-        albs = alb0 # initial albedo
-
         if self.ALBEDO == 1:
             # Diagnostic snow albedo
-            albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
+            self.albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
         
         if self.ALBEDO == 2:
             # Prognostic snow albedo
@@ -145,18 +143,21 @@ class SWrad(object):
             if (Tsrf >= T_MELT):
                 tdec = self.tmlt
             alim = (self.asmn/tdec + self.asmx*Sf/self.Salb)/(1/tdec + Sf/self.Salb)
-            albs = alim + (albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
-        albs = np.maximum(np.minimum(albs,self.asmx),self.asmn)
+            self.albs = alim + (self.albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
+        self.albs = np.maximum(np.minimum(self.albs,self.asmx),self.asmn)
 
         # Partial snowcover on ground
         hs = sum(Dsnw[:])
+        if self.SNFRAC == 0:
+            self.fsnow = 1.0
         if self.SNFRAC == 1:
             self.fsnow = np.minimum(hs/self.hfsn, 1.)
         if self.SNFRAC == 2:
             self.fsnow = hs / (hs + self.hfsn)
 
+
         # Surface and vegetation net shortwave radiation
-        asrf = (1 - self.fsnow)*alb0 + self.fsnow * albs
+        asrf = (1 - self.fsnow)*alb0 + self.fsnow * self.albs
         SWsrf = (1 - asrf)*(Sdif + Sdir)
         self.SWveg[:] = 0
         SWout = asrf*(Sdif + Sdir)
@@ -220,7 +221,7 @@ class SWrad(object):
                   'tdif': self.tdif
                  }
 
-        states = {'snow_albedo': albs,
+        states = {'snow_albedo': self.albs,
                   'srf_albedo': asrf,
                   'fsnow': self.fsnow
                  }

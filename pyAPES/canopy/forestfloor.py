@@ -368,7 +368,7 @@ class ForestFloor(object):
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
-                'Dzsoil': self.height, # Moss layer thickness [m]
+                'Dzsoil': 0.1, #self.height, # Moss layer thickness [m]
                 'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
                 'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN,
                 'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)

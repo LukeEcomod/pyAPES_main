@@ -208,7 +208,7 @@ fsm2 = {'physics_options': {
             'CONDCT': 1,
             'ZOFFST': 0,
             'CANMOD': 0,
-            'EXCHNG': 0,
+            'EXCHNG': 1,
             'ALBEDO': 2,
             'SNFRAC': 1,
             'SWPART': 0,
@@ -239,7 +239,7 @@ fsm2 = {'physics_options': {
             'wcan': 2.5,            # Canopy wind decay coefficient
             'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
             'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
-            'z0sf': 0.01,           # Snow-free surface roughness length (m)
+            'z0sf': 0.1,           # Snow-free surface roughness length (m)
             'z0sn': 0.001,          # Snow roughness length (m)
             'VAI': 0.0,             # Vegetation area index
             'vegh': 0.0,            # Canopy height (m)
@@ -247,7 +247,7 @@ fsm2 = {'physics_options': {
             'zU': 18.,              # Wind measurement height with offset (m)
             'hfsn': 0.1,            # Snowcover fraction depth scale (m)
             'acn0': 0.1,            # Snow-free dense canopy albedo
-            'acns': 0.3,            # Snow-covered dense canopy albedo
+            'acns': 0.4,            # Snow-covered dense canopy albedo
             #'lveg': 0.0,
             #'elev': 100.0
         },

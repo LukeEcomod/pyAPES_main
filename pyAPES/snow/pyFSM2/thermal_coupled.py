@@ -94,7 +94,6 @@ class Thermal:
 
         # Surface layer
         Ds1 = np.maximum(Dzsoil, Dsnw[0]) # thickness
-        #Ds1 = np.maximum(0.3, Dsnw[0]) # thickness
         Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil # temperature
         ks1 = Dzsoil/(2*Dsnw[0]/ksnow[0] +
                               (Dzsoil - 2*Dsnw[0])/ksoil) # thermal conductivity

@@ -13,7 +13,8 @@ from typing import Dict, List, Tuple
 from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.swrad import SWrad
-from pyAPES.snow.pyFSM2.thermal_coupled import Thermal
+from pyAPES.snow.pyFSM2.thermal import Thermal
+from pyAPES.snow.pyFSM2.soil import SoilModel
 from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
 
 
@@ -22,6 +23,7 @@ class FSM2(object):
         """        
         Args:
             snowpara (Dict):
+            solve_soil: Boolean
         Returns:
             self (object)
         """
@@ -31,6 +33,7 @@ class FSM2(object):
         self.ebal = EnergyBalance(snowpara)
         self.snow = SnowModel(snowpara)
         self.thermal = Thermal(snowpara)
+        self.soil = SoilModel(snowpara)
 
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
 
@@ -87,11 +90,9 @@ class FSM2(object):
         Ta = forcing['Ta']
         Ua = forcing['Ua']
         reference_height = forcing['reference_height']
-
-        
         gs1 = forcing['gs1'] # Surface moisture conductance (m/s), used in ebal
         Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
-        Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
+        #Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
         ksoil = forcing['ksoil'] # Soil layer thermal conductivity (W/m/K), used in ebal
         Dzsoil = forcing['Dzsoil'] # Soil layer thickness, used in snow
         alb0 = forcing['alb0'] # Snow-free surface albedo
