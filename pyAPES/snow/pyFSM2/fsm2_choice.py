@@ -14,7 +14,6 @@ from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.swrad import SWrad
 from pyAPES.snow.pyFSM2.thermal import Thermal
-from pyAPES.snow.pyFSM2.soil import SoilModel
 from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
 
 
@@ -33,7 +32,6 @@ class FSM2(object):
         self.ebal = EnergyBalance(snowpara)
         self.snow = SnowModel(snowpara)
         self.thermal = Thermal(snowpara)
-        self.soil = SoilModel(snowpara)
 
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
 
@@ -92,7 +90,7 @@ class FSM2(object):
         reference_height = forcing['reference_height']
         gs1 = forcing['gs1'] # Surface moisture conductance (m/s), used in ebal
         Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
-        #Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
+        Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
         ksoil = forcing['ksoil'] # Soil layer thermal conductivity (W/m/K), used in ebal
         Dzsoil = forcing['Dzsoil'] # Soil layer thickness, used in snow
         alb0 = forcing['alb0'] # Snow-free surface albedo
@@ -107,135 +105,98 @@ class FSM2(object):
 
         ebal_states = {'Tsrf': self.ebal.Tsrf}
 
-        if sum(self.snow.Dsnw) == 0.: # no existing snowpack -> surface temperature from organiclayer.py
-            ebal_states = {'Tsrf': Tsoil_surf}
+        swrad_forcing = {'Sdif': SWsrf*1.0,
+                        'Sdir': 0,  # SWsrf*0.7,
+                        'Sf': Sf,
+                        'Tsrf': ebal_states['Tsrf'],
+                        'Dsnw': snow_states['Dsnw'],
+                        'alb0': alb0}
 
-        if Sf > 0 or sum(self.snow.Dsnw) > 0: # solving new or existing snowpack -> surface temperature from fsm
+        swrad_fluxes, swrad_states = self.swrad.run(dt, swrad_forcing)
 
-            swrad_forcing = {'Sdif': SWsrf*1.0,
-                            'Sdir': 0,  # SWsrf*0.7,
-                            'Sf': Sf,
-                            'Tsrf': ebal_states['Tsrf'],
-                            'Dsnw': snow_states['Dsnw'],
-                            'alb0': alb0}
-
-            swrad_fluxes, swrad_states = self.swrad.run(dt, swrad_forcing)
-
-            thermal_forcing = {'Nsnow': snow_states['Nsnow'],
-                            'Dsnw': snow_states['Dsnw'],
-                            'Sice': snow_states['Sice'],
-                            'Sliq': snow_states['Sliq'],
-                            'Tsnow': snow_states['Tsnow'],
-                            'Tsoil': Tsoil,
-                            'ksoil': ksoil,
-                            'gs1': gs1,
-                            'Dzsoil': Dzsoil}
-            
-            thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
-
-            ebal_forcing = {'Ds1': thermal_states['Ds1'], # surface layer properties
-                            'gs1': gs1, #
-                            'Ts1': thermal_states['Ts1'], #
-                            'ks1': thermal_states['ks1'], #
-                            'LW': LW, # canopy forcing
-                            'Ps': Ps, #
-                            'RH': RH, #
-                            'Ta': Ta, #
-                            'Ua': Ua, #
-                            'fsnow': swrad_states['fsnow'], # snow model forcing
-                            'SWsrf': swrad_fluxes['SWsrf'], #
-                            'Sice': snow_states['Sice'], #
-                            'Sliq': snow_states['Sliq'], #
-                            'Dsnw': snow_states['Dsnw'], #
-                            'Nsnow': snow_states['Nsnow'], #
-                            'reference_height': reference_height, #
-                            'Tsrf': ebal_states['Tsrf'],
-                            'z0sf': z0sf
-                            }
-
-            ebal_fluxes, ebal_states = self.ebal.run(dt, ebal_forcing)
-
-            snow_forcing = {'drip': 0,
-                            'Esrf': ebal_fluxes['Esrf'],
-                            'Gsrf': ebal_fluxes['Gsrf'],
-                            'ksoil': ksoil,
-                            'ksnow': thermal_states['ksnow'],
-                            'Melt': ebal_fluxes['Melt'],
-                            'Rf': Rf,
-                            'Sf': Sf,
-                            'Ta': Ta,
-                            'trans': 0,
-                            'Tsrf': ebal_states['Tsrf'],
-                            'unload': 0,
-                            'Tsoil': Tsoil,
-                            'Dzsoil': Dzsoil
-                            }
-                    
-            snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
-
-            # store iteration state
-            self.iteration_state = {'temperature': ebal_states['Tsrf'],
-                                    'swe': snow_states['swe'],
-                                    'ice': snow_states['Sice'],
-                                    'liq': snow_states['Sliq'],
-                                    'Ts1': snow_states['Tsnow']}
-            
-            self.optical_properties = {
-                    'emissivity': 1.0,
-                    'albedo': {'PAR': swrad_states['srf_albedo'], 
-                            'NIR': swrad_states['srf_albedo']}
-                    }
-
-            fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                    'snow_heat_flux': snow_fluxes['Gsoil'],  # heat flux to organiclayer
-                    'snow_longwave_out': ebal_fluxes['LWout'],
-                    'snow_sensible_heat': ebal_fluxes['H'],
-                    'snow_latent_heat': ebal_fluxes['LE'],
-                    'snow_ustar': ebal_fluxes['ustar'],
-                    'snow_ga': ebal_fluxes['ga'],
-                    'snow_energy_closure': ebal_fluxes['ebal']
-                    }
-
-            states = {'snow_water_equivalent': snow_states['swe'],
-                    'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                    'snow_depth': snow_states['hs'],
-                    'snow_albedo': swrad_states['snow_albedo'],
-                    'srf_albedo': swrad_states['srf_albedo'],
-                    'snow_fraction': swrad_states['fsnow'],
-                    'snow_stability_factor': ebal_states['rL'],
-                    }
+        thermal_forcing = {'Nsnow': snow_states['Nsnow'],
+                        'Dsnw': snow_states['Dsnw'],
+                        'Sice': snow_states['Sice'],
+                        'Sliq': snow_states['Sliq'],
+                        'Tsnow': snow_states['Tsnow'],
+                        'Tsoil': Tsoil,
+                        'ksoil': ksoil,
+                        'gs1': gs1,
+                        'Dzsoil': Dzsoil}
         
-        else: # no new or existing snowpack
-            # store iteration state
-            self.iteration_state = {'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                                    'swe': 0.,
-                                    'ice': 0.,
-                                    'liq': 0.,
-                                    'Ts1': np.nan}
-            
-            self.optical_properties = {
-                    'emissivity': 1.0,
-                    'albedo': {'PAR': 0.1, 
-                            'NIR': 0.1}
-                    }
+        thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
 
-            fluxes = {'potential_infiltration': Rf,
-                    'snow_heat_flux': 0.,  # heat flux to organiclayer
-                    'snow_longwave_out': 0.,
-                    'snow_sensible_heat': 0.,
-                    'snow_latent_heat': 0.,
-                    'snow_ustar': 0.,
-                    'snow_ga': 0.
-                    }
+        ebal_forcing = {'Ds1': thermal_states['Ds1'], # surface layer properties
+                        'gs1': gs1, #
+                        'Ts1': thermal_states['Ts1'], #
+                        'ks1': thermal_states['ks1'], #
+                        'LW': LW, # canopy forcing
+                        'Ps': Ps, #
+                        'RH': RH, #
+                        'Ta': Ta, #
+                        'Ua': Ua, #
+                        'fsnow': swrad_states['fsnow'], # snow model forcing
+                        'SWsrf': swrad_fluxes['SWsrf'], #
+                        'Sice': snow_states['Sice'], #
+                        'Sliq': snow_states['Sliq'], #
+                        'Dsnw': snow_states['Dsnw'], #
+                        'Nsnow': snow_states['Nsnow'], #
+                        'reference_height': reference_height, #
+                        'Tsrf': ebal_states['Tsrf'],
+                        'z0sf': z0sf
+                        }
 
-            states = {'snow_water_equivalent': 0.,
-                    'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                    'snow_depth': 0.,
-                    #'snow_albedo': swrad_states['snow_albedo'],
-                    #'srf_albedo': swrad_states['srf_albedo'],
-                    #'snow_fraction': swrad_states['fsnow'],
-                    #'snow_stability_factor': ebal_states['rL'],
-                    }
+        ebal_fluxes, ebal_states = self.ebal.run(dt, ebal_forcing)
+
+        snow_forcing = {'drip': 0,
+                        'Esrf': ebal_fluxes['Esrf'],
+                        'Gsrf': ebal_fluxes['Gsrf'],
+                        'ksoil': ksoil,
+                        'ksnow': thermal_states['ksnow'],
+                        'Melt': ebal_fluxes['Melt'],
+                        'Rf': Rf,
+                        'Sf': Sf,
+                        'Ta': Ta,
+                        'trans': 0,
+                        'Tsrf': ebal_states['Tsrf'],
+                        'unload': 0,
+                        'Tsoil': Tsoil,
+                        'Dzsoil': Dzsoil
+                        }
+                
+        snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
+
+        # store iteration state
+        self.iteration_state = {'temperature': ebal_states['Tsrf'],
+                                'swe': snow_states['swe'],
+                                'ice': snow_states['Sice'],
+                                'liq': snow_states['Sliq'],
+                                'Ts1': snow_states['Tsnow']}
+        
+        self.optical_properties = {
+                'emissivity': 1.0,
+                'albedo': {'PAR': swrad_states['srf_albedo'], 
+                        'NIR': swrad_states['srf_albedo']}
+                }
+
+        fluxes = {'potential_infiltration': snow_fluxes['Roff'],
+                'snow_heat_flux': snow_fluxes['Gsoil'],  # heat flux to organiclayer
+                'snow_longwave_out': ebal_fluxes['LWout'],
+                'snow_sensible_heat': ebal_fluxes['H'],
+                'snow_latent_heat': ebal_fluxes['LE'],
+                'snow_ustar': ebal_fluxes['ustar'],
+                'snow_ga': ebal_fluxes['ga'],
+                'snow_energy_closure': ebal_fluxes['ebal']
+                }
+
+        states = {'snow_water_equivalent': snow_states['swe'],
+                'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                'snow_depth': snow_states['hs'],
+                'snow_albedo': swrad_states['snow_albedo'],
+                'srf_albedo': swrad_states['srf_albedo'],
+                'snow_fraction': swrad_states['fsnow'],
+                'snow_stability_factor': ebal_states['rL'],
+                }
 
         return fluxes, states
 
