@@ -10,7 +10,6 @@
 
 import numpy as np
 from typing import Dict, List, Tuple
-#from pyAPES.snow.pyFSM2.fsm2_standalone import FSM2
 from pyAPES.snow.pyFSM2.fsm2_coupled import FSM2
 from pyAPES.snow.degreeday.degreeday import DegreeDaySnow
 import logging

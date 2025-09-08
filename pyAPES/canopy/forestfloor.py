@@ -334,12 +334,13 @@ class ForestFloor(object):
             'surface_temperature': 0.0,  # [degC]
             'water_storage': 0.0, # [kg m-2]
             'thermal_conductivity': 0.0,  # [W m-1 K-1]
+            #'snow_layer_depth': 0.
             #'snow_water_equivalent': 0.0, # [kg m-2]
             # not needed as we take optical properties from previous dt
             #'albedo': None,
             #'emissivity': None
          }
-
+        
         # --- Soil respiration
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
                                         forcing['soil_temperature'],
@@ -348,7 +349,7 @@ class ForestFloor(object):
 
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
-
+        
         if self.snow_model['type'] == 'degreeday':
         # --- Snow: degree-day model
             snow_forcing = {
@@ -416,27 +417,26 @@ class ForestFloor(object):
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
 
-        #if self.snowpack.snowpack.swe > 0.:
         if states_snow['snow_water_equivalent'] > 0:
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
             fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
             fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
             state['snow_depth'] = states_snow['snow_depth']
             state['fsm_surface_temperature'] = states_snow['temperature']
+            state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
+            state['snow_temperature'] = states_snow['snow_temperature']
+            state['snow_layer_depth'] = states_snow['snow_layer_depth']
+            fluxes['snow_longwave_out'] = fluxes_snow['snow_longwave_out']
+            fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
+            fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
         else:
-            fluxes['snow_heat_flux'] = 0.0
+            fluxes['snow_heat_flux'] = 0.
+            state['snow_temperature'] = np.nan
+            state['snow_layer_depth'] = 0.
 
-        state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
-        #state['snow_albedo'] = states_snow['snow_albedo']
-        #state['srf_albedo'] = states_snow['srf_albedo']
-        #state['snow_fraction'] = states_snow['snow_fraction']
-        fluxes['snow_longwave_out'] = fluxes_snow['snow_longwave_out']
-        fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
-        fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
         #state['snow_stability_factor'] = states_snow['snow_stability_factor']
         #fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
         #fluxes['snow_ga'] = fluxes_snow['snow_ga']
-
 
         # bottomlayer_type specific results (fluxes & state): convert list of dicts to dict of lists
         blt_outputs = {}

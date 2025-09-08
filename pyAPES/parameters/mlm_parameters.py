@@ -243,8 +243,8 @@ fsm2 = {'physics_options': {
             'z0sn': 0.001,          # Snow roughness length (m)
             'VAI': 0.0,             # Vegetation area index
             'vegh': 0.0,            # Canopy height (m)
-            'zT': 18.,              # Temperature measurement height with offset (m)
-            'zU': 18.,              # Wind measurement height with offset (m)
+            #'zT': 10.,              # Temperature measurement height with offset (m)
+            #'zU': 10.,              # Wind measurement height with offset (m)
             'hfsn': 0.1,            # Snowcover fraction depth scale (m)
             'acn0': 0.1,            # Snow-free dense canopy albedo
             'acns': 0.4,            # Snow-covered dense canopy albedo

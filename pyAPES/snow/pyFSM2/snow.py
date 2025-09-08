@@ -399,7 +399,7 @@ class SnowModel(object):
                 for k in range(self.Nsmax):
                     self.Dsnw[k] = self.Dzsnow[k]
                     dnew = dnew - self.Dzsnow[k]
-                    if (dnew <= self.Dzsnow[k]) | (k == self.Nsmax):
+                    if (dnew <= self.Dzsnow[k]) | (k == self.Nsmax - 1):
                         self.Dsnw[k] = self.Dsnw[k] + dnew
                         break
             self.Nsnow = k + 1

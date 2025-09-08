@@ -87,7 +87,6 @@ class FSM2(object):
         Ta = forcing['Ta']
         Ua = forcing['Ua']
         reference_height = forcing['reference_height']
-
         
         gs1 = forcing['gs1'] # Surface moisture conductance (m/s), used in ebal
         Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
@@ -202,6 +201,8 @@ class FSM2(object):
                     'srf_albedo': swrad_states['srf_albedo'],
                     'snow_fraction': swrad_states['fsnow'],
                     'snow_stability_factor': ebal_states['rL'],
+                    'snow_temperature': snow_states['Tsnow'] - DEG_TO_KELVIN,
+                    'snow_layer_depth': snow_states['Dsnw'],
                     }
         
         else: # no new or existing snowpack
@@ -230,6 +231,8 @@ class FSM2(object):
             states = {'snow_water_equivalent': 0.,
                     'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                     'snow_depth': 0.,
+                    'snow_temperature': np.nan,
+                    'snow_layer_depth': np.nan
                     #'snow_albedo': swrad_states['snow_albedo'],
                     #'srf_albedo': swrad_states['srf_albedo'],
                     #'snow_fraction': swrad_states['fsnow'],
