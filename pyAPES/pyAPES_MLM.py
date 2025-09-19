@@ -337,7 +337,6 @@ class MLM_model(object):
             self.results = _append_results('soil', k, soil_state, self.results)
             self.results = _append_results('pt', k, out_planttype, self.results)
             self.results = _append_results('gt', k, out_groundtype, self.results)
-
         print('100%')
 
         # append plantype, groundtype and grid information
@@ -400,7 +399,6 @@ def _initialize_results(variables: Dict,
             var_shape = [Nstep]
 
         results[var_name] = np.full(var_shape, np.NAN)
-        # print(var_name, var_shape, dimensions)
 
     return results
 

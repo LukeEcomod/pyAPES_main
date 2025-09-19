@@ -1157,20 +1157,29 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
         - theta [m3 m-3] or psi [m]
     """
 
-    Ts = np.array(pF['theta_s'], ndmin=1)
-    Tr = np.array(pF['theta_r'], ndmin=1)
-    alfa = np.array(pF['alpha'], ndmin=1)
-    n = np.array(pF['n'], ndmin=1)
-    m = 1.0 - np.divide(1.0, n)
+    # Ts = np.array(pF['theta_s'], ndmin=1)
+    # Tr = np.array(pF['theta_r'], ndmin=1)
+    # alfa = np.array(pF['alpha'], ndmin=1)
+    # n = np.array(pF['n'], ndmin=1)
+    # m = 1.0 - np.divide(1.0, n)
+    Ts = pF['theta_s']
+    Tr = pF['theta_r']
+    alfa = pF['alpha']
+    n = pF['n']
+    m = 1.0 - 1.0/n
 
     def theta_psi(x):
         # converts water content (m3m-3) to potential (m)
         # checks limits
         x = np.minimum(x, Ts)
         x = np.maximum(x, Tr + 0.001) # avoids water potential of -1e17
+        # x = np.min((x, Ts))
+        # x = np.max((x, Tr + 0.001)) # avoids water potential of -1e17
         s = (Ts - Tr) / ((x - Tr) + EPS)
         Psi = -1e-2 / alfa*(s**(1.0 / m) - 1.0)**(1.0 / n)  # m
-        Psi[np.isnan(Psi)] = 0.0
+        if np.isnan(Psi):
+            Psi = 0.0
+        #Psi[np.isnan(Psi)] = 0.0
         return Psi,x
 
     def psi_theta(x):

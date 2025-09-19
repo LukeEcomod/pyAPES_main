@@ -326,6 +326,11 @@ class ForestFloor(object):
 
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 
+        # Add snowpack results to states and fluxes
+
+        fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
+        fluxes['snow_water_closure'] = fluxes_snow['water_closure']
+        state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
@@ -335,7 +340,6 @@ class ForestFloor(object):
                 'soil_temperature': forcing['soil_temperature'][0],
                 'snow_water_equivalent': states_snow['snow_water_equivalent']}
                 )
-
         # bottomlayer-type specific fluxes and state for output: list of dicts
         bt_results = []
 
@@ -358,6 +362,8 @@ class ForestFloor(object):
 
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
+
+
 
 #            # this creates problem if forcing['air_temperature'] <0 and self.snowpack.swe >0
 #        if self.snowpack.swe > 0:
