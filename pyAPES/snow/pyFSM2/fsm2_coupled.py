@@ -33,6 +33,9 @@ class FSM2(object):
         self.thermal = Thermal(snowpara)
 
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
+        self.ice = np.sum(snowpara['initial_conditions']['Sice'])
+        self.liq = np.sum(snowpara['initial_conditions']['Sliq'])
+        self.temperature = snowpara['initial_conditions']['Tsnow']
 
         # temporary storage of iteration results
         self.iteration_state = None
@@ -203,6 +206,9 @@ class FSM2(object):
                     'snow_stability_factor': ebal_states['rL'],
                     'snow_temperature': snow_states['Tsnow'] - DEG_TO_KELVIN,
                     'snow_layer_depth': snow_states['Dsnw'],
+                    'snow_liquid_storage': snow_states['Sliq'],
+                    'snow_ice_storage': snow_states['Sice'],
+                    'snow_density': snow_states['rhos']
                     }
         
         else: # no new or existing snowpack
@@ -232,11 +238,10 @@ class FSM2(object):
                     'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                     'snow_depth': 0.,
                     'snow_temperature': np.nan,
-                    'snow_layer_depth': np.nan
-                    #'snow_albedo': swrad_states['snow_albedo'],
-                    #'srf_albedo': swrad_states['srf_albedo'],
-                    #'snow_fraction': swrad_states['fsnow'],
-                    #'snow_stability_factor': ebal_states['rL'],
+                    'snow_layer_depth': np.nan,
+                    'snow_liquid_storage': 0.,
+                    'snow_ice_storage': 0.,
+                    'snow_density': np.nan
                     }
 
         return fluxes, states

@@ -4,7 +4,7 @@
     :synopsis: APES-model component
 .. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
-*Degree-day snow pack model*
+*Degree-day snowpack model*
 """
 
 import numpy as np
@@ -87,7 +87,7 @@ class DegreeDaySnow(object):
                temperature: [degC]
         """
 
-        """ --- melting and freezing in snopack --- """
+        """ --- melting and freezing in snowpack --- """
         if forcing['air_temperature'] >= self.Tmelt:
             # [m]
             melt = np.minimum(self.ice,

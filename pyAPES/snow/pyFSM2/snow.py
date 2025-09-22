@@ -564,7 +564,8 @@ class SnowModel(object):
                   'Sliq': self.Sliq,
                   'Nsnow': self.Nsnow,
                   'Dsnw': self.Dsnw,
-                  'Tsnow': self.Tsnow
+                  'Tsnow': self.Tsnow,
+                  'rhos': rhos
                   }
 
         # End if existing or new snowpack
