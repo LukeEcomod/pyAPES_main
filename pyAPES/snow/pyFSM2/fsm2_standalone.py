@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple
 from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.soil import SoilModel
-from pyAPES.snow.pyFSM2.thermal import Thermal
+from pyAPES.snow.pyFSM2.thermal_standalone import Thermal
 from pyAPES.snow.pyFSM2.swrad import SWrad
 
 from pyAPES.utils.constants import EPS, DEG_TO_KELVIN

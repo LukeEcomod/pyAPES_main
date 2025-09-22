@@ -193,6 +193,7 @@ class ForestFloor(object):
         """ 
         Updates forestfloor-object state variables
         """
+        
         self.snowpack.snowpack.update()
 
         for bt in self.bottomlayer_types:
@@ -349,52 +350,39 @@ class ForestFloor(object):
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
 
-        # control if we want to run snowmodel
-        if self.snowpack.snowpack.swe > 0 or forcing['precipitation_snow'] > 0:
-            run_snow = True
+        if self.snow_model['type'] == 'degreeday':
+        # --- Snow: degree-day model
+            snow_forcing = {
+                'precipitation_rain': forcing['precipitation_rain'],
+                'precipitation_snow': forcing['precipitation_snow'],
+                'air_temperature': forcing['air_temperature'],
+            }
+        elif self.snow_model['type'] == 'fsm2':
+            # -- Snow: energy balance snow model'
+            snow_forcing = {
+                'SWsrf': forcing['par'] + forcing['nir'],
+                'Sf': forcing['precipitation_snow'],
+                'Rf': forcing['precipitation_rain'],
+                'LW': forcing['lw_dn'],
+                'Ps': forcing['air_pressure'],
+                'RH': 80., # NOTE THIS NEEDS TO BE UPDATED!
+                'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
+                'Ua': forcing['wind_speed'],
+                'reference_height': parameters['reference_height'],
+                'Dzsoil': self.height, # Moss layer thickness [m]
+                'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
+                'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN,
+                'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)
+                'gs1': 1e-3, # !! Surface moisture conductance (m/s),
+                'alb0': self.bt_albedo['PAR'],
+                'z0sf': self.bt_roughness_height
+            }
         else:
-            run_snow = False
+            print('*** snow_model unknown ***')
 
-        #run_snow = True # forcing true
+        # --- solve snowpack
+        fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 
-        if run_snow:
-            if self.snow_model['type'] == 'degreeday':
-            # --- Snow: degree-day model
-                snow_forcing = {
-                    'precipitation_rain': forcing['precipitation_rain'],
-                    'precipitation_snow': forcing['precipitation_snow'],
-                    'air_temperature': forcing['air_temperature'],
-                }
-            elif self.snow_model['type'] == 'fsm2':
-                # -- Snow: energy balance snow model'
-                snow_forcing = {
-                    'SWsrf': forcing['par'] + forcing['nir'],
-                    'Sf': forcing['precipitation_snow'],
-                    'Rf': forcing['precipitation_rain'],
-                    'LW': forcing['lw_dn'],
-                    'Ps': forcing['air_pressure'],
-                    'RH': 80., # NOTE THIS NEEDS TO BE UPDATED!
-                    'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
-                    'Ua': forcing['wind_speed'],
-                    'reference_height': parameters['reference_height'],
-                    'Dzsoil': self.height, # Moss layer thickness [m]
-                    'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
-                    'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN,
-                    'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)
-                    'gs1': 1e-3, # !! Surface moisture conductance (m/s),
-                    'alb0': self.bt_albedo['PAR'],
-                    'z0sf': self.bt_roughness_height
-                }
-            else:
-                print('*** snow_model unknown ***')
-
-            # --- solve snowpack
-            fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
-            pot_inf = fluxes_snow['potential_infiltration']
-        else:
-            pot_inf = forcing['precipitation_rain']
-            fluxes_snow = {'snow_heat_flux': 0}
-            states_snow = {'snow_water_equivalent': 0}
 
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
@@ -404,7 +392,7 @@ class ForestFloor(object):
             fluxes_snow['snow_heat_flux'] = 0
         
         org_forcing.update(
-                {'precipitation': pot_inf,
+                {'precipitation': fluxes_snow['potential_infiltration'],
                 'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
                 'snow_heat_flux': fluxes_snow['snow_heat_flux']}

@@ -41,15 +41,21 @@ class FSM2(object):
         self.iteration_state = None
         self.optical_properties = None
 
-
     def update(self):
         """
         Updates snowpack state.
         """
-        self.temperature = self.iteration_state['temperature']
-        self.ice = self.iteration_state['ice']
-        self.liq = self.iteration_state['liq']
-        self.swe = self.iteration_state['swe']
+        if self.iteration_state is not None and (
+            self.iteration_state['swe'] > 0 or self.swe > 0): # current iteration or previous timestep swe > 0
+            # updating submodules' states
+            self.swrad.update()
+            self.ebal.update()
+            self.snow.update()
+            # updating snowmodel states
+            self.temperature = self.iteration_state['temperature']
+            self.ice = self.iteration_state['ice']
+            self.liq = self.iteration_state['liq']
+            self.swe = self.iteration_state['swe']
 
     def run(self, dt: float, forcing: dict) -> Tuple:
         """
@@ -179,7 +185,7 @@ class FSM2(object):
                                     'swe': snow_states['swe'],
                                     'ice': snow_states['Sice'],
                                     'liq': snow_states['Sliq'],
-                                    'Ts1': snow_states['Tsnow']}
+                                    }
             
             self.optical_properties = {
                     'emissivity': 1.0,
@@ -217,7 +223,7 @@ class FSM2(object):
                                     'swe': 0.,
                                     'ice': 0.,
                                     'liq': 0.,
-                                    'Ts1': np.nan}
+                                    }
             
             self.optical_properties = {
                     'emissivity': 1.0,
@@ -226,7 +232,7 @@ class FSM2(object):
                     }
 
             fluxes = {'potential_infiltration': Rf,
-                    'snow_heat_flux': 0.,  # heat flux to organiclayer
+                    'snow_heat_flux': 0., 
                     'snow_longwave_out': 0.,
                     'snow_sensible_heat': 0.,
                     'snow_latent_heat': 0.,

@@ -218,7 +218,19 @@ class EnergyBalance:
 
         #if self.CANMOD == 2:
         #    self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
-        #    self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh    
+        #    self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh  
+
+        # temporary storage of iteration results
+        self.iteration_state = None  
+
+
+    def update(self):
+        """ 
+        Updates swrad state.
+        """
+        self.Tsrf = self.iteration_state['Tsrf']
+        #self. = self.iteration_state['']
+    
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
@@ -291,7 +303,7 @@ class EnergyBalance:
         Dsnw = forcing['Dsnw']
         zU = forcing['reference_height']
         zT = forcing['reference_height']
-        self.Tsrf = forcing['Tsrf']
+        Tsrf = forcing['Tsrf']
         z0sf = forcing['z0sf']
 
         if self.ZOFFST == 0:
@@ -410,10 +422,10 @@ class EnergyBalance:
                 Esrf = Esrf + dEs
                 Gsrf = Gsrf + dGs
                 Hsrf = Hsrf + dHs
-                self.Tsrf = self.Tsrf + dTs
+                Tsrf = self.Tsrf + dTs
                 # Diagnostics
-                ebal = SWsrf + LW - STEFAN_BOLTZMANN * self.Tsrf**4 - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt
-                LWout = STEFAN_BOLTZMANN * self.Tsrf**4
+                ebal = SWsrf + LW - STEFAN_BOLTZMANN * Tsrf**4 - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt
+                LWout = STEFAN_BOLTZMANN * Tsrf**4
                 LWsub = LW                
                 Usub = (ustar / VON_KARMAN) * (np.log(self.zsub/self.z0g) - self.psim(self.zsub,rL) + self.psim(self.z0g,rL))
 
@@ -610,7 +622,7 @@ class EnergyBalance:
         # Sublimation limited by available snow
         subl = 0
         self.Ssub = np.sum(Sice[:]) - Melt * dt
-        if (self.Ssub > 0) or (self.Tsrf < T_MELT):
+        if (self.Ssub > 0) or (Tsrf < T_MELT):
             Esrf = np.minimum(Esrf, self.Ssub / dt)
             subl = Esrf
 
@@ -624,19 +636,10 @@ class EnergyBalance:
         E = float(Esrf + np.sum(self.Eveg[:]))
         H = float(Hsrf + np.sum(self.Hveg[:]))
         LE = float(Lsrf * Esrf) #+ sum(Lcan[:]*self.Eveg[:])
-                
-        # Computing snow thermal conductivity
-        ksnow = np.zeros(int(self.Nsmax))
-        ksnow[:] = self.kfix
 
-        #if self.CONDCT == 1:
-        #    for k in range(Nsnow):
-        #        rhos = self.rhof
-        #        if self.DENSTY != 0:
-        #            if (Dsnw[k] > EPS):
-        #                rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
-        #        ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
-
+        # store iteration state
+        self.iteration_state =  {'Tsrf': Tsrf
+                                 }
 
         fluxes = {'Esrf': Esrf,
                   'Gsrf': Gsrf,
@@ -652,8 +655,7 @@ class EnergyBalance:
                   'ebal': ebal
                  }
 
-        states = {'Tsrf': self.Tsrf,
-                  #'ksnow': ksnow,
+        states = {'Tsrf': Tsrf,
                   'rL': rL}
                     
         return fluxes, states

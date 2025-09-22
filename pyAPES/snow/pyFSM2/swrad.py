@@ -106,6 +106,15 @@ class SWrad(object):
         self.rdir = np.zeros(self.Ncnpy)                         # Canopy layer direct-beam reflectance
         self.tdir = np.zeros(self.Ncnpy)                         # Canopy layer direct-beam transmittance
 
+        # temporary storage of iteration results
+        self.iteration_state = None
+
+    def update(self):
+        """ 
+        Updates swrad state.
+        """
+        self.albs = self.iteration_state['albs']
+        self.fsnow = self.iteration_state['fsnow']
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
@@ -135,7 +144,7 @@ class SWrad(object):
 
         if self.ALBEDO == 1:
             # Diagnostic snow albedo
-            self.albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
+            albs = self.asmn + (self.asmx - self.asmn)*(Tsrf - T_MELT) / self.Talb
         
         if self.ALBEDO == 2:
             # Prognostic snow albedo
@@ -143,21 +152,21 @@ class SWrad(object):
             if (Tsrf >= T_MELT):
                 tdec = self.tmlt
             alim = (self.asmn/tdec + self.asmx*Sf/self.Salb)/(1/tdec + Sf/self.Salb)
-            self.albs = alim + (self.albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
-        self.albs = np.maximum(np.minimum(self.albs,self.asmx),self.asmn)
+            albs = alim + (self.albs - alim)*np.exp(-(1/tdec + Sf/self.Salb)*dt)
+        albs = np.maximum(np.minimum(albs,self.asmx),self.asmn)
 
         # Partial snowcover on ground
         hs = sum(Dsnw[:])
         if self.SNFRAC == 0:
-            self.fsnow = 1.0
+            fsnow = 1.0
         if self.SNFRAC == 1:
-            self.fsnow = np.minimum(hs/self.hfsn, 1.)
+            fsnow = np.minimum(hs/self.hfsn, 1.)
         if self.SNFRAC == 2:
-            self.fsnow = hs / (hs + self.hfsn)
+            fsnow = hs / (hs + self.hfsn)
 
 
         # Surface and vegetation net shortwave radiation
-        asrf = (1 - self.fsnow)*alb0 + self.fsnow * self.albs
+        asrf = (1 - self.fsnow)*alb0 + fsnow * albs
         SWsrf = (1 - asrf)*(Sdif + Sdir)
         self.SWveg[:] = 0
         SWout = asrf*(Sdif + Sdir)
@@ -212,18 +221,22 @@ class SWrad(object):
                 SWsub = x(2) + tdir(1)*tdir(2)*Sdir
                 SWsrf = (1 - asrf)*SWsub
         '''
-    
+
+        # store iteration state
+        self.iteration_state =  {'albs': albs,
+                                 'asrf': asrf,
+                                 'fsnow': fsnow}
+        
+            
         fluxes = {'SWout': SWout,
                   'SWsrf': SWsrf,
                   'SWsub': SWsrf,
-                  #'SWveg': SWveg,
                   'SWsub': SWsrf,
-                  'tdif': self.tdif
                  }
 
-        states = {'snow_albedo': self.albs,
+        states = {'snow_albedo': albs,
                   'srf_albedo': asrf,
-                  'fsnow': self.fsnow
+                  'fsnow': fsnow
                  }
         
         # End if existing or new snowpack
