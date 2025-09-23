@@ -181,7 +181,7 @@ class PlantType(object):
         # root properties
         self.Roots = RootUptake(p['rootp'], dz_soil, self.LAImax)
 
-        self.mask = np.where(self.lad > 0, 1.0, np.NaN) # 1.0 where lad>0, nan elsewhere
+        self.mask = np.where(self.lad > 0, 1.0, np.nan) # 1.0 where lad>0, nan elsewhere
         self.dz = z[1] - z[0]
 
         # leaf gas-exchange parameters

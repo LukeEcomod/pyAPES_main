@@ -21,7 +21,7 @@ def forward_diff(y: np.ndarray, dx: float) -> np.ndarray:
 
     """
     N = len(y)
-    dy = np.ones(N) * np.NaN
+    dy = np.ones(N) * np.nan
     dy[0:-1] = np.diff(y)
     dy[-1] = dy[-2]
 
@@ -40,7 +40,7 @@ def central_diff(y, dx) -> np.ndarray:
 
     """
     N = len(y)
-    dydx = np.ones(N) * np.NaN
+    dydx = np.ones(N) * np.nan
     # -- use central difference for estimating derivatives
     dydx[1:-1] = (y[2:] - y[0:-2]) / (2 * dx)
     # -- use forward difference at lower boundary

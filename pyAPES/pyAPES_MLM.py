@@ -448,7 +448,7 @@ def _initialize_results(variables: Dict,
         else:
             var_shape = [Nstep]
 
-        results[var_name] = np.full(var_shape, np.NAN)
+        results[var_name] = np.full(var_shape, np.nan)
         # print(var_name, var_shape, dimensions)
 
     return results
