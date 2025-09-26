@@ -123,8 +123,8 @@ class ForestFloor(object):
         """
 
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
-        self.snow_model = para['snow_model']
-        self.snowpack = Snowpack(self.snow_model, para['snowpack'])
+        self.snow_model = para['snowpack']['snow_model']
+        self.snowpack = Snowpack(para['snowpack'])
 
         self.snowpack.snowpack.optical_properties = {
                 'emissivity': 0.97,
@@ -350,14 +350,14 @@ class ForestFloor(object):
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
 
-        if self.snow_model['type'] == 'degreeday':
+        if self.snow_model == 'degreeday':
         # --- Snow: degree-day model
             snow_forcing = {
                 'precipitation_rain': forcing['precipitation_rain'],
                 'precipitation_snow': forcing['precipitation_snow'],
                 'air_temperature': forcing['air_temperature'],
             }
-        elif self.snow_model['type'] == 'fsm2':
+        elif self.snow_model == 'fsm2':
             # -- Snow: energy balance snow model'
             snow_forcing = {
                 'SWsrf': forcing['par'] + forcing['nir'],
@@ -388,7 +388,7 @@ class ForestFloor(object):
         org_forcing = forcing.copy()
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
 
-        if self.snow_model['type'] == 'degreeday':
+        if self.snow_model == 'degreeday':
             fluxes_snow['snow_heat_flux'] = 0
         
         org_forcing.update(
@@ -421,7 +421,7 @@ class ForestFloor(object):
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
 
-        if self.snowpack.snowpack.swe > 0 and self.snow_model['type'] == 'fsm2':
+        if self.snowpack.snowpack.swe > 0 and self.snow_model == 'fsm2':
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
             fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
             fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
@@ -436,7 +436,7 @@ class ForestFloor(object):
             state['snow_ice_storage'] = states_snow['snow_ice_storage']
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']
-        elif self.snowpack.snowpack.swe == 0 and self.snow_model['type'] == 'fsm2':
+        elif self.snowpack.snowpack.swe == 0 and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
             state['snow_temperature'] = np.nan
             state['snow_layer_depth'] = 0.
@@ -445,7 +445,7 @@ class ForestFloor(object):
             state['snow_liquid_storage'] = 0.
             state['snow_ice_storage'] = 0.
             state['snow_density'] = np.nan
-        elif self.snow_model['type'] == 'degreeday':
+        elif self.snow_model == 'degreeday':
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
 
         # bottomlayer_type specific results (fluxes & state): convert list of dicts to dict of lists

@@ -19,17 +19,17 @@ logger = logging.getLogger(__name__)
 EPS = np.finfo(float).eps  # machine epsilon
 
 class Snowpack(object):
-    def __init__(self, snow_model, snowpara) -> object:
+    def __init__(self, snowpara) -> object:
         """
         Args:
         Returns:
         """
         
-        if snow_model['type'] == 'degreeday':
-            self.snowpack = DegreeDaySnow(snowpara)
+        if snowpara['snow_model'] == 'degreeday':
+            self.snowpack = DegreeDaySnow(snowpara['degreeday'])
 
-        elif snow_model['type'] == 'fsm2':
-            self.snowpack = FSM2(snowpara)
+        elif snowpara['snow_model'] == 'fsm2':
+            self.snowpack = FSM2(snowpara['fsm2'])
 
         else:
             raise NotImplementedError(f"Snow model type is not implemented.")

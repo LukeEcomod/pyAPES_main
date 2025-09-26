@@ -13,7 +13,8 @@ from typing import Dict, List, Tuple
 from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.swrad import SWrad
-from pyAPES.snow.pyFSM2.thermal import Thermal
+from pyAPES.snow.pyFSM2.soil import SoilModel
+from pyAPES.snow.pyFSM2.thermal_standalone import Thermal
 from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
 
 
@@ -22,7 +23,6 @@ class FSM2(object):
         """        
         Args:
             snowpara (Dict):
-            solve_soil: Boolean
         Returns:
             self (object)
         """
@@ -32,18 +32,32 @@ class FSM2(object):
         self.ebal = EnergyBalance(snowpara)
         self.snow = SnowModel(snowpara)
         self.thermal = Thermal(snowpara)
+        self.soil = SoilModel(snowpara)
 
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
+        self.ice = np.sum(snowpara['initial_conditions']['Sice'])
+        self.liq = np.sum(snowpara['initial_conditions']['Sliq'])
+        self.temperature = snowpara['initial_conditions']['Tsnow']
+
+        # parameters
+        self.alb0 = snowpara['soilprops']['alb0']
+        self.z0sf = snowpara['soilprops']['z0sf']
+        self.reference_height = snowpara['params']['zU']
 
         # temporary storage of iteration results
         self.iteration_state = None
         self.optical_properties = None
 
-
     def update(self):
         """
         Updates snowpack state.
         """
+        # updating submodules' states
+        self.swrad.update()
+        self.ebal.update()
+        self.snow.update()
+        self.soil.update()
+        # updating snowmodel states
         self.temperature = self.iteration_state['temperature']
         self.ice = self.iteration_state['ice']
         self.liq = self.iteration_state['liq']
@@ -62,10 +76,7 @@ class FSM2(object):
                 Ps (float): atmospheric pressure (?)
                 Ta (float): air temperature (K)
                 Ua (float): wind speed (m/s)
-                Tsoil (float): soil temperature (K)
-                ksoil (float): # Thermal conductivity of first soil layer (W/m/K)
-                Dzsoil (float): # 
-                reference_height (float): first canopy calculation node [m]
+                reference_height (float): [m]
 
         Returns:
             Tuple:
@@ -87,14 +98,11 @@ class FSM2(object):
         RH = forcing['RH']
         Ta = forcing['Ta']
         Ua = forcing['Ua']
-        reference_height = forcing['reference_height']
-        gs1 = forcing['gs1'] # Surface moisture conductance (m/s), used in ebal
-        Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
-        Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
-        ksoil = forcing['ksoil'] # Soil layer thermal conductivity (W/m/K), used in ebal
-        Dzsoil = forcing['Dzsoil'] # Soil layer thickness, used in snow
-        alb0 = forcing['alb0'] # Snow-free surface albedo
-        z0sf = forcing['z0sf'] # Snow-free roughness length
+        
+        Dzsoil = self.soil.Dzsoil # Soil layer thickness, used in snow
+        alb0 = self.alb0 # Snow-free surface albedo
+        z0sf = self.z0sf # Snow-free roughness length
+        reference_height = self.reference_height # zU
 
         # initial states
         snow_states = {'Sice': self.snow.Sice,
@@ -104,6 +112,10 @@ class FSM2(object):
                        'Tsnow': self.snow.Tsnow}
 
         ebal_states = {'Tsrf': self.ebal.Tsrf}
+
+        soil_states = {'Tsoil': self.soil.Tsoil,
+                       'Vsmc': self.soil.Vsmc}
+
 
         swrad_forcing = {'Sdif': SWsrf*1.0,
                         'Sdir': 0,  # SWsrf*0.7,
@@ -119,15 +131,14 @@ class FSM2(object):
                         'Sice': snow_states['Sice'],
                         'Sliq': snow_states['Sliq'],
                         'Tsnow': snow_states['Tsnow'],
-                        'Tsoil': Tsoil,
-                        'ksoil': ksoil,
-                        'gs1': gs1,
-                        'Dzsoil': Dzsoil}
+                        'Tsoil': soil_states['Tsoil'],
+                        'Dzsoil': Dzsoil,
+                        'Vsmc': soil_states['Vsmc']}
         
         thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
 
         ebal_forcing = {'Ds1': thermal_states['Ds1'], # surface layer properties
-                        'gs1': gs1, #
+                        'gs1': thermal_states['gs1'], #
                         'Ts1': thermal_states['Ts1'], #
                         'ks1': thermal_states['ks1'], #
                         'LW': LW, # canopy forcing
@@ -151,7 +162,7 @@ class FSM2(object):
         snow_forcing = {'drip': 0,
                         'Esrf': ebal_fluxes['Esrf'],
                         'Gsrf': ebal_fluxes['Gsrf'],
-                        'ksoil': ksoil,
+                        'ksoil': thermal_states['ksoil'][0],
                         'ksnow': thermal_states['ksnow'],
                         'Melt': ebal_fluxes['Melt'],
                         'Rf': Rf,
@@ -160,18 +171,25 @@ class FSM2(object):
                         'trans': 0,
                         'Tsrf': ebal_states['Tsrf'],
                         'unload': 0,
-                        'Tsoil': Tsoil,
-                        'Dzsoil': Dzsoil
+                        'Tsoil': soil_states['Tsoil'][0],
+                        'Dzsoil': Dzsoil[0]
                         }
                 
         snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
+
+        # RUN (soil thermodynamics)
+        soil_forcing = {'Gsoil': snow_fluxes['Gsoil'],
+                        'csoil': thermal_states['csoil'],
+                        'ksoil': thermal_states['ksoil']}
+        soil_fluxes, soil_states = self.soil.run(dt, soil_forcing)
+
 
         # store iteration state
         self.iteration_state = {'temperature': ebal_states['Tsrf'],
                                 'swe': snow_states['swe'],
                                 'ice': snow_states['Sice'],
                                 'liq': snow_states['Sliq'],
-                                'Ts1': snow_states['Tsnow']}
+                                }
         
         self.optical_properties = {
                 'emissivity': 1.0,
@@ -180,7 +198,7 @@ class FSM2(object):
                 }
 
         fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                'snow_heat_flux': snow_fluxes['Gsoil'],  # heat flux to organiclayer
+                'snow_heat_flux': snow_fluxes['Gsoil'],
                 'snow_longwave_out': ebal_fluxes['LWout'],
                 'snow_sensible_heat': ebal_fluxes['H'],
                 'snow_latent_heat': ebal_fluxes['LE'],
@@ -196,6 +214,11 @@ class FSM2(object):
                 'srf_albedo': swrad_states['srf_albedo'],
                 'snow_fraction': swrad_states['fsnow'],
                 'snow_stability_factor': ebal_states['rL'],
+                'snow_temperature': snow_states['Tsnow'] - DEG_TO_KELVIN,
+                'snow_layer_depth': snow_states['Dsnw'],
+                'snow_liquid_storage': snow_states['Sliq'],
+                'snow_ice_storage': snow_states['Sice'],
+                'snow_density': snow_states['rhos']
                 }
 
         return fluxes, states

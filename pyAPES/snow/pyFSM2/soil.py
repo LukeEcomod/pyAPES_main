@@ -49,6 +49,16 @@ class SoilModel:
         self.gs = np.zeros(self.Nsoil) # Thermal conductivity between layers (W/m^2/k)
         self.rhs = np.zeros(self.Nsoil) # Matrix equation rhs
 
+        # temporary storage of iteration results
+        self.iteration_state = None  
+
+    def update(self):
+        """ 
+        Updates soil state.
+        """
+        self.Tsoil = self.iteration_state['Tsoil']
+        self.Vsmc = self.iteration_state['Vsmc']
+
     def run(self, dt: float, forcing: Dict) -> Tuple[Dict, Dict]:
             """
             Update soil temperatures for a given timestep.
@@ -102,6 +112,10 @@ class SoilModel:
 
             for k in range(self.Nsoil):
                 self.Tsoil[k] = self.Tsoil[k] + self.dTs[k]
+
+            # store iteration state
+            self.iteration_state =  {'Tsoil': self.Tsoil,
+                                        'Vsmc': self.Vsmc}
 
             # Return the updated soil temperature profile; no fluxes are produced.
             fluxes = {}
