@@ -97,7 +97,9 @@ class Thermal:
         Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil # temperature
         ks1 = Dzsoil/(2*Dsnw[0]/ksnow[0] +
                               (Dzsoil - 2*Dsnw[0])/ksoil) # thermal conductivity
+        
         hs = np.sum(Dsnw) # snow depth
+
         if (hs > 0.5*Dzsoil):
             ks1 = ksnow[0]
         if (hs > Dzsoil):

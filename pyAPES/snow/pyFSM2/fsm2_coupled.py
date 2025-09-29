@@ -198,6 +198,7 @@ class FSM2(object):
                     'snow_longwave_out': ebal_fluxes['LWout'],
                     'snow_sensible_heat': ebal_fluxes['H'],
                     'snow_latent_heat': ebal_fluxes['LE'],
+                    'snow_net_radiation': ebal_fluxes['Rsrf'],
                     'snow_ustar': ebal_fluxes['ustar'],
                     'snow_ga': ebal_fluxes['ga'],
                     'snow_energy_closure': ebal_fluxes['ebal']
@@ -214,7 +215,8 @@ class FSM2(object):
                     'snow_layer_depth': snow_states['Dsnw'],
                     'snow_liquid_storage': snow_states['Sliq'],
                     'snow_ice_storage': snow_states['Sice'],
-                    'snow_density': snow_states['rhos']
+                    'snow_density': snow_states['rhos'],
+                    'snow_ks1': thermal_states['ks1'],
                     }
         
         else: # no new or existing snowpack

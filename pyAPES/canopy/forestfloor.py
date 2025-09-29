@@ -433,18 +433,29 @@ class ForestFloor(object):
             fluxes['snow_longwave_out'] = fluxes_snow['snow_longwave_out']
             fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
             fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
+            fluxes['snow_net_radiation'] = fluxes_snow['snow_net_radiation']
             state['snow_ice_storage'] = states_snow['snow_ice_storage']
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']
+            state['snow_ks1'] = states_snow['snow_ks1']
+            fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
+            fluxes['snow_ga'] = fluxes_snow['snow_ga']
+
         elif self.snowpack.snowpack.swe == 0 and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
             state['snow_temperature'] = np.nan
             state['snow_layer_depth'] = 0.
             state['snow_water_equivalent'] = 0.
+            fluxes['snow_sensible_heat'] = 0.
+            fluxes['snow_latent_heat'] = 0.
+            fluxes['snow_net_radiation'] = 0.
             state['snow_depth'] = 0.
             state['snow_liquid_storage'] = 0.
             state['snow_ice_storage'] = 0.
             state['snow_density'] = np.nan
+            state['snow_ks1'] = np.nan
+            fluxes['snow_ustar'] = np.nan
+            fluxes['snow_ga'] = np.nan
         elif self.snow_model == 'degreeday':
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
 

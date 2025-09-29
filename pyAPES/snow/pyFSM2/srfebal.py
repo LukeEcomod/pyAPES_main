@@ -229,7 +229,6 @@ class EnergyBalance:
         Updates swrad state.
         """
         self.Tsrf = self.iteration_state['Tsrf']
-        #self. = self.iteration_state['']
     
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
@@ -381,6 +380,7 @@ class EnergyBalance:
                     wsrf = fsnow + (1 - fsnow) * gs1 / (gs1 + ga)
 
                 # Explicit fluxes
+                #ga = np.maximum(ga, 0.01)
                 Esrf = rho * wsrf * ga * (Qsrf - Qa)
                 self.Eveg[:] = 0.
                 Gsrf = 2 * ks1 * (self.Tsrf - Ts1) / Ds1
@@ -645,6 +645,7 @@ class EnergyBalance:
                   'Gsrf': Gsrf,
                   'H': H,
                   'LE': LE,
+                  'Rsrf': Rsrf,
                   'LWout': LWout,
                   'LWsub': LWsub,
                   'Melt': Melt,
