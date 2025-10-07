@@ -533,12 +533,15 @@ class SoilRespiration(object):
         self.moisture_coeff = para['moisture_coeff']
 
         # soil respiration computed in layers and weighted
-        dz = np.zeros(len(z_soil))
-        dz[0:-1] = z_soil[1:] - z_soil[0:-1]
-        dz[-1] = dz[-2]
-        weights = np.exp(para['beta'] * z_soil)
-        
-        self.weights = weights * dz / sum(weights * dz) 
+        if len(z_soil) > 1:
+            dz = np.zeros(len(z_soil))
+            dz[0:-1] = z_soil[1:] - z_soil[0:-1]
+            dz[-1] = dz[-2]
+            weights = np.exp(para['beta'] * z_soil)
+            self.weights = weights * dz / sum(weights * dz) 
+        else:
+            self.weights = np.zeros(len(z_soil))
+
         self.Nlayers = len(self.weights)
 
     def respiration(self, soil_temperature: np.array, volumetric_liquid_content: np.array, volumetric_ice_content: np.array, volumetric_air_content) -> float:

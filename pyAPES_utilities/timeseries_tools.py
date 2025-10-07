@@ -74,7 +74,7 @@ def diurnal_cycle(data, ap='hour'):
     for k in range(c):
         if ap.lower() == 'hour':
             N = len(hour)
-            x = np.ones((N, 11))*np.NaN
+            x = np.ones((N, 11))*np.nan
             x[:, 0] = hour
             x[:, 1] = 0.0
 

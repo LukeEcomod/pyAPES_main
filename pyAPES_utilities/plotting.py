@@ -58,9 +58,9 @@ def plot_fluxes(results, Data,
     fig = plt.figure(figsize=(10,N*1.7 + 0.5))
     for i in range(N):
         if norain:
-            ix = np.where((months >= fmonth) & (months <= lmonth) & (dryc == 1) & np.isfinite(Data[Data_var[i]]))[0]
+            ix = np.where((months >= fmonth) & (months <= lmonth) & (dryc == 1) & np.isfinite(Data[Data_var[i]])& np.isfinite(Data[res_var[i]]))[0]
         else:
-            ix = np.where((months >= fmonth) & (months <= lmonth) & np.isfinite(Data[Data_var[i]]))[0]
+            ix = np.where((months >= fmonth) & (months <= lmonth) & np.isfinite(Data[Data_var[i]])& np.isfinite(Data[res_var[i]]))[0]
         plt.subplot(N, 4, i*4+1)
         if i + 1 == N:
             labels = {'x': 'Measured', 'y': 'Modelled'}
@@ -402,7 +402,7 @@ def xarray_to_df(results, variables, sim_idx=0):
         series.append(results[var].isel(simulation=sim_idx).to_pandas())
     df = pd.concat(series, axis=1)
     df.columns = variables
-    df.index = df.index.round('30T')
+    df.index = df.index.round('30min')
 
     return df
 

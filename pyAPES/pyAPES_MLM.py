@@ -172,6 +172,16 @@ class MLM_model(object):
         self.Nsoil_nodes = len(soil_para['grid']['dz'])
         self.Ncanopy_nodes = canopy_para['grid']['Nlayers']
 
+        # if soil not solved check if topsoil properties are given in forcing file
+        if 'Wa' in forcing and soil_para['water_model']['solve'] is False:
+            print("Soil moisture from forcing file")
+            soil_para['water_model']['initial_condition']['volumetric_water_content'] = (
+                forcing['Wa'].iloc[0])
+        if 'Tsa' in forcing and soil_para['heat_model']['solve'] is False:
+            print("Soil temperature from forcing file")
+            soil_para['heat_model']['initial_condition']['temperature'] = (
+                forcing['Tsa'].iloc[0])
+
         # create soil model instance
         self.soil = Soil_1D(soil_para)
 
@@ -242,9 +252,17 @@ class MLM_model(object):
             # --- CanopyModel ---
             # run daily loop: updates LAI, phenology and moisture stress ---
             if self.forcing['doy'].iloc[k] != self.forcing['doy'].iloc[k-1] or k == 0:
+
+                if 'Rew' in self.forcing:
+                    # Rew from forcing
+                    Rew = self.forcing['Rew'].iloc[k]
+                else:
+                    Rew = 1.0  # should be calculated in soil
+
                 self.canopy_model.run_daily(
                         self.forcing['doy'].iloc[k],
-                        self.forcing['Tdaily'].iloc[k])
+                        self.forcing['Tdaily'].iloc[k],
+                        Rew=Rew)
 
             # compile forcing dict for canopy model: soil_ refers to state of soil model
             canopy_forcing = {
@@ -308,6 +326,14 @@ class MLM_model(object):
                 'atmospheric_pressure_head': -1.0E6,  # set to large value, because potential_evaporation already account for h_soil
                 'ground_heat_flux': -out_ffloor['ground_heat'],
                 'date': self.forcing.index[k]}
+            
+            # if soil not solved check for soil state in forcing
+            if 'Wa' in self.forcing and self.soil.solve_water is False:
+                soil_forcing.update({
+                    'state_water':{'volumetric_water_content': self.forcing['Wa'].iloc[k]}})
+            if 'Tsa' in self.forcing and self.soil.solve_heat is False:
+                soil_forcing.update({
+                    'state_heat':{'temperature': self.forcing['Tsa'].iloc[k]}})
 
             # call self.soil to solve below-ground water and heat flow
             soil_flux, soil_state = self.soil.run(
@@ -399,7 +425,7 @@ def _initialize_results(variables: Dict,
         else:
             var_shape = [Nstep]
 
-        results[var_name] = np.full(var_shape, np.NAN)
+        results[var_name] = np.full(var_shape, np.nan)
         # print(var_name, var_shape, dimensions)
 
     return results
