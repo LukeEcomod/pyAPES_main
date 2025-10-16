@@ -52,9 +52,15 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_leaf_net_SW', 'net leaf shortwave radiation [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_par_absorbed_sunlit', 'absorbed PAR of sunlit leaves [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_par_absorbed_shaded', 'absorbed PAR of shaded leaves [W m-2]', ('date', 'simulation', 'canopy')],
+      ['canopy_par_incident_sunlit', 'incident PAR of sunlit leaves [W m-2]', ('date','simulation','canopy')],
+      ['canopy_par_incident_shaded', 'incident PAR of shaded leaves [W m-2]', ('date','simulation','canopy')],
       ['canopy_nir_absorbed_sunlit', 'absorbed NIR of sunlit leaves [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_nir_absorbed_shaded', 'absorbed NIR of shaded leaves [W m-2]', ('date', 'simulation', 'canopy')],
-   
+      ['canopy_nir_incident_sunlit', 'incident NIR of sunlit leaves [W m-2]', ('date','simulation','canopy')],
+      ['canopy_nir_incident_shaded', 'incident NIR of shaded leaves [W m-2]', ('date','simulation','canopy')],
+
+      ['canopy_leaf_incident_par', 'leaf incident par [W m-2]', ('date', 'simulation', 'canopy')],
+
       # vertical profiles, per m-2 ground
       ['canopy_par_down', 'downward PAR [W m-2]', ('date', 'simulation', 'canopy')],
       ['canopy_par_up', 'upward PAR [W m-2]', ('date', 'simulation', 'canopy')],
@@ -71,6 +77,7 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_condensation_drip', 'condensation to canopy that drips [kg m-2 s-1]', ('date', 'simulation')],
       ['canopy_throughfall', 'throughfall to moss or snow [kg m-2 s-1]', ('date', 'simulation')],
       # add canopy_interception_storage_ml
+      ['canopy_interception_storage_ml', 'canopy interception storage profile [kg m-2]', ('date', 'simulation','canopy')],
       ['canopy_evaporation_ml', 'evaporation from interception storage, profile (condensation incl.) [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
       ['canopy_throughfall_ml', 'throughfall within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
       ['canopy_condensation_drip_ml', 'condensation drip within canopy, profile [kg m-2 s-1]', ('date', 'simulation', 'canopy')],
