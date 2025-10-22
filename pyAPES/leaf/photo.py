@@ -591,7 +591,7 @@ def photo_c3_medlyn_farquhar_gm(photop: Dict, Qp: np.ndarray, Qa: np.ndarray, T:
         where co-limitation as in standard Farquhar-model. 
 
         Args:
-            photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp
+            photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp, gm, !!! parstress missing !!!
             can be scalars or arrays.
             tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
             parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
@@ -609,6 +609,8 @@ def photo_c3_medlyn_farquhar_gm(photop: Dict, Qp: np.ndarray, Qa: np.ndarray, T:
             gs - stomatal conductance for CO2 [mol m-2 s-1]
             ci - leaf internal CO2 [ppm]
             cs - leaf surface CO2 [ppm]
+            gm - mesophyll conductance for CO2 [mol m-2 s-1] !!!!! CHANGE OUTPUT ? !!!!
+            cc - chloroplast CO2 [ppm]
         """
 
     Tk = T + DEG_TO_KELVIN
@@ -665,7 +667,7 @@ def photo_c3_medlyn_farquhar_gm(photop: Dict, Qp: np.ndarray, Qa: np.ndarray, T:
     cc = 0.7*ca  # chlorophyll CO2
     An = np.zeros_like(ca)  # initial guess for photosynthesis rate
     gs_opt = np.zeros_like(ca)  # initial guess for gs
-    gm = np.zeros_like(ca) + gm
+    gm = np.zeros_like(ca) + gm 
     while err > 0.01 and cnt < MaxIter:
         # This loop solves An, gs, cs, ci and cc
         # save old values before new round
@@ -723,7 +725,7 @@ def photo_c3_medlyn_farquhar_gm(photop: Dict, Qp: np.ndarray, Qa: np.ndarray, T:
     geff = (gb_v*gs_v) / (gb_v + gs_v)  # molm-2s-1
     fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
 
-    return An, Rd, fe, gs_opt, ci, cs, gm, cc
+    return An, Rd, fe, gs_opt, ci, cs, gm, cc # change output order?
 
 
 def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray,
