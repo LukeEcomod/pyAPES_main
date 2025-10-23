@@ -84,10 +84,10 @@ def diurnal_cycle(data, ap='hour'):
                 f = np.where((hr == t) & (np.isfinite(y)))[0]
 
                 x[n, 2] = len(f)  # no of observations
-                x[n, 3] = np.mean(y[f])
-                x[n, 4] = np.std(y[f])
+                x[n, 3] = np.mean(y.iloc[f])
+                x[n, 4] = np.std(y.iloc[f])
                 x[n, 5] = x[n, 3] / x[n, 2]  # s.e.
-                x[n, 6:] = np.percentile(y[f], [50.0, 5.0, 25.0, 75.0, 95.0])
+                x[n, 6:] = np.percentile(y.iloc[f], [50.0, 5.0, 25.0, 75.0, 95.0])
                 n += 1
 
             res[cols[k]] = pd.DataFrame(x, columns=['hour', 'minu', 'N', 'mean', 'std', 'se',

@@ -84,7 +84,7 @@ pt1 = { 'name': 'pine',
             'fmin': 0.1, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 18.0  # threshold for full acclimation [degC]
+            'smax': 15.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
