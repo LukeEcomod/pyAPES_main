@@ -149,7 +149,7 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
     dat['H2O'] = 1e-3 * dat['H2O']
     dat['Prec'] = dat['Prec'] / dt
 
-    cols = ['doy', 'Prec', 'P', 'Tair', 'Tdaily', 'U', 'Ustar', 'H2O', 'CO2', 'Zen',
+    cols = ['doy', 'Prec', 'P', 'Tair', 'Tdaily', 'U', 'Ustar', 'H2O', 'RH', 'CO2', 'Zen',
             'LWin', 'diffPar', 'dirPar', 'diffNir', 'dirNir']
     
     # these needed for phenology model initialization

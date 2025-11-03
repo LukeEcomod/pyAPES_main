@@ -208,7 +208,7 @@ snow = {
                 'CONDCT': 1,
                 'ZOFFST': 0,
                 'CANMOD': 0,
-                'EXCHNG': 0,
+                'EXCHNG': 1,
                 'ALBEDO': 2,
                 'SNFRAC': 1,
                 'SWPART': 0,

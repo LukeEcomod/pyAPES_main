@@ -1223,14 +1223,18 @@ def get_gwl(head, x):
     Returns:
         gwl (float): ground water level in column [m]
     """
-    # indices of unsaturatd nodes
+    # indices of unsaturated nodes
     sid = np.where(head <= 0)[0]
 
-    if len(sid) < len(head):
+    # check if sid is contiguous to avoid single saturated cells within the profile
+    contiguous = np.all(np.diff(sid) == 1)
+
+    if len(sid) < len(head) and contiguous:
         # gwl above profile bottom
         if len(sid) > 0:  # gwl below first node
             # finding head from bottom to top to avoid returning perched gwl
             gwl = x[sid[-1]+1] + head[sid[-1]+1]
+
         else:  # gwl in or above first node
             gwl = x[0] + head[0]
     else:

@@ -365,7 +365,7 @@ class ForestFloor(object):
                 'Rf': forcing['precipitation_rain'],
                 'LW': forcing['lw_dn'],
                 'Ps': forcing['air_pressure'],
-                'RH': 80., # NOTE THIS NEEDS TO BE UPDATED!
+                'RH': forcing['relative_humidity'],
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
@@ -382,8 +382,7 @@ class ForestFloor(object):
 
         # --- solve snowpack
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
-
-
+        
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
@@ -421,7 +420,7 @@ class ForestFloor(object):
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
 
-        if self.snowpack.snowpack.swe > 0 and self.snow_model == 'fsm2':
+        if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0) and self.snow_model == 'fsm2':
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
             fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
             fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
@@ -441,7 +440,7 @@ class ForestFloor(object):
             fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
             fluxes['snow_ga'] = fluxes_snow['snow_ga']
 
-        elif self.snowpack.snowpack.swe == 0 and self.snow_model == 'fsm2':
+        elif (self.snowpack.snowpack.swe == 0. and states_snow['snow_water_equivalent'] == 0.)  and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
             state['snow_temperature'] = np.nan
             state['snow_layer_depth'] = 0.
