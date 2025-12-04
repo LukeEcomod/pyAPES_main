@@ -611,6 +611,8 @@ class CanopyModel(object):
                 'par_up': radiation_profiles['par']['up'], # [W m-2]
                 'par_absorbed_sunlit': radiation_profiles['par']['sunlit']['absorbed'], #  [W m-2 (leaf)]
                 'par_absorbed_shaded': radiation_profiles['par']['shaded']['absorbed'],
+                'par_incident_sunlit': radiation_profiles['par']['sunlit']['incident'],
+                'par_incident_shaded': radiation_profiles['par']['shaded']['incident'],
                 
                 # CHECK UNITS!!
                 # total fluxes from interception model [kg m-2 s-1 = mm s-1], divide with WATER_DENSITY to get [kg m-2 s-1 = mm s-1]
@@ -676,7 +678,7 @@ class CanopyModel(object):
                     'nir_down': radiation_profiles['nir']['down'], # [W m-2 ground]
                     'nir_up': radiation_profiles['nir']['up'],
                     'lw_down': radiation_profiles['lw']['down'],
-                    'lw_up': radiation_profiles['lw']['up']
+                    'lw_up': radiation_profiles['lw']['up'],
                     })
 
         # plant-type specific results: this is dictionary of lists where each planttype value is element in list

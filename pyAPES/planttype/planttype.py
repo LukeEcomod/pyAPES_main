@@ -190,6 +190,8 @@ class PlantType(object):
         # current leaf-area density [m2 m-3]
         self.lad = self.LAI * self.lad_normed
 
+        logger.debug(f'total LAI: {self.LAI}')
+
         # root properties
         self.Roots = RootUptake(p['rootp'], dz_soil, self.LAImax)
 

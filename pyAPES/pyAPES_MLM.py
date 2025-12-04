@@ -65,7 +65,7 @@ def driver(parameters,
 
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
     from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
-    #from logging.config import dictConfig
+    from logging.config import dictConfig
 
     # --- Config logger
     logging.config.dictConfig(logging_configuration)
