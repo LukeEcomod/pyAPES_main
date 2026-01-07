@@ -572,12 +572,12 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     q_sl = q_sh + aDiro  # sunlit leaves diffuse + direct
 
     if PlotFigs:
-        fig, ax = plt.subplots(2,2, figsize=(6,8))
+        fig, ax = plt.subplots(2,2, figsize=(8,10))
 
         # add input parameter values to fig
         ax[0,0].text(0.05, 0.65, r'$LAI$ = %1.1f m2 m-2' % (LAI))
-        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.3f ' % (Zen / DEG_TO_RAD))
-        ax[0,0].text(0.70, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
+        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.1f ' % (Zen / DEG_TO_RAD))
+        ax[0,0].text(0.75, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
         ax[0,0].text(1.0, 0.65, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
 
         ax[0,0].set_title("Source: radiation.canopy_sw_ZhaoQualls")
@@ -721,7 +721,7 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
 
     if PlotFigs:
 
-        fig, ax = plt.subplots(2,2, figsize=(6,8))
+        fig, ax = plt.subplots(2,2, figsize=(8,10))
   
         ax[0,0].set_title("Source: radiation.canopy_sw_Spitters")
 

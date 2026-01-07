@@ -45,7 +45,8 @@ def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
 
     Depending on choise of 'photo_model', photosynthesis is calculated based on biochemical model of Farquhar et
     al. (1980), coupled with alternative stomatal control schemes (Medlyn, Ball-Woodrow-Berry, Hari, Katul-Vico et al.)
-    In all these models, stomatal conductance (gs) is proportional to instantaneous An, either by optimal stomatal control principles or
+    In all these models, stomatal conductance (gs) is proportional to instantaneous An, 
+    either by optimal stomatal control principles or
     using semi-empirical models.
 
     Args:

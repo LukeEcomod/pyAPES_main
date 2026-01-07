@@ -407,7 +407,7 @@ class PlantType(object):
                 'leaf_internal_co2': leaf internal CO2 mixing ratio (mol/mol)
                 'leaf_surface_co2': leaf surface CO2 mixing ratio (mol/mol)
 
-        Samuli Launiainen & Kersti Haahti, Last edit 25.11.2019 / SL
+        Samuli Launiainen, Kersti Leppä, O-P Tikkasalo, Last edit 11/2025 / OpaT
         """
 
         Ebal = controls['energy_balance']
