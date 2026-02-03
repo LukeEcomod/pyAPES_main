@@ -155,19 +155,16 @@ class ForestFloor(object):
         logger.info('Forestfloor has %s bottomlayer types', len(self.bottomlayer_types))
 
         if self.snowpack.snowpack.swe > 0:
-            # self.surface_temperature = self.snowpack.temperature   # NOT USED?
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
         else:
-            # self.surface_temperature = sum([bt.coverage * bt.surface_temperature
-            #                         for bt in self.bottomlayer_types])   # NOT USED?
             self.albedo = {'PAR': sum([bt.coverage * bt.albedo['PAR']
                                        for bt in self.bottomlayer_types]),
                            'NIR': sum([bt.coverage * bt.albedo['NIR']
                                        for bt in self.bottomlayer_types])}
             self.emissivity = sum([bt.coverage * bt.emissivity
                                    for bt in self.bottomlayer_types])
-        
+        # check below
         self.temperature = sum([bt.coverage * bt.temperature
                                 for bt in self.bottomlayer_types])  # used as boundary for snowpack
         self.surface_temperature = sum([bt.coverage * bt.surface_temperature
@@ -200,7 +197,6 @@ class ForestFloor(object):
             bt.update_state()
         
         if self.snowpack.snowpack.swe > 0:
-            #self.surface_temperature = self.snowpack.temperature
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
         else: 
@@ -214,6 +210,7 @@ class ForestFloor(object):
                                    for bt in self.bottomlayer_types])
         
         # NOTE! forestfloor temperature is weighted average of moss temperature
+        # check
         self.temperature = sum([bt.coverage * bt.temperature
                                 for bt in self.bottomlayer_types])  # used as boundary for snowpack  
         self.water_storage = sum([bt.coverage * bt.water_storage
@@ -391,7 +388,7 @@ class ForestFloor(object):
             fluxes_snow['snow_heat_flux'] = 0
         
         org_forcing.update(
-                {'precipitation': fluxes_snow['potential_infiltration'],
+                {'precipitation': fluxes_snow['potential_infiltration'], # testing
                 'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
                 'snow_heat_flux': fluxes_snow['snow_heat_flux']}
@@ -437,6 +434,7 @@ class ForestFloor(object):
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']
             state['snow_ks1'] = states_snow['snow_ks1']
+            fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
             fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
             fluxes['snow_ga'] = fluxes_snow['snow_ga']
 
@@ -455,6 +453,7 @@ class ForestFloor(object):
             state['snow_ks1'] = np.nan
             fluxes['snow_ustar'] = np.nan
             fluxes['snow_ga'] = np.nan
+            fluxes['snow_energy_closure'] = 0.
         elif self.snow_model == 'degreeday':
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
 

@@ -202,24 +202,6 @@ class EnergyBalance:
         #self.f = np.array(3*Ncnpy+1) # Residuals of energy and mass balance equations
         #self.x = np.array(3*Ncnpy+1) # Temperature and humidity increments
 
-
-        #if self.ZOFFST == 0:
-        #    # Heights specified above ground
-        #    self.zU1 = self.zU
-        #    self.zT1 = self.zT
-
-        #if self.ZOFFST == 1:
-        #    # Heights specified above canopy top
-        #    self.zU1 = self.zU + self.vegh
-        #    self.zT1 = self.zT + self.vegh
-
-        #if self.CANMOD == 1:
-        #    self.zh[0] = self.hbas + 0.5 * (self.vegh - self.hbas)
-
-        #if self.CANMOD == 2:
-        #    self.zh[0] = (1 - 0.5 * self.fvg1) * self.vegh
-        #    self.zh[1] = 0.5 * (1 - self.fvg1) * self.vegh  
-
         # temporary storage of iteration results
         self.iteration_state = None  
 
@@ -353,7 +335,7 @@ class EnergyBalance:
                 0.001)            # ustar should not be 0
             ga = VON_KARMAN * ustar / np.log(self.zT1 / self.z0h)
 
-            for ne in range(20):  # Iterating for stability adjustments
+            for ne in range(40):  # Iterating for stability adjustments
                 if self.EXCHNG == 0:
                     rL = 0.
                 elif self.EXCHNG == 1:
@@ -386,7 +368,7 @@ class EnergyBalance:
                 Gsrf = 2 * ks1 * (self.Tsrf - Ts1) / Ds1
                 Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (self.Tsrf - Ta)
                 self.Hveg[:] = 0.
-                Melt = 0
+                Melt = 0.
                 Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * self.Tsrf**4
 
                 # Surface energy balance increments without melt
@@ -412,7 +394,7 @@ class EnergyBalance:
                         Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (T_MELT - Ta)
                         Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * T_MELT**4 
                         Melt = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / LATENT_HEAT_FUSION
-                        Melt = np.maximum(Melt, 0)
+                        Melt = np.maximum(Melt, 0.)
                         dEs = 0.
                         dGs = 0.
                         dHs = 0.

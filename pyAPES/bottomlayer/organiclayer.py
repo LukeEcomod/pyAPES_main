@@ -228,12 +228,12 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            if forcing['snow_water_equivalent'] > 1.: # !! TEST
+            if forcing['snow_water_equivalent'] > 1.:
                 fluxes, states = self.heat_and_water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
-                                sub_dt=1800.
+                                sub_dt=1800. # sub_dt = 60. does not work well
                                 )
             else:
                 fluxes, states = self.heat_and_water_exchange(
@@ -866,7 +866,7 @@ class OrganicLayer(object):
             pond_recharge += sub_pond_recharge
 
             #--- capillary rise from underlying soil during subdt [kg m-2]
-            # water potential[m]
+            # water potential [m]
             water_potential = water_retention_curve(self.water_retention, volumetric_water)
 
             # hydraulic conductivity from soil to moss [m s-1]
@@ -938,7 +938,7 @@ class OrganicLayer(object):
                     - sub_ground_heat_flux
                     )
 
-            # new semperature
+            # new temperature
             temperature = (sub_heat_fluxes * sub_dt + apparent_heat_capacity_old * temperature) / apparent_heat_capacity_new
             
             # advance in time

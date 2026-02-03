@@ -14,15 +14,15 @@ Todo:
 """
 
 import numpy as np
-from tools.utilities import lad_constant, lad_weibul
+from pyAPES.utils.utilities import lad_weibul, lad_constant
 from pyAPES_utilities.soiltypes.sphagnum_peat import soil_properties, zh
 
 gpara = {
     'dt' : 1800.0,  # timestep in forcing data file [s]
     'start_time' : "2016-06-01",  # start time of simulation [yyyy-mm-dd]
     'end_time' : "2016-06-30",  # end time of simulation [yyyy-mm-dd]
-    'forc_filename' : r"c:/DATA/pyAPES/forcing/Degero/Degero_forcing_2014-2016.dat",  # forcing data file*
-    'results_directory': r'c:/DATA/pyAPES/results/Degero/'
+    'forc_filename' : r"/forcing/Degero/Degero_forcing_2021-2023.dat",  # forcing data file*
+    'results_directory': r'/results/Degero/'
 }
 
 # --- control flags (True/False) ---
@@ -192,19 +192,106 @@ pt2 = { 'name': 'pine',
 
 """ --- forestfloor --- """
 
-snowpack = {
-    'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1] (=2.0 mm/C/d)
-    'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm/C/d)
-    'retention': 0.2,  # max fraction of liquid water in snow [-]
-    'Tmelt': 0.0,  # temperature when melting starts [degC]
-    'optical_properties': {
-        'emissivity': 0.97,
-        'albedo': {'PAR': 0.8, 'NIR': 0.8}
-    },
-    'initial_conditions': {
-        'temperature': 0.0,
-        'snow_water_equivalent': 0.0}
-}
+# --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
+
+# --- pyAPES.snow
+snow = {
+    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
+    # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
+    'degreeday': {
+            'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
+            'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
+            'retention': 0.2,  # max fraction of liquid water in snow [-]
+            'Tmelt': 0.0,  # temperature when melting starts [degC]
+            'optical_properties': {
+                    'emissivity': 0.97,
+                    'albedo': {'PAR': 0.8, 'NIR': 0.8}
+                    },
+            'initial_conditions': {'temperature': 0.0,
+                                'snow_water_equivalent': 0.0,
+                                }
+            },
+
+    # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
+    'fsm2': {'physics_options': {
+                'DENSTY': 1,
+                'HYDRL': 1,
+                'CONDCT': 1,
+                'ZOFFST': 0,
+                'CANMOD': 0,
+                'EXCHNG': 1,
+                'ALBEDO': 2,
+                'SNFRAC': 1,
+                'SWPART': 0,
+            },
+            'params': {
+                'asmn': 0.5,            # Minimum albedo for melting snow
+                'asmx': 0.85,           # Maximum albedo for fresh snow
+                'eta0': 3.7e7,          # Reference snow viscosity (Pa s)
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+                'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
+                'rcld': 300,            # Maximum density for cold snow (kg/m^3)
+                'rfix': 300,            # Fixed snow density (kg/m^3)
+                'rgr0': 5e-5,           # Fresh snow grain radius (m)
+                'rhof': 100,            # Fresh snow density (kg/m^3)
+                'rhow': 300,            # Wind-packed snow density (kg/m^3)
+                'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
+                'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)
+                'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
+                'Talb': -2,             # Snow albedo decay temperature threshold (C)
+                'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
+                'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+                'trho': 200*3600,       # Snow compaction timescale (s)
+                'Wirr': 0.03,           # Irreducible liquid water content of snow
+                'gsnf': 0.01,           # Snow-free vegetation moisture conductance (m/s)
+                'hbas': 2.0,            # Canopy base height (m)
+                'kext': 0.5,            # Vegetation light extinction coefficient
+                'leaf': 20,             # Leaf boundary resistance (s/m)^(1/2)
+                'wcan': 2.5,            # Canopy wind decay coefficient
+                'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
+                'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
+                'z0sf': 0.1,           # Snow-free surface roughness length (m)
+                'z0sn': 0.001,          # Snow roughness length (m)
+                'VAI': 0.0,             # Vegetation area index
+                'vegh': 0.0,            # Canopy height (m)
+                'zT': 10.,              # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
+                'zU': 10.,              # Wind measurement height with offset (m) ! only in fsm2_standalone
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+                'acn0': 0.1,            # Snow-free dense canopy albedo
+                'acns': 0.4,            # Snow-covered dense canopy albedo
+            },
+            'layers': {
+                'Nsmax': 3,                 # Maximum number of snow layers
+                'Ncnpy': 0,                 # Number of canopy layers
+                'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
+                'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
+                'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
+                'Nsoil': 4,                 # Soil layers
+                'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]), # Soil layer thicknesses
+            },
+            'initial_conditions': {
+                'Nsnow': 0,             # Number of snow layers
+                'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
+                'Rgrn': np.array([0.0, 0.0, 0.0]),      # Snow layer grain radius (m)
+                'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
+                'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
+                'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)
+                'Tsoil': np.array([285., 285., 285., 285.]),   # Soil layer temperatures (K)
+                'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
+                'Tsrf': 285.,         # Snow/ground surface temperature (K)
+                'fsnow': 0.0,           # Snow cover fraction
+                'fcans': 0.0,
+                'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])  # Volumetric water content in soil, only for fsm soil module
+            },
+            'soilprops': { # only for fsm soil module
+                'fcly': 0.3,    # Fraction of clay
+                'fsnd': 0.6,    # Fraction of sand
+                'gsat': 0.01,   # Surface conductance for saturated soil (m/s)
+                'z0sf': 0.1,    # Surface roughness length
+                'alb0': 0.2     # Snow-free surface albedo
+            }
+        }
+    }
 
 soil_respiration = {
     'r10': 2.5, # [umol m-2 s-1]
@@ -227,15 +314,16 @@ Forest_moss = {
     'water_content_ratio': 0.25,  # max_symplast_water_content:max_water_content -ratio
     'min_water_content': 0.1,
     'porosity': 0.98,
-    'photosynthesis': { # farquhar-parameters
-        'Vcmax': 15.0, 'Jmax': 28.5, 'Rd': 0.75, # umolm-2s-1
-        'alpha': 0.3, 'theta': 0.8, 'beta': 0.9, # quantum yield, curvature, co-limitation
-        'gmax': 0.02, 'wopt': 7.0, 'a0': 0.7, 'a1': -0.263, 'CAP_desic': [0.44, 7.0],
-        'tresp': {
-            'Vcmax': [69.83, 200.0, 27.56],
-            'Jmax': [100.28, 147.92, 19.8],
-            'Rd': [33.0]
-        }
+    # --- pyAPES.bottomlayer.carbon.BryophyteFarquhar
+    'photosynthesis': {
+        'Vcmax': 15.0, 'Jmax': 28.5, 'Rd': 0.75, # [umol m-2 (ground) s-1] at 25 degC
+        'alpha': 0.3, 'theta': 0.8, 'beta': 0.9, # quantum yield [-], curvature [-], co-limitation[-]
+        'gref': 0.02, 'wref': 7.0, 'a0': 0.7, 'a1': -0.263, 'CAP_desic': [0.44, 7.0],
+        'tresp': { # temperature response 
+                'Vcmax': [78., 200., 649.], # [activation energy, deactivation energy, entropy factor [kJ mol-1]]
+                'Jmax': [56., 200., 646.],
+                'Rd': [33.0]
+                },
     },
     'optical_properties': {
         'emissivity': 0.98,
@@ -267,15 +355,15 @@ Sphagnum = {
     'min_water_content': 0.1,
     'porosity': 0.98,
 
-    'photosynthesis': { # farquhar-parameters
-        'Vcmax': 45.0, 'Jmax': 85.5, 'Rd': 1.35, # umolm-2s-1
+    'photosynthesis': {
+        'Vcmax': 45.0, 'Jmax': 85.5, 'Rd': 1.35, # [umol m-2 (ground) s-1] at 25 degC
         'alpha': 0.3, 'theta': 0.8, 'beta': 0.9, # quantum yield, curvature, co-limitation
-        'gmax': 0.04, 'wopt': 7.0, 'a0': 0.7, 'a1': -0.263, 'CAP_desic': [0.58, 10.0],
-        'tresp': {
-            'Vcmax': [69.83, 200.0, 27.56],
-            'Jmax': [100.28, 147.92, 19.8],
-            'Rd': [33.0]
-        }
+        'gref': 0.04, 'wref': 7.0, 'a0': 0.7, 'a1': -0.263, 'CAP_desic': [0.58, 10.0],
+        'tresp': { # temperature response 
+                'Vcmax': [78., 200., 649.], # [activation energy, deactivation energy, entropy factor [kJ mol-1]]
+                'Jmax': [56., 200., 646.],
+                'Rd': [33.0]
+                },
     },
     'optical_properties': { # moisture responses are hard-coded
         'emissivity': 0.98,
@@ -335,7 +423,7 @@ forestfloor = {
         'forest_moss': Forest_moss,
         'sphagnum': Sphagnum,
     },
-    'snowpack': snowpack,
+    'snowpack': snow,
     'soil_respiration': soil_respiration
 }
 
@@ -399,10 +487,11 @@ soil_properties = {
 }
 
 # # --- water model specs
+'''
 water_model = {
-    'solve': False,
+    'solve': True,
     'type': 'Equilibrium', #'Richards',  # solution approach 'Equilibrium' for equilibrium approach else solves flow using Richards equation
-    'pond_storage_max': 0.002,  #  maximum pond depth [m]
+    'pond_storage_max': 0.05,  #  maximum pond depth [m]
     'initial_condition': {  # (dict) initial conditions
         'ground_water_level': -0.05,  # groundwater depth [m]
         'pond_storage': 0.0  # initial pond depth at surface [m]
@@ -414,11 +503,35 @@ water_model = {
     },
     'drainage_equation': {  # drainage equation and drainage parameters
         'type': 'Hooghoudt',  #
-        'depth': 0.1,  # drain depth [m]
+        'depth': 0.05,  # drain depth [m]
         'spacing': 100.0,  # drain spacing [m]
-        'width': 1.0,  # drain width [m]
+        'width': 0.5,  # drain width [m]
     }
 }
+'''
+
+water_model = {'solve': True,
+               'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
+               'pond_storage_max': 0.05,  #  maximum pond depth [m]
+               'initial_condition': {
+                       'ground_water_level': -2.0,  # groundwater depth [m], <=0
+                       'pond_storage': 0.0  # pond depth at surface [m]
+                       },
+               'lower_boundary': {
+                       'type': 'head_oneway',
+                       'value': -0.0,
+#                       'type': 'impermeable',
+#                       'value': None,
+#                       'depth': -2.0
+                       },
+               'drainage_equation': {
+                       'type': None,  #
+#                       'type': 'Hooghoudt',  #
+#                       'depth': 1.0,  # drain depth [m]
+#                       'spacing': 45.0,  # drain spacing [m]
+#                       'width': 1.0,  # drain width [m]
+                       }
+                }
 
 # # --- heat model specs
 heat_model = {
