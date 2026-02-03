@@ -286,7 +286,7 @@ class EnergyBalance:
         zT = forcing['reference_height']
         Tsrf = forcing['Tsrf']
         z0sf = forcing['z0sf']
-
+        
         if self.ZOFFST == 0:
             # Heights specified above ground
             self.zU1 = zU
@@ -320,11 +320,11 @@ class EnergyBalance:
         self.z0v = 0.1 * self.vegh
         
         # Saturation humidity and air density
-        Qsrf = self.qsat(Ps=Ps, T=self.Tsrf)
+        Qsrf = self.qsat(Ps=Ps, T=Tsrf)
         Lsrf = np.array(LATENT_HEAT_SUBMILATION)
-        if (self.Tsrf > T_MELT):
+        if (Tsrf > T_MELT):
             Lsrf = LATENT_HEAT_VAPORISATION
-        Dsrf = Lsrf * Qsrf / (GAS_CONSTANT_WATER_VAPOUR * self.Tsrf**2)
+        Dsrf = Lsrf * Qsrf / (GAS_CONSTANT_WATER_VAPOUR * Tsrf**2)
         rho = Ps / (GAS_CONSTANT_AIR * Ta)
 
         if (self.VAI == 0.0):  # open
@@ -340,7 +340,7 @@ class EnergyBalance:
                     rL = 0.
                 elif self.EXCHNG == 1:
                     if ne < 8:
-                        B = ga * (self.Tsrf - Ta)
+                        B = ga * (Tsrf - Ta)
                         rL = -VON_KARMAN * B / (Ta * ustar**3)
                         rL = np.clip(rL, -2., 2.)
 
@@ -349,9 +349,9 @@ class EnergyBalance:
                     VON_KARMAN * Ua / (np.log(self.zU1 / self.z0g) - self.psim(self.zU1, rL) + self.psim(self.z0g, rL)),
                     0.001) # ustar should not be 0               
                 ga = VON_KARMAN * ustar / (np.log(self.zT1 / self.z0h) - self.psih(self.zT1, rL) + self.psih(self.z0h, rL))
-                
+                           
                 if not np.isfinite(ga):  # Ensure ga remains valid
-                    break
+                    raise ValueError(f"ga not finite: {ga}")
                 if np.iscomplex(ga):
                     raise ValueError(f"ga became complex: {ga}")
                 
@@ -365,29 +365,29 @@ class EnergyBalance:
                 #ga = np.maximum(ga, 0.01)
                 Esrf = rho * wsrf * ga * (Qsrf - Qa)
                 self.Eveg[:] = 0.
-                Gsrf = 2 * ks1 * (self.Tsrf - Ts1) / Ds1
-                Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (self.Tsrf - Ta)
+                Gsrf = 2 * ks1 * (Tsrf - Ts1) / Ds1
+                Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (Tsrf - Ta)
                 self.Hveg[:] = 0.
                 Melt = 0.
-                Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * self.Tsrf**4
+                Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * Tsrf**4
 
                 # Surface energy balance increments without melt
                 dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / \
-                        (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR + Lsrf * Dsrf * wsrf) * ga)
+                        (4 * STEFAN_BOLTZMANN * Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR + Lsrf * Dsrf * wsrf) * ga)
                 dEs = rho * wsrf * ga * Dsrf * dTs
                 dGs = 2 * ks1 * dTs / Ds1 
                 dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
 
                 # Surface melting
-                if (self.Tsrf + dTs > T_MELT) and (Sice[0] > 0):
+                if (Tsrf + dTs > T_MELT) and (Sice[0] > 0):
                     Melt = np.sum(Sice) / dt
                     dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt) \
-                            / (4 * STEFAN_BOLTZMANN * self.Tsrf**3 + 2 * ks1/Ds1 \
+                            / (4 * STEFAN_BOLTZMANN * Tsrf**3 + 2 * ks1/Ds1 \
                                + rho*(SPECIFIC_HEAT_AIR + LATENT_HEAT_SUBMILATION * Dsrf * wsrf) * ga)
                     dEs = rho * wsrf * ga * Dsrf * dTs
                     dGs = 2 * ks1 * dTs/Ds1
                     dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
-                    if (self.Tsrf + dTs < T_MELT):
+                    if (Tsrf + dTs < T_MELT):
                         Qsrf = self.qsat(Ps=Ps,T=T_MELT)
                         Esrf = rho * wsrf * ga * (Qsrf - Qa)
                         Gsrf = 2 * ks1 * (T_MELT - Ts1)/Ds1
@@ -398,13 +398,16 @@ class EnergyBalance:
                         dEs = 0.
                         dGs = 0.
                         dHs = 0.
-                        dTs = T_MELT - self.Tsrf
+                        dTs = T_MELT - Tsrf
                 
                 # Update surface temperature and fluxes
                 Esrf = Esrf + dEs
                 Gsrf = Gsrf + dGs
                 Hsrf = Hsrf + dHs
-                Tsrf = self.Tsrf + dTs
+                Tsrf = Tsrf + dTs
+                if not np.isfinite(Tsrf):
+                    raise ValueError("Tsrf non-finite after update")
+                
                 # Diagnostics
                 ebal = SWsrf + LW - STEFAN_BOLTZMANN * Tsrf**4 - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt
                 LWout = STEFAN_BOLTZMANN * Tsrf**4
@@ -413,194 +416,7 @@ class EnergyBalance:
 
                 if (ne > 4) and (abs(ebal) < 0.01):
                     break
-        '''
-        else: # forest # NOTE BELOW THIS VARIABLES NEED TO BE CHECKED
-            rL = 0
-            usd = vkman * Ua / np.log((self.zU1-d)/self.z0v)
-            Kh = vkman * usd * (self.vegh - d)
-            rd = np.log((zT1-d)/(vegh-d)) / (vkman * usd) + vegh * (np.exp(wcan*(1 - zh[0])/self.vegh) - 1)/(wcan*Kh)
-            uso = vkman * Ua / np.log(self.zU1/self.z0g)
-            ro = np.log(self.zT1/self.zh[0]) / (vkman * uso)
-            ga = fveg/rd + (1 - fveg)/ro
-            for ne in range(20):
-                # Aerodynamic resistance
-                if EXCHNG == 1:
-                    ustar = fveg * usd + (1 - fveg) * uso
-                    if (ne<10): 
-                        B = ga * (Tcan[0] - Ta)
-                        rL = -vkman * B / (Ta * ustar**3)
-                        rL = np.clip(rL, -2., 2.)
-                        usd = vkman * Ua / (np.log((self.zu1-d)/self.z0v) - self.psim(self.zU1-d,rL) + self.psim(self.z0v,rL))
-                        if (rL > 0):
-                            Kh = vkman * usd * (vegh - d) / (1 + 5 * (vegh - d) * rL)
-                        else:
-                            Kh = vkman * usd * (vegh - d) * sqrt(1 - 16 * (vegh - d) * rL)
-                    rd = (np.log((self.zT1-d)/(self.vegh-d)) - self.psih(self.zT1-d,rL) + self.psih(self.vegh-d,rL))/(vkman*usd) \
-                            + self.vegh * (np.exp(wcan*(1 - self.zh[0])/self.vegh) - 1)/(wcan*Kh)
-                    uso = vkman * Ua / (np.log(self.zU1/self.z0g) - self.psim(self.zU1,rL) + self.psim(self.z0g,rL))
-                    ro = (np.log(self.zT1/self.zh[0]) - self.psih(self.zT1,rL) + self.psih(self.zh[0]),rL)/(vkman*uso)
-                    ga = self.fveg / rd + (1 - fveg)/ro # + 2/(rho*cp)
-                Uh = (usd / vkman) * (np.log((vegh-d)/z0v) - self.psim(self.vegh-d,rl) + self.psim(self.z0v,rl))
-                for k in range(self.Ncnpy):
-                    Uc = fveg * np.exp(wcan*(zh[k]/vegh - 1))* Uh  +  \
-                    (1 - fveg) * (uso / vkman) * (np.log(zh[k]/z0g) - self.psim(self.zh[k],rL) + self.psim(self.z0g,rL))
-                    gv[k] = sqrt(Uc)*lveg[k]/leaf
-                #if CANMOD == 2:
-                #    rd = vegh * np.exp(wcan) * (np.exp(-wcan*zh[1])/vegh) - np.exp(-wcan*zh[0]/vegh)/(wcan*Kh)
-                #    ro = (np.log(zh[0])/zh[1]) - self.psih(self.zh[1],rL) + self.psih(self.zh[2],rL))/(vkman*uso)
-                #    gc = fveg/rd + (1 - fveg)/ro
-                k = Ncnpy
-                Uc = np.exp(wcan*(hbas/vegh - 1)) * Uh
-                rd = np.log(hbas/z0g) * np.log(hbas/z0h) / (vkman**2 * Uc) \
-                        + vegh * np.exp(wcan) * (np.exp(-wcan*hbas/vegh) - np.exp(-wcan * zh[k])) / (wcan * Kh)
-                ro = (np.log(zh[k] / z0h) - self.psih(self.zh[k],rL) + self.psih(self.z0h,rL)) / (vkman * uso)
-                gs = fveg / rd + (1 - fveg) / ro
-
-                # rd = log((zT1-d)/z0v)/(vkman*usd)  !!!!!!!!!!!!!
-                # rd = (log((zT1-d)/(vegh-d)) - psih(zT1-d,rL) + psih(vegh-d,rL))/(vkman*usd) + log(vegh/zh(1))/(vkman*usd)  !!!!!!!!!
-                # Uc = fveg*(usd/vkman)*log(zh(k)/z0g) + (1 - fveg)*(uso/vkman)*log(zh(k)/z0g)  !!!!!!!!
-                # rd = log(zh(1)/zh(2))/(vkman*usd)  !!!!!!!!!!!!!!!!!!
-                # rd = 4*log(zh(k)/z0h)/(vkman*usd)   !!!!!!!!!!!!!!!!!!! 
-
-                # ga = (vkman*usd)/(log((zT1-d)/z0v) - psih(zT1-d,rL) + psih(z0v,rL))
-                # gv(:) = (vkman*usd)/log(1/0.999)
-                # gc = 1
-                # gs = (vkman*usd)/log(z0v/z0h)/4
-
-                # Saturation humidity
-                for k in range(self.Ncnpy):
-                    self.qsat(Ps,Tveg[k],Qveg[k])
-                    Lcan[k] = LATENT_HEAT_SUBMILATION
-                    if (Tveg[k] > T_MELT):
-                        Lcan[k] = Lv
-                Dveg[:] = Lcan[:] * Qveg[:] / (Rwat * Tveg[:]**2)
-
-                # Water availability
-                if (Qcan[Ncnpy] > Qsrf):
-                    wsrf = 1
-                else:
-                    wsrf = fsnow + (1 - fsnow) * gs1 / (gs1 + gs)
-
-                for k in range(Ncnpy):
-                    if (Qcan[k] > Qveg[k]):
-                        wveg[k] = 1
-                    else:
-                        wveg[k] = fcans[k] + (1 - fcans[k]) * gsnf / (gsnf + gv[k])
-
-                if CANMOD == 1:
-                    # 1-layer canopy model
-                    # Explicit fluxes
-                    E = rho * ga * (Qcan[1] - Qa)
-                    Esrf = rho * wsrf * gs * (Qsrf - Qcan[1])
-                    Eveg[0] = rho * wveg[0] * gv[0] * (Qveg[0] - Qcan[0])
-                    Gsrf = 2 * ks1 * (Tsrf - Ts1) / Ds1
-                    H = rho * cp * ga * (Tcan[0] - Ta)
-                    Hsrf = rho * cp * gs * (Tsrf - Tcan[0])
-                    Hveg[0] = rho * cp * gv[0] * (Tveg[0] - Tcan[0])
-                    Melt = 0
-                    Rsrf = SWsrf + tdif[0] * LW - sb * Tsrf**4 + (1 - tdif[0]) * sb * Tveg[0]**4
-                    Rveg[0] = SWveg[0] + (1 - tdif[0]) * (LW + sb * Tsrf**4 - 2 * sb * Tveg[0]**4)
-
-                    # Surface energy balance increments without melt
-                    J[0,0] = -rho * gs * (cp + Lsrf * Dsrf * wsrf) - 4 * sb * Tsrf**3 - 2 * ks1 / Ds1
-                    J[0,1] = Lsrf * rho * wsrf * gs
-                    J[0,2] = rho * cp * gs
-                    J[0,3] = 4 * (1 - tdif[0]) * sb * Tveg[0]**3
-                    J[1,0] = 4 * (1 - tdif[0]) * sb * Tsrf**3
-                    J[1,1] = Lcan[0] * rho * wveg[0] * gv[0]
-                    J[1,2] = rho * cp * gv[0]
-                    J[1,3] = -rho * gv[0] * (cp + Lcan[0] * Dveg[0] * wveg[0]) \
-                            -8 * (1 - tdif[0]) * sb * Tveg[0]**3 - cveg[0] / dt
-                    J[2,0] = -gs
-                    J[2,1] = 0
-                    J[2,2] = ga + gs + gv[0]
-                    J[2,3] = -gv[0]
-                    J[3,0] = -Dsrf * wsrf * gs
-                    J[3,1] = ga + wsrf * gs + wveg[0] * gv[0]
-                    J[3,2] = 0
-                    J[3,3] = -Dveg[0] * wveg[0] * gv[0]
-                    f[1]   = -(Rsrf - Gsrf - Hsrf - Lsrf*Esrf)
-                    f[2]   = -(Rveg[0] - Hveg[0] - Lcan[0] * Eveg[0] - \
-                                cveg[0] * (Tveg[0] - Tveg0[0]) / dt)
-                    f[3]   = -(H - Hveg[0] - Hsrf) / (rho * cp)
-                    f[4]   = -(E - Eveg[0] - Esrf) / rho
-                    x = ludcmp(4, J, f)
-                    dTs = x[0]
-                    dQc[0] = x[1]
-                    dTc[0] = x[2]
-                    dTv[0] = x[3]
-                    dEs = rho * wsrf * gs * (Dsrf * dTs - dQc[0])
-                    dEv[0] = rho * wveg[0] * gv[0] * (Dveg[0] * dTv[0] - dQc[0])
-                    dGs = 2 * ks1 * dTs / Ds1
-                    dHs = rho * cp * gs * (dTs - dTc[0])
-                    dHv[0] = rho * cp * gv[0] * (dTv[0] - dTc[0])
-
-                    # Surface melting
-                    if (Tsrf + dTs > T_MELT) and (Sice[0] > 0):
-                        Melt = sum(Sice) / dt
-                        f[0] += Lf*Melt
-                        x = ludcmp(4, J, f)
-                        dTs = x[0]
-                        dQc[0] = x[1]
-                        dTc[0] = x[2]
-                        dTv[0] = x[3]
-                        dEs = rho * wsrf * gs * (Dsrf * dTs - dQc[0])
-                        dEv[0] = rho * wveg[0] * gv[0] * (Dveg[0] * dTv[0] - dQc[0])
-                        dGs = 2 * ks1 * dTs / Ds1
-                        dHs = rho * cp * gs * (dTs - dTc[0])
-                        dHv[0] = rho * cp * gv[0] * (dTv[0] - dTc[0])
-                        if (Tsrf + dTs < T_MELT):
-                            Qsrf = self.qsat(Ps=Ps, T=T_MELT)
-                            Esrf = rho * wsrf * gs * (Qsrf - Qcan[0])
-                            Gsrf = 2 * ks1 * (Tm - Ts1) / Ds1
-                            Hsrf = rho * cp * gs * (Tm - Tcan[0])
-                            Rsrf = SWsrf + tdif[0] * LW - sb * T_MELT**4 + (1 - tdif[0]) * sb * Tveg[0]**4
-                            Rveg[0] = SWveg[0] + (1 - tdif[0]) * (LW + sb * T_MELT**4 - 2 * sb * Tveg[0]**4) 
-                            J[0,0] = -1
-                            J[1,0] = 0
-                            J[2,0] = 0
-                            J[3,0] = 0
-                            f[0]   = -(Rsrf - Gsrf - Hsrf - Lsrf * Esrf)
-                            f[1]   = -(Rveg[0] - Hveg[0] - Lcan[0] * Eveg[0] - cveg[0] * (Tveg[0] - Tveg0[0]) / dt)
-                            f[2]   = -(H - Hveg[0] - Hsrf) / (rho * cp)
-                            f[3]   = -(E - Eveg[0] - Esrf) / rho
-                            x = ludcmp(4, J, f)
-                            Melt = x[0] / Lf
-                            dQc[0] = x[1]
-                            dTc[0] = x[2]
-                            dTv[0] = x[3]
-                            dTs = T_MELT - Tsrf
-                            dEs = 0
-                            dEv[0] = rho * wveg[0] * gv[0] * (Dveg[0] * dTv[0] - dQc[0])
-                            dGs = 0
-                            dHs = 0
-                            dHv[0] = rho * cp * gv[0] * (dTv[0] - dTc[0])
-                            
-                    LWout = (1 - tdif[0]) * sb * Tveg[0]**4 + tdif[0] * sb * Tsrf**4
-                    LWsub = tdif[0] * LW + (1 - tdif[0]) * sb * Tveg[0]**4 
-
-                # Update vegetation temperatures and fluxes
-                Eveg[:] = Eveg[:] + dEv[:]
-                Hveg[:] = Hveg[:] + dHv[:]
-                Qcan[:] = Qcan[:] + dQc[:]
-                Tcan[:] = Tcan[:] + dTc[:]
-                Tveg[:] = Tveg[:] + dTv[:]
-
-                # Update surface temperature and fluxes
-                Esrf = Esrf + dEs
-                Gsrf = Gsrf + dGs
-                Hsrf = Hsrf + dHs
-                Tsrf = Tsrf + dTs
-                # Diagnostics
-                ebal = SWsrf + LWsub - sb*Tsrf**4 - Gsrf - Hsrf - Lsrf * Esrf - Lf * Melt
-                Uc = np.exp(wcan*(hbas/vegh - 1)) * Uh
-                Usub = fveg * Uc * np.log(zsub/z0g) / np.log(hbas/z0g) \
-                        + (1 - fveg) * Ua * (np.log(zsub/z0g) - self.psim(self.zsub,rL) + self.psim(self.z0g,rL)) \
-                            / (np.log(self.zU/self.z0g) - self.psim(self.zU,rL) + self.psim(self.z0g,rL))
-
-                if (ne>4) and (abs(ebal)<0.01):
-                    break
-            '''
+    
         # Sublimation limited by available snow
         subl = 0
         self.Ssub = np.sum(Sice[:]) - Melt * dt
@@ -673,18 +489,17 @@ class EnergyBalance:
         """
         Stability function for momentum, corresponding exactly to the Fortran version.
         """
-        zeta = z * rL
-        stable = -5 * zeta  # Stable conditions (zeta > 0)
+        zeta = np.clip(z * rL, -2.0, 1.0)
+        stable = -5. * zeta  # Stable conditions (zeta > 0)
 
-        # Prevent negative values inside root calculations
-        x = np.maximum(1 - 16 * zeta, 1e-6) ** 0.25  
+        x = (1.0 - 16.0 * zeta) ** 0.25
 
         # Unstable condition formula
-        unstable = (2 * np.log((1 + x) / 2) + 
-                    np.log((1 + x**2) / 2) - 
-                    2 * np.arctan(x) + np.pi / 2)
+        unstable = (2. * np.log((1. + x) / 2.) + 
+                    np.log((1. + x**2) / 2.) - 
+                    2. * np.arctan(x) + np.pi / 2.)
 
-        return np.where(zeta > 0, stable, unstable)
+        return np.where(zeta > 0., stable, unstable)
 
     
 
@@ -692,11 +507,11 @@ class EnergyBalance:
         """
         Stability function for heat, corresponding exactly to the Fortran version.
         """
-        zeta = z * rL
-        x = np.maximum(1 - 16 * zeta, 1e-6) ** 0.25  # Ensure the value inside sqrt is non-negative
+        zeta = np.clip(z * rL, -2.0, 1.0)
+        x = (1.0 - 16.0 * zeta) ** 0.25
 
-        psih = np.where(zeta > 0, 
-                        -5 * zeta, 
-                        2 * np.log((1 + x**2) / 2))
+        psih = np.where(zeta > 0., 
+                        -5. * zeta, 
+                        2. * np.log((1. + x**2) / 2.))
 
         return psih

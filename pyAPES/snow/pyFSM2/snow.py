@@ -577,6 +577,10 @@ class SnowModel(object):
 
         swe = sum(Sice[:]) + sum(Sliq[:])
 
+        # Treating snow layered outputs so that np.nan if there is no such layer
+        Tsnow_out = np.array([np.nan, np.nan, np.nan])
+        Tsnow_out[:Nsnow] = Tsnow[:Nsnow]
+
         # store iteration state
         self.iteration_state =  {'Nsnow': Nsnow,
                                  'Sliq': Sliq,
@@ -596,7 +600,7 @@ class SnowModel(object):
                   'Sliq': Sliq,
                   'Nsnow': Nsnow,
                   'Dsnw': Dsnw,
-                  'Tsnow': Tsnow,
+                  'Tsnow': Tsnow_out,
                   'rhos': rhos
                   }
 

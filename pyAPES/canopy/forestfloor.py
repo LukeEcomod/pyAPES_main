@@ -366,13 +366,13 @@ class ForestFloor(object):
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
-                'Dzsoil': self.height, # Moss layer thickness [m]
-                'Tsoil': self.temperature + DEG_TO_KELVIN, # Surface layer temperature [K]
-                'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN,
-                'ksoil': self.thermal_conductivity, # Surface layer thermal conductivity (W/m/K)
-                'gs1': 1e-3, # !! Surface moisture conductance (m/s),
-                'alb0': self.bt_albedo['PAR'],
-                'z0sf': self.bt_roughness_height
+                'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
+                'Tsoil': forcing['soil_temperature'] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
+                'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN, # surface temperature [K] from organiclayer
+                'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
+                'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
+                'alb0': self.bt_albedo['PAR'], # snow-free surface albed, from organic or soil??
+                'z0sf': self.bt_roughness_height # snow-free surface roughness height, from organic or soil??
             }
         else:
             print('*** snow_model unknown ***')
@@ -386,12 +386,15 @@ class ForestFloor(object):
 
         if self.snow_model == 'degreeday':
             fluxes_snow['snow_heat_flux'] = 0
+
+        snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1]
         
         org_forcing.update(
-                {'precipitation': fluxes_snow['potential_infiltration'], # testing
-                'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI
+                {'precipitation': fluxes_snow['potential_infiltration'],
+                'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI ?
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
-                'snow_heat_flux': fluxes_snow['snow_heat_flux']}
+                'snow_heat_flux': fluxes_snow['snow_heat_flux'],
+                'snow_temperature': snow_bottom_temperature}
                 )
 
         # bottomlayer-type specific fluxes and state for output: list of dicts
@@ -440,7 +443,7 @@ class ForestFloor(object):
 
         elif (self.snowpack.snowpack.swe == 0. and states_snow['snow_water_equivalent'] == 0.)  and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
-            state['snow_temperature'] = np.nan
+            state['snow_temperature'] = np.array([np.nan, np.nan, np.nan])
             state['snow_layer_depth'] = 0.
             state['snow_water_equivalent'] = 0.
             fluxes['snow_sensible_heat'] = 0.

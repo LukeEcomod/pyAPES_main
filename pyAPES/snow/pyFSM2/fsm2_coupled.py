@@ -217,6 +217,7 @@ class FSM2(object):
                     'snow_ice_storage': snow_states['Sice'],
                     'snow_density': snow_states['rhos'],
                     'snow_ks1': thermal_states['ks1'],
+                    'snow_layers': snow_states['Nsnow']
                     }
         
         else: # no new or existing snowpack
@@ -245,11 +246,12 @@ class FSM2(object):
             states = {'snow_water_equivalent': 0.,
                     'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                     'snow_depth': 0.,
-                    'snow_temperature': np.nan,
+                    'snow_temperature': np.array([np.nan, np.nan, np.nan]),
                     'snow_layer_depth': np.nan,
                     'snow_liquid_storage': 0.,
                     'snow_ice_storage': 0.,
-                    'snow_density': np.nan
+                    'snow_density': np.nan,
+                    'snow_layers': snow_states['Nsnow']
                     }
 
         return fluxes, states
