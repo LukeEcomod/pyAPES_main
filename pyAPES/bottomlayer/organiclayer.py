@@ -1009,7 +1009,7 @@ class OrganicLayer(object):
 
     def water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0) -> Tuple:
         """
-        Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
+        Computes water exchange under snow, i.e. no heat exchange, surface energy balance, no evaporation.
         Args:
             - dt (float): timestep [s]
             - forcing (dict):
@@ -1171,7 +1171,7 @@ class OrganicLayer(object):
         capillary_rise = capillary_rise / dt
         interception = interception / dt
         pond_recharge = pond_recharge / dt
-        ground_heat_flux = ground_heat_flux / dt
+        #ground_heat_flux = ground_heat_flux / dt
         heat_advection = heat_advection / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
@@ -1179,19 +1179,19 @@ class OrganicLayer(object):
                         - capillary_rise - interception - pond_recharge) / dt
 
         # energy closure
-        heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-                            + SPECIFIC_HEAT_H2O * self.liquid_water_storage
-                            + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
-                            - LATENT_HEAT_FREEZING * self.ice_storage)
+        #heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+        #                    + SPECIFIC_HEAT_H2O * self.liquid_water_storage
+        #                    + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
+        #                    - LATENT_HEAT_FREEZING * self.ice_storage)
 
         wliq, wice, _ = frozen_water(temperature, water_storage)
-        heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-                            + SPECIFIC_HEAT_H2O * wliq
-                            + SPECIFIC_HEAT_ICE * wice) * temperature
-                            - LATENT_HEAT_FREEZING * wice)
+        #heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+        #                    + SPECIFIC_HEAT_H2O * wliq
+        #                    + SPECIFIC_HEAT_ICE * wice) * temperature
+        #                    - LATENT_HEAT_FREEZING * wice)
         
-        energy_closure =  ((heat_conten_new - heat_content_old) / dt
-                           - forcing['snow_heat_flux'] - heat_advection + ground_heat_flux)
+        #energy_closure =  ((heat_conten_new - heat_content_old) / dt
+        #                   - forcing['snow_heat_flux'] - heat_advection + ground_heat_flux)
 
         # return fluxes and state variables
 
@@ -1206,7 +1206,7 @@ class OrganicLayer(object):
             'sensible_heat': 0.0,  # [W m-2]
             'heat_advection': heat_advection,  # [W m-2]
             'water_closure': water_closure,  # [mm s-1]
-            'energy_closure': energy_closure,  # [W m-2]
+            'energy_closure': 0.0,  # [W m-2] # no energy exchanges
         }
 
         states = {
