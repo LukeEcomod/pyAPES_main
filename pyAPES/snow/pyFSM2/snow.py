@@ -10,10 +10,8 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.utilities import tridiag_fsm
-from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
-    LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
-    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
-    T_MELT
+from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_H2O, \
+    LATENT_HEAT_FUSION, WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, T_MELT
 
 
 EPS = np.finfo(float).eps  # machine epsilon
@@ -222,7 +220,7 @@ class SnowModel(object):
             for k in range(Nsnow):
                 # Areal heat capacity
                 self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
-                    Sliq[k]*SPECIFIC_HEAT_WATER
+                    Sliq[k]*SPECIFIC_HEAT_H2O
 
             if (Nsnow == 1):
                 self.Gs[0] = 2 / (Dsnw[0]/ksnow[0] +
@@ -400,7 +398,7 @@ class SnowModel(object):
         if Nsnow > 0:
             for k in range(Nsnow):
                 self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
-                    Sliq[k]*SPECIFIC_HEAT_WATER
+                    Sliq[k]*SPECIFIC_HEAT_H2O
                 self.E[k] = self.csnow[k]*(Tsnow[k] - T_MELT)
         Nold = Nsnow
         hs = sum(Dsnw[:])
@@ -464,7 +462,7 @@ class SnowModel(object):
         # Diagnose snow layer temperatures
         for k in range(Nsnow):
             self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
-                Sliq[k]*SPECIFIC_HEAT_WATER
+                Sliq[k]*SPECIFIC_HEAT_H2O
             Tsnow[k] = T_MELT + self.U[k] / self.csnow[k]
             Rgrn[k] = Rgrn[k] / Sice[k]
 
@@ -495,7 +493,7 @@ class SnowModel(object):
                         Sliq[k] = SliqMax
 
                     self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
-                        Sliq[k]*SPECIFIC_HEAT_WATER
+                        Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
 
                     if (coldcont > 0):            # Liquid can freeze
@@ -566,7 +564,7 @@ class SnowModel(object):
                 Sliq[:] = WATER_DENSITY * Dsnw[:]*self.thetaw[:]
                 for k in range(Nsnow):
                     self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
-                        Sliq[k]*SPECIFIC_HEAT_WATER
+                        Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
                     if (coldcont > 0):  # Liquid can freeze
                         dSice = min(Sliq[k], coldcont/LATENT_HEAT_FUSION)

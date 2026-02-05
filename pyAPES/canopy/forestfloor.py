@@ -356,11 +356,6 @@ class ForestFloor(object):
             }
         elif self.snow_model == 'fsm2':
             # -- Snow: energy balance snow model'
-            # testing forcing for snowmodel
-            Dz_soil_bt = parameters['soil_depth'] + self.height # soil + organic_layer depths
-            # Effective k for stacked soil and organic layers (series conduction)
-            k_soil_bt = Dz_soil_bt / (parameters['soil_depth'] / parameters['soil_thermal_conductivity'] + 
-                                        self.height / self.thermal_conductivity)
             snow_forcing = {
                 'SWsrf': forcing['par'] + forcing['nir'],
                 'Sf': forcing['precipitation_snow'],
@@ -371,13 +366,11 @@ class ForestFloor(object):
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
-                #'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
-                #'Dzsoil': Dz_soil_bt, # combined soil_bt
+                'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
                 'Dzbt': self.height, # organic layer depth [m]
                 'Tsoil': forcing['soil_temperature'] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
                 'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN, # surface temperature [K] from organiclayer
-                #'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
-                'ksoil': k_soil_bt, # testing
+                'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
                 'kbt': self.thermal_conductivity, # organic layer thermal conductivity [W m-1 K-1]
                 'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
                 'alb0': self.bt_albedo['PAR'], # snow-free surface albedo
@@ -395,8 +388,9 @@ class ForestFloor(object):
 
         if self.snow_model == 'degreeday':
             fluxes_snow['snow_heat_flux'] = 0
-
-        snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1]
+            snow_bottom_temperature = 0.
+        else:
+            snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1]
         
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
@@ -432,7 +426,6 @@ class ForestFloor(object):
         if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0) and self.snow_model == 'fsm2':
             state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
             fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
-            fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
             state['snow_depth'] = states_snow['snow_depth']
             state['fsm_surface_temperature'] = states_snow['temperature']
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
@@ -445,11 +438,7 @@ class ForestFloor(object):
             state['snow_ice_storage'] = states_snow['snow_ice_storage']
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']
-            state['snow_ks1'] = states_snow['snow_ks1']
             fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
-            fluxes['snow_ustar'] = fluxes_snow['snow_ustar']
-            fluxes['snow_ga'] = fluxes_snow['snow_ga']
-
         elif (self.snowpack.snowpack.swe == 0. and states_snow['snow_water_equivalent'] == 0.)  and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
             state['snow_temperature'] = np.array([np.nan, np.nan, np.nan])
@@ -462,9 +451,6 @@ class ForestFloor(object):
             state['snow_liquid_storage'] = 0.
             state['snow_ice_storage'] = 0.
             state['snow_density'] = np.nan
-            state['snow_ks1'] = np.nan
-            fluxes['snow_ustar'] = np.nan
-            fluxes['snow_ga'] = np.nan
             fluxes['snow_energy_closure'] = 0.
         elif self.snow_model == 'degreeday':
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']

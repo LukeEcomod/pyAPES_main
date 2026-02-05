@@ -14,7 +14,7 @@ from pyAPES.snow.pyFSM2.snow import SnowModel
 from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.swrad import SWrad
 from pyAPES.snow.pyFSM2.thermal_coupled import Thermal
-from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
+from pyAPES.utils.constants import DEG_TO_KELVIN
 
 
 class FSM2(object):
@@ -101,7 +101,9 @@ class FSM2(object):
         Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
         Tsoil_surf = forcing['Tsoil_surf'] # Surface temperature
         ksoil = forcing['ksoil'] # Soil layer thermal conductivity (W/m/K), used in ebal
+        kbt = forcing['kbt']
         Dzsoil = forcing['Dzsoil'] # Soil layer thickness, used in snow
+        Dzbt = forcing['Dzbt']
         alb0 = forcing['alb0'] # Snow-free surface albedo
         z0sf = forcing['z0sf'] # Snow-free roughness length
 
@@ -135,8 +137,10 @@ class FSM2(object):
                             'Tsnow': snow_states['Tsnow'],
                             'Tsoil': Tsoil,
                             'ksoil': ksoil,
+                            'kbt': kbt,
                             'gs1': gs1,
-                            'Dzsoil': Dzsoil}
+                            'Dzsoil': Dzsoil,
+                            'Dzbt': Dzbt}
             
             thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
 

@@ -10,11 +10,7 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.utilities import tridiag
-from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
-    LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
-    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
-    T_MELT, K_AIR, K_ICE, K_WATER, K_SAND, K_CLAY
-
+from pyAPES.utils.constants import WATER_DENSITY
 EPS = np.finfo(float).eps  # machine epsilon
 
 
@@ -78,8 +74,10 @@ class Thermal:
         Tsnow = forcing['Tsnow']
         Tsoil = forcing['Tsoil']
         ksoil = forcing['ksoil']
+        kbt = forcing['kbt']
         gs1 = forcing['gs1']
         Dzsoil = forcing['Dzsoil']
+        Dzbt = forcing['Dzbt']
 
         ksnow = np.zeros(int(self.Nsmax))
         ksnow[:] = self.kfix
@@ -91,10 +89,18 @@ class Thermal:
                     if (Dsnw[k] > EPS):
                         rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
+        
+        # properties of snow and organic layer combined
+        #Dsnw[0] += Dzbt # Dz for snow and organic layers
+        #ksnow[0] = Dsnw[0] / (Dsnw[0] - Dzbt / ksnow[0] + 
+        #                      Dzbt / kbt) # Effective k for stacked snow and organic layers (series conduction)
+        # properties of organic layer and soil combined
+        Dzsoil += Dzbt # Dz for soil and organic layers
+        ksoil = Dzsoil / ((Dzsoil - Dzbt) / ksoil + 
+                          Dzbt / kbt) # Effective k for stacked soil and organic layers (series conduction)
 
         # Surface layer
         Ds1 = np.maximum(Dzsoil, Dsnw[0]) # thickness
-        #Ds1 = np.maximum(Ds1, 0.05) # testing this
         Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil # temperature
         ks1 = Dzsoil/(2*Dsnw[0]/ksnow[0] +
                               (Dzsoil - 2*Dsnw[0])/ksoil) # thermal conductivity

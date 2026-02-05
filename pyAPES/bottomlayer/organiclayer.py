@@ -1066,7 +1066,6 @@ class OrganicLayer(object):
         interception = 0.0 
         pond_recharge = 0.0
         ground_heat_flux = forcing['snow_heat_flux']
-        #heat_advection = 0.0
 
         # -- time loop
         t = 0.0
@@ -1112,53 +1111,11 @@ class OrganicLayer(object):
             water_content = water_storage / self.dry_mass  # [g g-1]
             volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)  # [m3 m-3]
 
-            # --- Heat exchange --- bulk moss temperature equals snow temperature
-            # heat conduction between moss and soil [W m-2 K-1]
+            # heat conductivity between moss and soil [W m-2 K-1]
             moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-
-            # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
-            #g_moss = moss_thermal_conductivity / zm
-            #g_soil = parameters['soil_thermal_conductivity'] / zs
-
-            #thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
-
-            # [J m-2 s-1 == W m-2]
-            #sub_ground_heat_flux = thermal_conductance *(self.temperature - forcing['soil_temperature'])
-            #ground_heat_flux += sub_ground_heat_flux * sub_dt
-
-            # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
-            #sub_heat_advection = SPECIFIC_HEAT_H2O * (
-            #                sub_interception * 0.0  # melt water is always zero?
-            #                + sub_capillary_rise * forcing['soil_temperature']
-            #                + sub_pond_recharge * forcing['soil_temperature']
-            #                )
-            #heat_advection += sub_heat_advection * sub_dt
-
-            # heat capacities [J K-1 m-2]  - air content?
-            #apparent_heat_capacity_old = (
-            #    SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-            #    + SPECIFIC_HEAT_H2O * wliq
-            #    + SPECIFIC_HEAT_ICE * wice
-            #    + LATENT_HEAT_FREEZING * gamma)
             
             # liquid and ice content, and dWliq/dTs - based on old temperature (causes error to energy balance closure - but do we want iterative solution?)!
             wliq, wice, gamma = frozen_water(temperature, water_storage)
-
-            #apparent_heat_capacity_new = (
-            #    SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-            #    + SPECIFIC_HEAT_H2O * wliq
-            #    + SPECIFIC_HEAT_ICE * wice
-            #    + LATENT_HEAT_FREEZING * gamma)
-
-            # calculate new temperature from heat balance
-            #sub_heat_fluxes = (
-            #        + forcing['snow_heat_flux']
-            #        + sub_heat_advection
-            #        - sub_ground_heat_flux
-            #        )
-
-            # new temperature
-            #temperature = (sub_heat_fluxes * sub_dt + apparent_heat_capacity_old * temperature) / apparent_heat_capacity_new
             
             # advance in time
             t = t + sub_dt
@@ -1171,29 +1128,12 @@ class OrganicLayer(object):
         capillary_rise = capillary_rise / dt
         interception = interception / dt
         pond_recharge = pond_recharge / dt
-        #ground_heat_flux = ground_heat_flux / dt
-        #heat_advection = heat_advection / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
         water_closure = (water_storage - self.water_storage 
                         - capillary_rise - interception - pond_recharge) / dt
 
-        # energy closure
-        #heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-        #                    + SPECIFIC_HEAT_H2O * self.liquid_water_storage
-        #                    + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
-        #                    - LATENT_HEAT_FREEZING * self.ice_storage)
-
         wliq, wice, _ = frozen_water(temperature, water_storage)
-        #heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-        #                    + SPECIFIC_HEAT_H2O * wliq
-        #                    + SPECIFIC_HEAT_ICE * wice) * temperature
-        #                    - LATENT_HEAT_FREEZING * wice)
-        
-        #energy_closure =  ((heat_conten_new - heat_content_old) / dt
-        #                   - forcing['snow_heat_flux'] - heat_advection + ground_heat_flux)
-
-        # return fluxes and state variables
 
         fluxes = {
             'evaporation': 0.0,  # [kg m-2 s-1 == mm s-1]

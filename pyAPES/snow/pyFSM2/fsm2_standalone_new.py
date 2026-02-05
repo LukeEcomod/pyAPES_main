@@ -15,7 +15,7 @@ from pyAPES.snow.pyFSM2.srfebal import EnergyBalance
 from pyAPES.snow.pyFSM2.swrad import SWrad
 from pyAPES.snow.pyFSM2.soil import SoilModel
 from pyAPES.snow.pyFSM2.thermal_standalone import Thermal
-from pyAPES.utils.constants import EPS, DEG_TO_KELVIN
+from pyAPES.utils.constants import DEG_TO_KELVIN
 
 
 class FSM2(object):

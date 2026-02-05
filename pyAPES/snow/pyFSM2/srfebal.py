@@ -10,12 +10,11 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.utilities import tridiag, ludcmp
-from pyAPES.utils.constants import SPECIFIC_HEAT_AIR, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
-                                    LATENT_HEAT_VAPORISATION, LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
-                                    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
+from pyAPES.utils.constants import SPECIFIC_HEAT_AIR, MOLAR_MASS_AIR, \
+                                    LATENT_HEAT_VAPORISATION, LATENT_HEAT_FUSION, LATENT_HEAT_SUBLIMATION, \
                                     T_MELT, STEFAN_BOLTZMANN, VON_KARMAN, \
-                                    GAS_CONSTANT_AIR, GAS_CONSTANT_WATER_VAPOUR, \
-                                    SATURATION_VAPOUR_PRESSURE_MELT, R_RATIO
+                                    GAS_CONSTANT, MOLAR_MASS_H2O, \
+                                    SATURATION_VAPOR_PRESSURE_MELT, R_RATIO
 
 EPS = np.finfo(float).eps  # machine epsilon
 
@@ -306,7 +305,7 @@ class EnergyBalance:
 
         # Convert relative to specific humidity
         Tc = Ta - T_MELT
-        es = SATURATION_VAPOUR_PRESSURE_MELT * np.exp(17.5043*Tc/(241.3 + Tc))
+        es = SATURATION_VAPOR_PRESSURE_MELT * np.exp(17.5043*Tc/(241.3 + Tc))
         Qa = (RH/100)*R_RATIO*es/Ps
 
         # Roughness lengths
@@ -321,11 +320,11 @@ class EnergyBalance:
         
         # Saturation humidity and air density
         Qsrf = self.qsat(Ps=Ps, T=Tsrf)
-        Lsrf = np.array(LATENT_HEAT_SUBMILATION)
+        Lsrf = np.array(LATENT_HEAT_SUBLIMATION)
         if (Tsrf > T_MELT):
             Lsrf = LATENT_HEAT_VAPORISATION
-        Dsrf = Lsrf * Qsrf / (GAS_CONSTANT_WATER_VAPOUR * Tsrf**2)
-        rho = Ps / (GAS_CONSTANT_AIR * Ta)
+        Dsrf = Lsrf * Qsrf / (GAS_CONSTANT/MOLAR_MASS_H2O * Tsrf**2)
+        rho = Ps / (GAS_CONSTANT/MOLAR_MASS_AIR * Ta)
 
         if (self.VAI == 0.0):  # open
             self.Eveg[:] = 0
@@ -366,32 +365,32 @@ class EnergyBalance:
                 Esrf = rho * wsrf * ga * (Qsrf - Qa)
                 self.Eveg[:] = 0.
                 Gsrf = 2 * ks1 * (Tsrf - Ts1) / Ds1
-                Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (Tsrf - Ta)
+                Hsrf = SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR * rho * ga * (Tsrf - Ta)
                 self.Hveg[:] = 0.
                 Melt = 0.
                 Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * Tsrf**4
 
                 # Surface energy balance increments without melt
                 dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / \
-                        (4 * STEFAN_BOLTZMANN * Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR + Lsrf * Dsrf * wsrf) * ga)
+                        (4 * STEFAN_BOLTZMANN * Tsrf**3 + 2 * ks1 / Ds1 + rho * (SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR + Lsrf * Dsrf * wsrf) * ga)
                 dEs = rho * wsrf * ga * Dsrf * dTs
                 dGs = 2 * ks1 * dTs / Ds1 
-                dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
+                dHs = SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR * rho * ga * dTs
 
                 # Surface melting
                 if (Tsrf + dTs > T_MELT) and (Sice[0] > 0):
                     Melt = np.sum(Sice) / dt
                     dTs = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf - LATENT_HEAT_FUSION * Melt) \
                             / (4 * STEFAN_BOLTZMANN * Tsrf**3 + 2 * ks1/Ds1 \
-                               + rho*(SPECIFIC_HEAT_AIR + LATENT_HEAT_SUBMILATION * Dsrf * wsrf) * ga)
+                               + rho*(SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR + LATENT_HEAT_SUBLIMATION * Dsrf * wsrf) * ga)
                     dEs = rho * wsrf * ga * Dsrf * dTs
                     dGs = 2 * ks1 * dTs/Ds1
-                    dHs = SPECIFIC_HEAT_AIR * rho * ga * dTs
+                    dHs = SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR * rho * ga * dTs
                     if (Tsrf + dTs < T_MELT):
                         Qsrf = self.qsat(Ps=Ps,T=T_MELT)
                         Esrf = rho * wsrf * ga * (Qsrf - Qa)
                         Gsrf = 2 * ks1 * (T_MELT - Ts1)/Ds1
-                        Hsrf = SPECIFIC_HEAT_AIR * rho * ga * (T_MELT - Ta)
+                        Hsrf = SPECIFIC_HEAT_AIR/MOLAR_MASS_AIR * rho * ga * (T_MELT - Ta)
                         Rsrf = SWsrf + LW - STEFAN_BOLTZMANN * T_MELT**4 
                         Melt = (Rsrf - Gsrf - Hsrf - Lsrf * Esrf) / LATENT_HEAT_FUSION
                         Melt = np.maximum(Melt, 0.)
@@ -423,12 +422,6 @@ class EnergyBalance:
         if (self.Ssub > 0) or (Tsrf < T_MELT):
             Esrf = np.minimum(Esrf, self.Ssub / dt)
             subl = Esrf
-
-        #if (self.VAI > 0):
-        #    for k in range(Ncnpy):
-        #        if (Sveg[k] > 0) or (Tveg[k] < T_MELT):
-        #            Eveg[k] = np.minimum(Eveg[k], Sveg[k] / dt)
-        #            subl = subl + Eveg[k]
                 
         # Fluxes to the atmosphere
         E = float(Esrf + np.sum(self.Eveg[:]))
@@ -475,9 +468,9 @@ class EnergyBalance:
         Tc = T - T_MELT  # Convert to Celsius
 
         if Tc > 0:
-            es = SATURATION_VAPOUR_PRESSURE_MELT * np.exp(17.5043 * Tc / (241.3 + Tc))
+            es = SATURATION_VAPOR_PRESSURE_MELT * np.exp(17.5043 * Tc / (241.3 + Tc))
         else:
-            es = SATURATION_VAPOUR_PRESSURE_MELT * np.exp(22.4422 * Tc / (272.186 + Tc))
+            es = SATURATION_VAPOR_PRESSURE_MELT * np.exp(22.4422 * Tc / (272.186 + Tc))
 
         Qsrf = R_RATIO * es / Ps  # Compute specific humidity
         

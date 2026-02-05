@@ -10,9 +10,8 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.utilities import tridiag
-from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_WATER, \
-    LATENT_HEAT_FUSION, LATENT_HEAT_SUBMILATION, \
-    WATER_VISCOCITY, ICE_DENSITY, WATER_DENSITY, \
+from pyAPES.utils.constants import GRAVITY, SPECIFIC_HEAT_ICE, SPECIFIC_HEAT_H2O, \
+    LATENT_HEAT_FUSION, ICE_DENSITY, WATER_DENSITY, \
     T_MELT, K_AIR, K_ICE, K_WATER, K_SAND, K_CLAY
 
 EPS = np.finfo(float).eps  # machine epsilon
@@ -148,9 +147,9 @@ class Thermal:
                     sthf = (Vsmc[k] - sthu)*WATER_DENSITY/ICE_DENSITY
                 Mf = ICE_DENSITY*self.Dzsoil[k]*sthf
                 Mu = WATER_DENSITY*self.Dzsoil[k]*sthu
-                csoil[k] = self.hcap_soil*self.Dzsoil[k] + SPECIFIC_HEAT_ICE*Mf + SPECIFIC_HEAT_WATER*Mu + \
+                csoil[k] = self.hcap_soil*self.Dzsoil[k] + SPECIFIC_HEAT_ICE*Mf + SPECIFIC_HEAT_H2O*Mu + \
                     WATER_DENSITY * \
-                    self.Dzsoil[k]*((SPECIFIC_HEAT_WATER - SPECIFIC_HEAT_ICE)
+                    self.Dzsoil[k]*((SPECIFIC_HEAT_H2O - SPECIFIC_HEAT_ICE)
                                     * Tc + LATENT_HEAT_FUSION)*dthudT
                 Smf = ICE_DENSITY*sthf/(WATER_DENSITY*self.Vsat)
                 Smu = sthu/self.Vsat
