@@ -230,7 +230,7 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            if forcing['snow_water_equivalent'] > 1.:
+            if forcing['snow_water_equivalent'] > 0.:
                 fluxes, states = self.water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
@@ -1066,7 +1066,7 @@ class OrganicLayer(object):
         interception = 0.0 
         pond_recharge = 0.0
         ground_heat_flux = forcing['snow_heat_flux']
-        heat_advection = 0.0
+        #heat_advection = 0.0
 
         # -- time loop
         t = 0.0
@@ -1127,12 +1127,12 @@ class OrganicLayer(object):
             #ground_heat_flux += sub_ground_heat_flux * sub_dt
 
             # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
-            sub_heat_advection = SPECIFIC_HEAT_H2O * (
-                            sub_interception * 0.0  # melt water is always zero?
-                            + sub_capillary_rise * forcing['soil_temperature']
-                            + sub_pond_recharge * forcing['soil_temperature']
-                            )
-            heat_advection += sub_heat_advection * sub_dt
+            #sub_heat_advection = SPECIFIC_HEAT_H2O * (
+            #                sub_interception * 0.0  # melt water is always zero?
+            #                + sub_capillary_rise * forcing['soil_temperature']
+            #                + sub_pond_recharge * forcing['soil_temperature']
+            #                )
+            #heat_advection += sub_heat_advection * sub_dt
 
             # heat capacities [J K-1 m-2]  - air content?
             #apparent_heat_capacity_old = (
@@ -1172,7 +1172,7 @@ class OrganicLayer(object):
         interception = interception / dt
         pond_recharge = pond_recharge / dt
         #ground_heat_flux = ground_heat_flux / dt
-        heat_advection = heat_advection / dt
+        #heat_advection = heat_advection / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
         water_closure = (water_storage - self.water_storage 
@@ -1204,7 +1204,7 @@ class OrganicLayer(object):
             'ground_heat': ground_heat_flux,  # [W m-2]
             'latent_heat': 0.0,  # [W m-2]
             'sensible_heat': 0.0,  # [W m-2]
-            'heat_advection': heat_advection,  # [W m-2]
+            'heat_advection': 0.0,  # [W m-2]
             'water_closure': water_closure,  # [mm s-1]
             'energy_closure': 0.0,  # [W m-2] # no energy exchanges
         }

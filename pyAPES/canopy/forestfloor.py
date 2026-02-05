@@ -346,7 +346,7 @@ class ForestFloor(object):
 
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
-
+        
         if self.snow_model == 'degreeday':
         # --- Snow: degree-day model
             snow_forcing = {
@@ -356,6 +356,11 @@ class ForestFloor(object):
             }
         elif self.snow_model == 'fsm2':
             # -- Snow: energy balance snow model'
+            # testing forcing for snowmodel
+            Dz_soil_bt = parameters['soil_depth'] + self.height # soil + organic_layer depths
+            # Effective k for stacked soil and organic layers (series conduction)
+            k_soil_bt = Dz_soil_bt / (parameters['soil_depth'] / parameters['soil_thermal_conductivity'] + 
+                                        self.height / self.thermal_conductivity)
             snow_forcing = {
                 'SWsrf': forcing['par'] + forcing['nir'],
                 'Sf': forcing['precipitation_snow'],
@@ -366,13 +371,17 @@ class ForestFloor(object):
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
-                'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
+                #'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
+                #'Dzsoil': Dz_soil_bt, # combined soil_bt
+                'Dzbt': self.height, # organic layer depth [m]
                 'Tsoil': forcing['soil_temperature'] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
                 'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN, # surface temperature [K] from organiclayer
-                'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
+                #'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
+                'ksoil': k_soil_bt, # testing
+                'kbt': self.thermal_conductivity, # organic layer thermal conductivity [W m-1 K-1]
                 'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
-                'alb0': self.bt_albedo['PAR'], # snow-free surface albed, from organic or soil??
-                'z0sf': self.bt_roughness_height # snow-free surface roughness height, from organic or soil??
+                'alb0': self.bt_albedo['PAR'], # snow-free surface albedo
+                'z0sf': self.bt_roughness_height # snow-free surface roughness height
             }
         else:
             print('*** snow_model unknown ***')

@@ -221,7 +221,7 @@ snow = {
                 'CANMOD': 0,
                 'EXCHNG': 1,
                 'ALBEDO': 2,
-                'SNFRAC': 1,
+                'SNFRAC': 0,
                 'SWPART': 0,
             },
             'params': {
