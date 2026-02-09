@@ -196,7 +196,7 @@ pt2 = { 'name': 'pine',
 
 # --- pyAPES.snow
 snow = {
-    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
+    'snow_model': 'degreeday', # snow model being used - 'degreeday' or 'fsm2'
     # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
     'degreeday': {
             'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
