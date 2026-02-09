@@ -230,7 +230,7 @@ class Water_1D(object):
             else:
                 self.Wtot = np.array(state['volumetric_water_content'])
             self.Wtot = np.minimum(self.Wtot, self.pF['ThetaS'])
-            self.h = wrc(self.pF, self.Wtot, var='Th')
+            self.h = wrc(self.pF, theta=self.Wtot)
             self.gwl = get_gwl(self.h, self.grid['z'])
         else:
             raise ValueError("Problem in water.update_state()")

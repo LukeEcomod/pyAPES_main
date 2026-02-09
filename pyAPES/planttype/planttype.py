@@ -158,11 +158,11 @@ class PlantType(object):
         self.Switch_lai = ctr['seasonal_LAI']  # seasonal LAI
         # water stress affects stomata
         self.Switch_WaterStress = ctr['WaterStress']
-        self.Switch_gm = ctr['gm']  # include finite mesophyll conductance
-        if self.Switch_gm:  # Do not requier gm_waterstress if gm is False
-            # include water stress in gm calculation
-            self.Switch_gm_waterstress = p['photop']['gm']['waterstress']
-        # self.StomaModel = 'MEDLYN_FARQUHAR' # stomatal model
+        # self.Switch_gm = ctr['gm']  # include finite mesophyll conductance
+        # if self.Switch_gm:  # Do not requier gm_waterstress if gm is False
+        #     # include water stress in gm calculation
+        #     self.Switch_gm_waterstress = p['photop']['gm']['waterstress']
+        self.StomaModel = 'MEDLYN_FARQUHAR' # stomatal model
 
         self.name = p['name']
 
@@ -190,11 +190,13 @@ class PlantType(object):
         # current leaf-area density [m2 m-3]
         self.lad = self.LAI * self.lad_normed
 
+        logger.debug(f'total LAI: {self.LAI}')
+
         # root properties
         self.Roots = RootUptake(p['rootp'], dz_soil, self.LAImax)
 
         # 1.0 where lad>0, nan elsewhere
-        self.mask = np.where(self.lad > 0, 1.0, np.NaN)
+        self.mask = np.where(self.lad > 0, 1.0, np.nan)
         self.dz = z[1] - z[0]
 
         # leaf gas-exchange parameters
@@ -202,7 +204,7 @@ class PlantType(object):
         self.photop0 = p['photop']
         self.photop = self.photop0.copy()  # current A-gs parameters (dict)
 
-        self.Photo_model = Photosyntehsis_model(p['photop']['photo_model'])
+        self.Photo_model = Photosyntehsis_model(self.StomaModel) #p['photop']['photo_model'])
         self.photo_forcing = initialize_photo_forcing(self.lad.shape[0])
 
         # leaf properties
@@ -242,8 +244,8 @@ class PlantType(object):
         self.photop['Vcmax'] = f * self.pheno_state * self.photop0['Vcmax']
         self.photop['Jmax'] = f * self.pheno_state * self.photop0['Jmax']
         self.photop['Rd'] = f * self.pheno_state * self.photop0['Rd']
-        if self.Switch_gm and self.photop['gm']['Ngradient']:
-            self.photop['gm'] = f * self.photop0['gm25']
+        # if self.Switch_gm and self.photop['gm']['Ngradient']:
+        #     self.photop['gm'] = f * self.photop0['gm25']
 
         # water stress responses: move into own sub-models?
         if self.Switch_WaterStress == 'Rew':
@@ -325,10 +327,10 @@ class PlantType(object):
         esat, s = e_sat(forcing['wet_leaf_temperature'])
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
 
-        if self.Switch_gm:
-            Qa = forcing['par']['sunlit']['absorbed']
-        else:
-            Qa = None
+        # if self.Switch_gm:
+        #     Qa = forcing['par']['sunlit']['absorbed']
+        # else:
+        Qa = None
         # sunlit & shaded separately
         self.photo_forcing = set_photo_forcing(self.photo_forcing,
                                                forcing['par']['sunlit']['incident'] *
@@ -594,8 +596,8 @@ class PlantType(object):
         # NOTE: now also CO2 exchange takes place only from dry fraction!
         keys = ['net_co2', 'dark_respiration', 'transpiration', 'latent_heat', 'sensible_heat', 'fr',
                 'stomatal_conductance', 'boundary_conductance']
-        if self.Switch_gm:
-            keys.append('mesophyll_conductance')
+        # if self.Switch_gm:
+        #     keys.append('mesophyll_conductance')
         pt_stats = {k: (np.sum(sl[k]*f1 + sh[k]*f2)) * self.dz for k in keys}
 
         # pt_stats['net_co2'] *= -1 # net uptake is negative
@@ -660,15 +662,15 @@ class PlantType(object):
             }
         )
 
-        if self.Switch_gm:
-            layer_stats.update(
-                {
-                    'mesophyll_conductance_h2o_shaded': sh['mesophyll_conductance'] * self.mask,
-                    'mesophyll_conductance_h2o_sunlit': sl['mesophyll_conductance'] * self.mask,
-                    'leaf_chloroplast_co2_sunlit': sl['leaf_chloroplast_co2'] * self.mask,
-                    'leaf_chloroplast_co2_shaded': sh['leaf_chloroplast_co2'] * self.mask,
-                }
-            )
+        # if self.Switch_gm:
+        #     layer_stats.update(
+        #         {
+        #             'mesophyll_conductance_h2o_shaded': sh['mesophyll_conductance'] * self.mask,
+        #             'mesophyll_conductance_h2o_sunlit': sl['mesophyll_conductance'] * self.mask,
+        #             'leaf_chloroplast_co2_sunlit': sl['leaf_chloroplast_co2'] * self.mask,
+        #             'leaf_chloroplast_co2_shaded': sh['leaf_chloroplast_co2'] * self.mask,
+        #         }
+        #     )
 
         return pt_stats, layer_stats
 

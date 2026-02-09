@@ -535,8 +535,11 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     del X, xi
 
     # incident radiation on sunlit and shaded leaves Wm-2
-    Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
-    Q_sl = Kb*IbSky + Q_sh  # normal to sunlit leaves is direct and diffuse
+    # Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
+    # Q_sl = Kb*IbSky + Q_sh  # normal to sunlit leaves is direct and diffuse
+    # SUGGESTED CHANGE: clumped leaves are shaded so "divide" diffuse radiation only for shaded leaves based on clumping (incident PAR of sunlit increases)
+    Q_sh = Clump*(1-f_slo)/(1-Clump*f_slo) * Kd*(SWdo + SWuo)
+    Q_sl = Kb*IbSky + Kd*(SWdo + SWuo)
 
     # absorbed components
     aLo = np.ones(len(Lo))*(1 - LeafAlbedo)
@@ -570,6 +573,10 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     # now sum(q_sl*f_slo* + q_sh*(1-f_slo)*Lo = (1-alb)*(IbSky + IdSky)
     q_sh = aDiffo*Clump  # shaded leaves only diffuse
     q_sl = q_sh + aDiro  # sunlit leaves diffuse + direct
+
+    # SAME CHANGE HERE TOO: note f_slo now unclumped
+    q_sh = Clump*(1-f_slo/Clump)/(1-f_slo) * aDiffo
+    q_sl = aDiffo + aDiro  # sunlit leaves diffuse + direct
 
     if PlotFigs:
         fig, ax = plt.subplots(2,2, figsize=(6,8))
