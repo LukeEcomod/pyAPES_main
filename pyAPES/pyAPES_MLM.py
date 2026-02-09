@@ -363,7 +363,6 @@ class MLM_model(object):
             self.results = _append_results('soil', k, soil_state, self.results)
             self.results = _append_results('pt', k, out_planttype, self.results)
             self.results = _append_results('gt', k, out_groundtype, self.results)
-
         print('100%')
 
         # append plantype, groundtype and grid information

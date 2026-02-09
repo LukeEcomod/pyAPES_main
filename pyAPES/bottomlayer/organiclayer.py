@@ -1173,6 +1173,8 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
         # checks limits
         x = np.minimum(x, Ts)
         x = np.maximum(x, Tr + 0.001) # avoids water potential of -1e17
+        # x = np.min((x, Ts))
+        # x = np.max((x, Tr + 0.001)) # avoids water potential of -1e17
         s = (Ts - Tr) / ((x - Tr) + EPS)
         Psi = -1e-2 / alfa*(s**(1.0 / m) - 1.0)**(1.0 / n)  # m
         # Psi[np.isnan(Psi)] = 0.0

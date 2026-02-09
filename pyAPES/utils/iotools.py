@@ -52,7 +52,7 @@ def initialize_netcdf(variables,
     ncf = Dataset(ff, 'w')
     ncf.description = description
     ncf.history = 'created ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    ncf.source = 'pyAPES_beta2018'
+    ncf.source = 'pyAPES_1.0'
 
     ncf.createDimension('date', None)
     ncf.createDimension('simulation', sim)
