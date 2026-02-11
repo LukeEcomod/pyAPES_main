@@ -45,13 +45,9 @@ import numpy as np
 import logging
 from typing import List, Dict, Tuple
 
-# from pyAPES.leaf.photo import photo_c3_medlyn_farquhar, photo_c3_medlyn_farquhar_gm #, photo_temperature_response
 from pyAPES.leaf.photosynthesis import Photosyntehsis_model, initialize_photo_forcing, set_photo_forcing
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.microclimate.micromet import e_sat, latent_heat
-from pyAPES.isotopes.carbon import carbon_discrimination
-from pyAPES.isotopes.oxygen import oxygen_enrichment
-# from pyAPES.canopy.interception import latent_heat
 from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
 
 from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle
@@ -158,10 +154,7 @@ class PlantType(object):
         self.Switch_lai = ctr['seasonal_LAI']  # seasonal LAI
         # water stress affects stomata
         self.Switch_WaterStress = ctr['WaterStress']
-        # self.Switch_gm = ctr['gm']  # include finite mesophyll conductance
-        # if self.Switch_gm:  # Do not requier gm_waterstress if gm is False
-        #     # include water stress in gm calculation
-        #     self.Switch_gm_waterstress = p['photop']['gm']['waterstress']
+
         self.StomaModel = 'MEDLYN_FARQUHAR' # stomatal model
 
         self.name = p['name']
@@ -244,8 +237,6 @@ class PlantType(object):
         self.photop['Vcmax'] = f * self.pheno_state * self.photop0['Vcmax']
         self.photop['Jmax'] = f * self.pheno_state * self.photop0['Jmax']
         self.photop['Rd'] = f * self.pheno_state * self.photop0['Rd']
-        # if self.Switch_gm and self.photop['gm']['Ngradient']:
-        #     self.photop['gm'] = f * self.photop0['gm25']
 
         # water stress responses: move into own sub-models?
         if self.Switch_WaterStress == 'Rew':
@@ -302,14 +293,8 @@ class PlantType(object):
 
         # --- compute sunlit leaves
         sl = self.leaf_gas_exchange(forcing, controls, 'sunlit')
-        # isotopes
-        sl.update(carbon_discrimination(sl, forcing, gm=sl['mesophyll_conductance']))
-        sl.update(oxygen_enrichment(sl, forcing))
         # --- compute shaded leaves
         sh = self.leaf_gas_exchange(forcing, controls, 'shaded')
-        # isotopes
-        sh.update(carbon_discrimination(sh, forcing, gm=sh['mesophyll_conductance']))
-        sh.update(oxygen_enrichment(sh, forcing))
 
         # --- update initial guess for leaf temperature
         if controls['energy_balance']:
@@ -327,10 +312,6 @@ class PlantType(object):
         esat, s = e_sat(forcing['wet_leaf_temperature'])
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
 
-        # if self.Switch_gm:
-        #     Qa = forcing['par']['sunlit']['absorbed']
-        # else:
-        Qa = None
         # sunlit & shaded separately
         self.photo_forcing = set_photo_forcing(self.photo_forcing,
                                                forcing['par']['sunlit']['incident'] *
@@ -340,8 +321,7 @@ class PlantType(object):
                                                forcing['co2'],
                                                gb_c,
                                                gb_v,
-                                               forcing['air_pressure'],
-                                               Qa)
+                                               forcing['air_pressure'])
 
         results_wet_sl = self.Photo_model.run(self.photo_forcing, self.photop)
         An_wet_sl = results_wet_sl['An']
@@ -473,17 +453,10 @@ class PlantType(object):
                                                        forcing['co2'],
                                                        gb_c,
                                                        gb_v,
-                                                       P,
-                                                       Qa)
+                                                       P)
                 # print(self.photo_forcing)
                 photo_results = self.Photo_model.run(
                     self.photo_forcing, self.photop)
-
-                # # solve leaf gas-exchange
-                # if self.Switch_gm:
-                #     An, Rd, fe, gs_opt, gm, Cc, Ci, Cs,  = photo_c3_medlyn_farquhar_gm(self.photop, Qp, Qa, Tl, Dleaf, CO2, gb_c, gb_v, P=P)
-                # else:
-                #     An, Rd, fe, gs_opt, Ci, Cs = photo_c3_medlyn_farquhar(self.photop, Qp, Tl, Dleaf, CO2, gb_c, gb_v, P=P)
 
                 gsv = H2O_CO2_RATIO*photo_results['gs_opt']
                 geff_v = np.where(Dleaf > 0.0, (gb_v*gsv) /
@@ -571,8 +544,6 @@ class PlantType(object):
              'boundary_conductance': gb_v,
              'leaf_internal_co2': photo_results['Ci'],
              'leaf_surface_co2': photo_results['Cs'],
-             'leaf_chloroplast_co2': photo_results['Cc'],
-             'mesophyll_conductance': photo_results['gm'],
              'cica': photo_results['Ci']/CO2}
         return x
 
@@ -596,8 +567,7 @@ class PlantType(object):
         # NOTE: now also CO2 exchange takes place only from dry fraction!
         keys = ['net_co2', 'dark_respiration', 'transpiration', 'latent_heat', 'sensible_heat', 'fr',
                 'stomatal_conductance', 'boundary_conductance']
-        # if self.Switch_gm:
-        #     keys.append('mesophyll_conductance')
+
         pt_stats = {k: (np.sum(sl[k]*f1 + sh[k]*f2)) * self.dz for k in keys}
 
         # pt_stats['net_co2'] *= -1 # net uptake is negative
@@ -608,16 +578,6 @@ class PlantType(object):
         pt_stats['dark_respiration'] += (np.sum(self.lad *
                                          (1.0 - df) * Rd_wet)) * self.dz
 
-        # cica ratio and D13C for pt weigthed by Anet (only dry canopy)
-        for variable in ['cica', 'D13C_simple', 'D13C_classical', 'D13C_classical_gm',
-                         'D18O_CG', 'D18O_peclet', 'D18O_2pool']:
-            # print(variable)
-            # print(sl[variable])
-            pt_stats[variable] = (np.sum(sl[variable]*f1*np.maximum(0.0, sl['net_co2']) +
-                                         sh[variable]*f2*np.maximum(0.0, sh['net_co2'])) /
-                                  np.sum(f1*np.maximum(0.0, sl['net_co2']) +
-                                         f2*np.maximum(0.0, sh['net_co2'])))
-
         # layerwise fluxes [units per m-3] for Micromet sink-source profiles
         keys = ['net_co2', 'dark_respiration', 'transpiration',
                 'latent_heat', 'sensible_heat', 'fr']
@@ -625,14 +585,6 @@ class PlantType(object):
 
         layer_stats['net_co2'] += self.lad * (1.0 - df) * An_wet
         layer_stats['dark_respiration'] += self.lad * (1.0 - df) * Rd_wet
-
-        # cica ratio and D13C from layers weigthed by Anet (only dry canopy)
-        for variable in ['cica', 'D13C_simple', 'D13C_classical', 'D13C_classical_gm',
-                         'D18O_CG', 'D18O_peclet', 'D18O_2pool']:
-            layer_stats[variable] = ((sl[variable]*f1*np.maximum(0.0, sl['net_co2']) +
-                                      sh[variable]*f2*np.maximum(0.0, sh['net_co2'])) /
-                                     (f1*np.maximum(0.0, sl['net_co2']) +
-                                      f2*np.maximum(0.0, sh['net_co2']) + EPS)) * self.mask
 
         # ... and outputs separately for sunlit and shaded leaves
         layer_stats.update(
@@ -661,16 +613,6 @@ class PlantType(object):
                 'leaf_surface_co2_shaded': sh['leaf_surface_co2'] * self.mask,
             }
         )
-
-        # if self.Switch_gm:
-        #     layer_stats.update(
-        #         {
-        #             'mesophyll_conductance_h2o_shaded': sh['mesophyll_conductance'] * self.mask,
-        #             'mesophyll_conductance_h2o_sunlit': sl['mesophyll_conductance'] * self.mask,
-        #             'leaf_chloroplast_co2_sunlit': sl['leaf_chloroplast_co2'] * self.mask,
-        #             'leaf_chloroplast_co2_shaded': sh['leaf_chloroplast_co2'] * self.mask,
-        #         }
-        #     )
 
         return pt_stats, layer_stats
 
