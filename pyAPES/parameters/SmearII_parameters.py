@@ -139,7 +139,7 @@ pt2 = { 'name': 'spruce',
             'fmin': 0.1, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 18.0  # threshold for full acclimation [degC]
+            'smax': 15.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
@@ -194,7 +194,7 @@ pt3 = { 'name': 'decid',
             'fmin': 0.01, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 18.0  # threshold for full acclimation [degC]
+            'smax': 15.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
@@ -249,7 +249,7 @@ pt4 = { 'name': 'shrubs',
             'fmin': 0.1, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 17.3-3.1,  #18.0  # threshold for full acclimation [degC]
+            'smax': 15,  #18.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
