@@ -27,13 +27,13 @@ hyytiala_2018_lad_parameters = {
                 'LAImax': LAI_pine,
             },
             'spruce': {
-                'LAImax': LAI_spruce
+                'LAImax': LAI_spruce,
             },
             'decid': {
-                'LAImax': LAI_decid
+                'LAImax': LAI_decid,
             },
             'shrubs': {
-                'LAImax': LAI_shrubs
+                'LAImax': LAI_shrubs,
             },
         }
     }
