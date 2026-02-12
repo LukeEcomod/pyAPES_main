@@ -540,7 +540,7 @@ class SoilRespiration(object):
             weights = np.exp(para['beta'] * z_soil)
             self.weights = weights * dz / sum(weights * dz) 
         else:
-            self.weights = np.zeros(len(z_soil))
+            self.weights = np.ones(len(z_soil))
 
         self.Nlayers = len(self.weights)
 

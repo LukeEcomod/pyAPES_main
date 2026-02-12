@@ -17,7 +17,7 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : 'c:/Repositories/pyAPES_main/forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
+         'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
          'results_directory':'results/'
          }
 
@@ -201,7 +201,8 @@ snowpack = {
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'beta': 0.943, # root distribution shape parameter [-]
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
