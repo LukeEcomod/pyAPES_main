@@ -201,7 +201,8 @@ snowpack = {
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'beta': 0.943, # root distribution shape parameter [-]
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
