@@ -18,5 +18,4 @@
 
 1. Sapflow and trunk water storage dynamics using 1D porous media approach (Opa)
 1. Energy-balance based snow scheme FSM (J-P)
-1. 13C, 18O and 3H isotopes (Kersti)
-
+1. Add 13C and 18O isotopes: seer isotope branch and [Demo_mlm_isotopes](Demo_mlm_isotopes.ipynb)

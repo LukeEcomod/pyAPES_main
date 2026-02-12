@@ -15,9 +15,9 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : 'c:/Repositories/pyAPES_main/forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
+         'start_time' : "2015-05-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2015-11-01",  # end time of simulation [yyyy-mm-dd]
+         'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2015_2019_isotopes.dat', # forcing data file
          'results_directory':'results/'
          }
 
@@ -427,3 +427,43 @@ spara = {'grid': soil_grid,
          'soil_properties': soil_properties,
          'water_model': water_model,
          'heat_model': heat_model}
+
+# --- isotope model parameter dictionary (fractionation parameters same for all planttypes for now..)
+isopara = {
+    'd13C': {
+        'solve': True,
+        'a_b': 2.9e-3,  # fractionation during diffusion through the boundary layer
+        'a_s': 4.4e-3,  # fractionation during diffusion through the stomata
+        'a_m': 1.8e-3,  # fractionation during transfer through mesophyll
+        'b': 29.0e-3,  # fractionation by Rubisco
+        'e': -6.0e-3,  # fractionation during mitochondrial respiration
+        'f': 8.0e-3,  # fractionation during photorespiration
+        'e_stem': 0.0e-3,  # fractionation by wood respiration
+        'x': 0.0e-3,  # fractionation by biomass synthesis
+        'init_d13C_leaf': -32.0,  # initial leaf sugar store d13c (permil)
+        'init_d13C_C_pool': -32.0  # initial C_pool sugar d13c [permil]
+        },
+    'd18O': {
+        'solve': True,
+        'e_kb': 19e-3,  # fractionation during diffusion of water vapor through boundary layer
+        'e_k': 28e-3,  # fractionation during diffusion of water vapor through stomata
+        'e_wc': {  # biochemical fractionation factor (constant or temperature dependent)
+            'constant': False,
+            'value': 27e-3
+            },
+        'nonsteadystate': True,  # if true applies non-steady state for leaf water modeling, else steady-state approach
+        'Vlw': 5. * 2,  # leaf mesophyll water volume (mol m-2)  ! one-sided leaf area
+        'peclet': False,  # if true applies peclet model (L_eff), else two-pool model (f1)
+        'L_eff': 0.03 * 2,  # leaf mesophyll effective mixing length (m)  ! one-sided leaf area
+        'f1': 1.0,  # parameter of two-pool model, if f1=1 simplifies to Craig-Gordon model
+        'pex': 0.36,  # proportion of oxygen atoms exchanged with source water during cellulose synthesis (-)
+        'init_d18O_leaf': 24.0,  # initial leaf sugar store d18O (permil).
+        'init_d18O_C_pool': 24.0  #initial C_pool sugar d18O [permil]
+        },
+    'C_leaf': 1.96e5 * 2,  # size of leaf sugar store (umol C m-2) ! one-sided leaf area
+    'init_C_pool': 1e6,  # initial C_pool size [umol C m-2] ! one-sided leaf area
+    'k_pool': 30/365/24/3600,  # trunover rate of C_pool [s-1]
+    'woodsections_filename': 'forcing/Hyytiala/woodsections.dat'  # filename for file containing 'date_formation' and 'date_maturation' for wood sections of interest
+    }
+    
+

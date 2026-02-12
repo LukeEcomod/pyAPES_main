@@ -44,6 +44,7 @@ from typing import List, Tuple, Dict
 from pyAPES.utils.iotools import initialize_netcdf,  write_ncf
 from pyAPES.canopy.mlm_canopy import CanopyModel
 from pyAPES.soil.soil import Soil_1D
+from pyAPES.isotopes.isotopes import Isotopes
 
 from pyAPES.utils.constants import WATER_DENSITY
 
@@ -93,6 +94,7 @@ def driver(parameters,
                 parameters[k]['general']['dt'],
                 parameters[k]['canopy'],
                 parameters[k]['soil'],
+                parameters[k]['isotopes'],
                 parameters[k]['forcing'],
                 output_variables['variables'],
                 nsim=k
@@ -158,6 +160,7 @@ class MLM_model(object):
                  dt: float,
                  canopy_para: Dict,
                  soil_para: Dict,
+                 isotope_para: Dict,
                  forcing: Dict, # or pd.DataFrame
                  outputs: Dict,
                  nsim: int=0
@@ -200,6 +203,11 @@ class MLM_model(object):
 
         self.Nplant_types = len(self.canopy_model.planttypes)
         self.Nground_types = len(self.canopy_model.forestfloor.bottomlayer_types)
+
+        # create isotope model instance
+        self.isotope_model = Isotopes(isotope_para,
+                                      [pt.mask for pt in self.canopy_model.planttypes],
+                                      [pt.LAImax for pt in self.canopy_model.planttypes])
 
         # initialize temorary structure to save results
         self.results = _initialize_results(outputs,
@@ -356,13 +364,65 @@ class MLM_model(object):
                     }
 
             soil_state.update(soil_flux)
+            
+            # --- isotope model ---
+            # compile forcing
+            iso_forcing = {
+                'leaf_temperature_sunlit': out_planttype['leaf_temperature_sunlit'],
+                'leaf_temperature_shaded': out_planttype['leaf_temperature_shaded'],
+                'net_co2_sunlit': out_planttype['net_co2_sunlit'],
+                'net_co2_shaded': out_planttype['net_co2_shaded'],
+                'dark_respiration_sunlit': out_planttype['dark_respiration_sunlit'],
+                'dark_respiration_shaded': out_planttype['dark_respiration_shaded'],
+                'transpiration_sunlit': out_planttype['transpiration_sunlit'],
+                'transpiration_shaded': out_planttype['transpiration_shaded'],
+                'stomatal_conductance_h2o_sunlit': out_planttype['stomatal_conductance_h2o_sunlit'],
+                'stomatal_conductance_h2o_shaded': out_planttype['stomatal_conductance_h2o_shaded'],
+                'boundary_conductance_h2o_sunlit': out_planttype['boundary_conductance_h2o_sunlit'],
+                'boundary_conductance_h2o_shaded': out_planttype['boundary_conductance_h2o_shaded'],
+                'leaf_internal_co2_sunlit': out_planttype['leaf_internal_co2_sunlit'],
+                'leaf_internal_co2_shaded': out_planttype['leaf_internal_co2_shaded'],
+                'leaf_surface_co2_sunlit': out_planttype['leaf_surface_co2_sunlit'],
+                'leaf_surface_co2_shaded': out_planttype['leaf_surface_co2_shaded'],
+                'co2': out_canopy['co2'],
+                'h2o': out_canopy['h2o'],
+                'air_pressure': self.forcing['P'].iloc[k],
+                'air_temperature': self.forcing['Tair'].iloc[k],
+                'LAIz': [pt.lad * self.canopy_model.dz for pt in self.canopy_model.planttypes],
+                'f_sl': out_canopy['sunlit_fraction'],
+                'datetime': self.forcing.index[k]
+                }
+            
+            # add isotopic forcing data depending on which isotopes are solved
+            if self.isotope_model.solve_d13C:
+                iso_forcing.update({'d13Ca': self.forcing['d13Ca'].iloc[k]})
+                forcing_output.update({'d13Ca': self.forcing['d13Ca'].iloc[k]})
+                
+            if self.isotope_model.solve_d18O:
+                iso_forcing.update({'d18Ov': self.forcing['d18Ov'].iloc[k],
+                                    'd18O_sw': self.forcing['d18O_sw'].iloc[k]})
+                forcing_output.update({'d18Ov': self.forcing['d18Ov'].iloc[k],
+                                    'd18O_sw': self.forcing['d18O_sw'].iloc[k]})
+            
+            # run model
+            out_isotope = self.isotope_model.run(dt=self.dt, forcing=iso_forcing)
 
+            # --- append results ---
             self.results = _append_results('forcing', k, forcing_output, self.results)
             self.results = _append_results('canopy', k, out_canopy, self.results)
             self.results = _append_results('ffloor', k, out_ffloor, self.results)
             self.results = _append_results('soil', k, soil_state, self.results)
             self.results = _append_results('pt', k, out_planttype, self.results)
             self.results = _append_results('gt', k, out_groundtype, self.results)
+            self.results = _append_results('pt', k, out_isotope, self.results)
+
+        # --- calculate wood sections isotopes ---
+        out_isotope_woodsections, indices = self.isotope_model.calculate_woodsections_values(
+            dates=self.forcing.index)
+        # append to results
+        for i, k in enumerate(indices):
+            self.results = _append_results('pt', k, out_isotope_woodsections[i], self.results)                
+        
         print('100%')
 
         # append plantype, groundtype and grid information
@@ -453,7 +513,7 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
             if key == 'z' or key == 'planttypes' or key == 'groundtypes':
                 results[variable] = step_results[key]
             else:
-                #print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
+                # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]),step_results[key])
                 results[variable][step] = step_results[key]
 
     return results

@@ -241,8 +241,12 @@ def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
              'latent_heat': LE,
              'fr': Fr,
              'leaf_temperature': Tl,
+<<<<<<< HEAD
              # gsv gets high when VPD->0
              'stomatal_conductance': np.minimum(gsv, 1.0),
+=======
+             'stomatal_conductance': gsv,  #np.minimum(gsv, 1.0), # gsv gets high when VPD->0
+>>>>>>> origin/kersti_isotopes
              'boundary_conductance': gb_v,
              'leaf_internal_co2': Ci,
              'leaf_surface_co2': Cs}
