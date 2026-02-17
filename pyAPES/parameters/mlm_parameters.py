@@ -15,9 +15,9 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
+         'start_time' : "2018-01-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2018-12-31",  # end time of simulation [yyyy-mm-dd]
+         'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
          'results_directory':'results/'
          }
 
