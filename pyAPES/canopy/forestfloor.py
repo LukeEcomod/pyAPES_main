@@ -36,7 +36,7 @@ class ForestFloor(object):
     ForestFloor computes energy balance, water and carbon exchange
     of forestfloor or peatland ground layer.
    """
-    def __init__(self, para: Dict, respiration_profile: np.ndarray=None) -> object:
+    def __init__(self, para: Dict, z_soil) -> object:
         """
         Initializes forestfloor object
         
@@ -131,7 +131,7 @@ class ForestFloor(object):
                 'albedo': {'PAR': 0.8, 'NIR': 0.8}
                 }
 
-        self.soilrespiration = SoilRespiration(para['soil_respiration'], weights=respiration_profile)
+        self.soilrespiration = SoilRespiration(para['soil_respiration'], z_soil=z_soil)
 
         # BottomLayer types can include both bryophytes and litter. Append to list and
         # compute area-weighted forest floor temperature and optical properties
@@ -337,11 +337,12 @@ class ForestFloor(object):
             #'albedo': None,
             #'emissivity': None
          }
-        
-        # --- Soil respiration
+
+        # --- Soil respiration # Moyano et al. 2012 BG soil moisture response
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
                                         forcing['soil_temperature'],
                                         forcing['soil_volumetric_water'],
+                                        forcing['soil_volumetric_ice'],
                                         forcing['soil_volumetric_air'])
 
         fluxes['respiration'] += fluxes['soil_respiration']
@@ -381,7 +382,12 @@ class ForestFloor(object):
 
         # --- solve snowpack
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
-        
+
+        # Add snowpack results to states and fluxes
+
+        fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
+        fluxes['snow_water_closure'] = fluxes_snow['water_closure']
+        state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
@@ -399,7 +405,6 @@ class ForestFloor(object):
                 'snow_heat_flux': fluxes_snow['snow_heat_flux'],
                 'snow_temperature': snow_bottom_temperature}
                 )
-
         # bottomlayer-type specific fluxes and state for output: list of dicts
         bt_results = []
 

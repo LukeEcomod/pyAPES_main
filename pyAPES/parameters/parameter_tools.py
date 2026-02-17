@@ -17,7 +17,7 @@ Logging configuration remains inside driver for now
 from copy import deepcopy as copy
 
 from .parametersets import get_parameters
-from tools.iotools import read_forcing
+from pyAPES.utils.iotools import read_forcing
 
 def get_parameter_list(default_params, modifications):
     """ returns list of modified default parameters and their forcing.
@@ -63,7 +63,7 @@ def get_parameter_list(default_params, modifications):
         forc_filename = param_list[i]['general']['forc_filename']
 
         forcing = read_forcing(
-            forc_filename=forc_filename,
+            forcing_file=forc_filename,
             start_time=start_time,
             end_time=end_time,
             dt=dt

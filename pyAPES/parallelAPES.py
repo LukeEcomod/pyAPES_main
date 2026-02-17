@@ -18,7 +18,7 @@ from multiprocessing import Process, Queue, Pool  # , cpu_count
 from copy import deepcopy
 
 from pyAPES.utils.iotools import initialize_netcdf, write_ncf
-from pyAPES.pyAPES_mlm import Model
+from pyAPES.pyAPES_MLM import MLM_model
 
 import time
 
@@ -95,7 +95,7 @@ def _worker():
         root.info("Creating simulation {}".format(task['nsim']))
 
         try:
-            model = Model(
+            model = MLM_model(
                 dt=task['general']['dt'],
                 canopy_para=task['canopy'],
                 soil_para=task['soil'],
@@ -122,7 +122,9 @@ def driver(ncf_params,
         logging_configuration (dict): parallel logging configuration
         N_workers (int): number of worker processes
     """
-
+    task_queue = Queue()
+    logging_queue = Queue()
+    writing_queue = Queue()
     # --- PROCESSES ---
     running_time = time.time()
 

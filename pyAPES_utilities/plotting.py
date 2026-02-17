@@ -47,7 +47,7 @@ def plot_fluxes(results, Data,
 
     dryc = np.ones(len(dates))
     if norain:
-        ix = Data['forcing_precipitation'].rolling(48, 1).sum()
+        ix = Data.loc[:, 'forcing_precipitation'].rolling(48, 1).sum()
         f = np.where(ix > EPS)[0]  # wet canopy indices
         dryc[f] = 0.0
 
@@ -58,13 +58,14 @@ def plot_fluxes(results, Data,
     fig = plt.figure(figsize=(10,N*1.7 + 0.5))
     for i in range(N):
         if norain:
-            ix = np.where((months >= fmonth) & (months <= lmonth) & (dryc == 1) & np.isfinite(Data[Data_var[i]]))[0]
+            ix = np.where((months >= fmonth) & (months <= lmonth) & (dryc == 1) & np.isfinite(Data[Data_var[i]])& np.isfinite(Data[res_var[i]]))[0]
         else:
-            ix = np.where((months >= fmonth) & (months <= lmonth) & np.isfinite(Data[Data_var[i]]))[0]
+            ix = np.where((months >= fmonth) & (months <= lmonth) & np.isfinite(Data[Data_var[i]])& np.isfinite(Data[res_var[i]]))[0]
         plt.subplot(N, 4, i*4+1)
         if i + 1 == N:
             labels = {'x': 'Measured', 'y': 'Modelled'}
-        plot_xy(Data[Data_var[i]][ix], Data[res_var[i]][ix], color=pal[i], axislabels=labels,l1=l1)
+        #plot_xy(Data[Data_var[i]][ix], Data[res_var[i]][ix], color=pal[i], axislabels=labels,l1=l1)
+        plot_xy(Data.iloc[ix][Data_var[i]], Data.iloc[ix][res_var[i]], color=pal[i], axislabels=labels,l1=l1)
         if i == 0:
             ax1 = plt.subplot(N,4,(i*4+2,i*4+3))
             plot_timeseries_df(Data, [res_var[i],Data_var[i]], colors=[pal[i],'k'], xticks=False,
@@ -86,8 +87,8 @@ def plot_fluxes(results, Data,
             ax2 = plt.subplot(N,4,i*4+4)
         else:
             plt.subplot(N,4,i*4+4, sharex=ax2)
-        plot_diurnal(Data[Data_var[i]][ix], color='k', legend=False)
-        plot_diurnal(Data[res_var[i]][ix], color=pal[i], legend=False)
+        plot_diurnal(Data.iloc[ix][Data_var[i]], color='k', legend=False)
+        plot_diurnal(Data.iloc[ix][res_var[i]], color=pal[i], legend=False)
         if i + 1 < N:
             plt.setp(plt.gca().axes.get_xticklabels(), visible=False)
             plt.xlabel('')
@@ -402,7 +403,7 @@ def xarray_to_df(results, variables, sim_idx=0):
         series.append(results[var].isel(simulation=sim_idx).to_pandas())
     df = pd.concat(series, axis=1)
     df.columns = variables
-    df.index = df.index.round('30T')
+    df.index = df.index.round('30min')
 
     return df
 

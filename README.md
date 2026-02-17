@@ -1,8 +1,8 @@
 # pyAPES (Atmosphere-PlantEcosystem Simulator in pure Python)
 
-### Master code, working towards publishable code & model description paper in GMD
+### Master code, working towards publishable code & model description paper in GMD (Tikkasalo et al. 2025)
 
-### Recent changes (Samuli, March-June 2023):
+### Recent changes:
 
 1. revised package structure, renamed packages
 1. typing, documenting interfaces
@@ -10,15 +10,13 @@
 
 ### ToDo's:
 
-1. Document parameters -package
-1. Multi-layer model (MLM) and 2-big-leaf model versions & Notebooks as user-guides) 
 1. implement soil water bucket model (from SpaFhy-style)
 1. Notebooks for package-level demonstrations (user guide, case-examples for GMD)
-1. debug dependencies
 1. add checks on installed modules
 
-### Future developments:
+### Current developments:
 
-1. Sapflow and trunk water storage dynamics using 1D porous media approach
-1. Energy-balance based snow scheme
-1. Add 13C, 18O and 3H isotopes (external modules?)
+1. Sapflow and trunk water storage dynamics using 1D porous media approach (Opa)
+1. Energy-balance based snow scheme FSM (J-P)
+1. 13C, 18O and 3H isotopes (Kersti)
+

@@ -195,6 +195,7 @@ class Soil_1D(object):
                 self.heat.update_state(Wtot=state['volumetric_water_content'])
 
         state.update({'volumetric_ice_content': self.heat.Wice,
+                      'volumetric_liquid_water_content': self.heat.Wliq,
                       'temperature': self.heat.T,
                       'thermal_conductivity': self.heat.thermal_conductivity})
 

@@ -52,7 +52,7 @@ def initialize_netcdf(variables,
     ncf = Dataset(ff, 'w')
     ncf.description = description
     ncf.history = 'created ' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    ncf.source = 'pyAPES_beta2018'
+    ncf.source = 'pyAPES_1.0'
 
     ncf.createDimension('date', None)
     ncf.createDimension('simulation', sim)
@@ -157,6 +157,14 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
         cols.append('X')
     if 'DDsum' in dat:
         cols.append('DDsum')
+
+    # for case for bypassing soil computations
+    if 'Tsa' in dat:
+        cols.append('Tsa')
+    if 'Wa' in dat:
+        cols.append('Wa')
+    if 'Rew' in dat:
+        cols.append('Rew')  
 
     # Create dataframe from specified columns
     Forc = dat[cols].copy()

@@ -9,10 +9,11 @@ General utility functions for numerical solutions of 1D ODE's and PDE's
 
 import numpy as np
 
+
 def forward_diff(y: np.ndarray, dx: float) -> np.ndarray:
     """
     Computes gradient dy/dx using forward difference method.
-    
+
     Args:
         y (array): variable
         dx (float): grid size (must be constant)
@@ -21,7 +22,7 @@ def forward_diff(y: np.ndarray, dx: float) -> np.ndarray:
 
     """
     N = len(y)
-    dy = np.ones(N) * np.NaN
+    dy = np.ones(N) * np.nan
     dy[0:-1] = np.diff(y)
     dy[-1] = dy[-2]
 
@@ -40,7 +41,7 @@ def central_diff(y, dx) -> np.ndarray:
 
     """
     N = len(y)
-    dydx = np.ones(N) * np.NaN
+    dydx = np.ones(N) * np.nan
     # -- use central difference for estimating derivatives
     dydx[1:-1] = (y[2:] - y[0:-2]) / (2 * dx)
     # -- use forward difference at lower boundary
@@ -107,11 +108,12 @@ def tridiag(a: np.ndarray, b: np.ndarray, C: np.ndarray, D: np.ndarray) -> np.nd
         x[i] = U[i] - G[i] * x[i + 1]
     return x
 
+
 def smooth(a: np.ndarray, WSZ: int) -> np.ndarray:
     """
     Smooths array by taking WSZ point moving average.
     Note: even WSZ is converted to next odd number.
-    
+
     Args: 
         a (array): vector
         WSZ (int): number of points for moving average
@@ -126,7 +128,8 @@ def smooth(a: np.ndarray, WSZ: int) -> np.ndarray:
     x = np.concatenate((start, out0, stop))
     return x
 
-def spatial_average(y: np.ndarray, x: np.ndarray=None, method: str='arithmetic'):
+
+def spatial_average(y: np.ndarray, x: np.ndarray = None, method: str = 'arithmetic'):
     """
     Calculates spatial average of quantity y, from node points to soil compartment edges.
 
@@ -151,7 +154,7 @@ def spatial_average(y: np.ndarray, x: np.ndarray=None, method: str='arithmetic')
         f[0] = y[0]
         f[-1] = y[-1]
 
-    #elif method is 'dist_weighted':  # not in use
+    # elif method is 'dist_weighted':  # not in use
     #    a = (x[0:-2] - x[2:])*y[:-2]*y[1:-1]
     #    b = y[1:-1]*(x[:-2] - x[1:-1]) + y[:-2]*(x[1:-1] - x[2:])
     #
@@ -161,8 +164,9 @@ def spatial_average(y: np.ndarray, x: np.ndarray=None, method: str='arithmetic')
 
     return f
 
-def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float=0.0,
-               b: float=None, c: float=None, species: str=None) -> np.ndarray:
+
+def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float = 0.0,
+               b: float = None, c: float = None, species: str = None) -> np.ndarray:
     """
     Generates leaf-area density profile from Weibull-distribution.
 
@@ -183,15 +187,16 @@ def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float=0.0,
         LAD (array): [m2 m-3] leaf-area density
 
     """
-    
-    para = {'pine': [0.906, 2.145], 'spruce': [2.375, 1.289], 'birch': [0.557, 1.914]} 
-    
+
+    para = {'pine': [0.906, 2.145], 'spruce': [
+        2.375, 1.289], 'birch': [0.557, 1.914]}
+
     if (max(z) <= h) | (h <= hb):
         raise ValueError("h must be lower than uppermost gridpoint")
-        
+
     if b is None or c is None:
         b, c = para[species]
-    
+
     z = np.array(z)
     dz = abs(z[1]-z[0])
     N = np.size(z)
@@ -200,23 +205,24 @@ def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float=0.0,
     a = np.zeros(N)
 
     # dummy variables
-    ix = np.where( (z > hb) & (z <= h)) [0]
-    x = np.linspace(0, 1, len(ix)) # normalized within-crown height
+    ix = np.where((z > hb) & (z <= h))[0]
+    x = np.linspace(0, 1, len(ix))  # normalized within-crown height
 
     # weibul-distribution within crown
     cc = -(c / b)*(((1.0 - x) / b)**(c - 1.0))*(np.exp(-((1.0 - x) / b)**c)) \
-            / (1.0 - np.exp(-(1.0 / b)**c))
+        / (1.0 - np.exp(-(1.0 / b)**c))
 
     a[ix] = cc
-    a = np.abs(a / sum(a*dz))    
+    a = np.abs(a / sum(a*dz))
 
     LAD = LAI * a
 
     # plt.figure(1)
-    # plt.plot(LAD,z,'r-')      
+    # plt.plot(LAD,z,'r-')
     return LAD
 
-def lad_constant(z: np.ndarray, LAI: float, h: float, hb: float=0.0):
+
+def lad_constant(z: np.ndarray, LAI: float, h: float, hb: float = 0.0):
     """
     Creates uniform leaf-area density distribution.
 
@@ -235,10 +241,10 @@ def lad_constant(z: np.ndarray, LAI: float, h: float, hb: float=0.0):
     z = np.array(z)
     dz = abs(z[1]-z[0])
     N = np.size(z)
-    
+
     # dummy variables
     a = np.zeros(N)
-    ix = np.where( (z > hb) & (z <= h)) [0]
+    ix = np.where((z > hb) & (z <= h))[0]
     if ix.size == 0:
         ix = [1]
 

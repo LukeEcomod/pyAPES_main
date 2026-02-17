@@ -65,7 +65,7 @@ def driver(parameters,
 
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
     from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
-    #from logging.config import dictConfig
+    from logging.config import dictConfig
 
     # --- Config logger
     logging.config.dictConfig(logging_configuration)
@@ -172,6 +172,16 @@ class MLM_model(object):
         self.Nsoil_nodes = len(soil_para['grid']['dz'])
         self.Ncanopy_nodes = canopy_para['grid']['Nlayers']
 
+        # if soil not solved check if topsoil properties are given in forcing file
+        if 'Wa' in forcing and soil_para['water_model']['solve'] is False:
+            print("Soil moisture from forcing file")
+            soil_para['water_model']['initial_condition']['volumetric_water_content'] = (
+                forcing['Wa'].iloc[0])
+        if 'Tsa' in forcing and soil_para['heat_model']['solve'] is False:
+            print("Soil temperature from forcing file")
+            soil_para['heat_model']['initial_condition']['temperature'] = (
+                forcing['Tsa'].iloc[0])
+
         # create soil model instance
         self.soil = Soil_1D(soil_para)
 
@@ -242,9 +252,17 @@ class MLM_model(object):
             # --- CanopyModel ---
             # run daily loop: updates LAI, phenology and moisture stress ---
             if self.forcing['doy'].iloc[k] != self.forcing['doy'].iloc[k-1] or k == 0:
+
+                if 'Rew' in self.forcing:
+                    # Rew from forcing
+                    Rew = self.forcing['Rew'].iloc[k]
+                else:
+                    Rew = 1.0  # should be calculated in soil
+
                 self.canopy_model.run_daily(
                         self.forcing['doy'].iloc[k],
-                        self.forcing['Tdaily'].iloc[k])
+                        self.forcing['Tdaily'].iloc[k],
+                        Rew=Rew)
 
             # compile forcing dict for canopy model: soil_ refers to state of soil model
             canopy_forcing = {
@@ -263,17 +281,27 @@ class MLM_model(object):
                 'zenith_angle': self.forcing['Zen'].iloc[k],        # [rad]
 
                 # from soil model
-                'soil_temperature': self.soil.heat.T[self.canopy_model.ix_roots],         # [deg C]
-                'soil_water_potential': self.soil.water.h[self.canopy_model.ix_roots],    # [m]
-                'soil_volumetric_water': self.soil.heat.Wliq[self.canopy_model.ix_roots], # [m3 m-3]
-                'soil_volumetric_air': self.soil.heat.Wair[self.canopy_model.ix_roots],   # [m3 m-3]
-                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,              # [kg m-2]
+                'soil_temperature': self.soil.heat.T,         # [deg C]
+                'soil_water_potential': self.soil.water.h,    # [m]
+                'soil_volumetric_water': self.soil.heat.Wliq, # total water content [m3 m-3]
+                'soil_volumetric_ice': self.soil.heat.Wice,
+                'soil_volumetric_air': self.soil.heat.Wair,   # [m3 m-3]
+                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,      
+                  
+                # 'soil_temperature': self.soil.heat.T[self.canopy_model.ix_roots],         # [deg C]
+                # 'soil_water_potential': self.soil.water.h[self.canopy_model.ix_roots],    # [m]
+                # 'soil_volumetric_water': self.soil.heat.Wliq[self.canopy_model.ix_roots], # total water content [m3 m-3]
+                # 'soil_volumetric_ice': self.soil.heat.Wice[self.canopy_model.ix_roots],
+                # 'soil_volumetric_air': self.soil.heat.Wair[self.canopy_model.ix_roots],   # [m3 m-3]
+                # 'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,              # [kg m-2]
             }
 
             canopy_parameters = {
                 'soil_depth': self.soil.grid['z'][0],   # [m]
-                'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
-                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],        # [W m-1 K-1]?
+                'soil_porosity': self.soil.heat.porosity, #[m3 m-3]
+                'soil_hydraulic_conductivity': self.soil.water.Kv, # [m s-1]
+                #'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
+                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],        # [W m-1 K-1]
                 # SINGLE SOIL LAYER
                 # 'state_water':{'volumetric_water_content': self.forcing['Wliq'].iloc[k]},
                 #                'state_heat':{'temperature': self.forcing['Tsoil'].iloc[k]}
@@ -298,6 +326,14 @@ class MLM_model(object):
                 'atmospheric_pressure_head': -1.0E6,  # set to large value, because potential_evaporation already account for h_soil
                 'ground_heat_flux': -out_ffloor['ground_heat'],
                 'date': self.forcing.index[k]}
+            
+            # if soil not solved check for soil state in forcing
+            if 'Wa' in self.forcing and self.soil.solve_water is False:
+                soil_forcing.update({
+                    'state_water':{'volumetric_water_content': self.forcing['Wa'].iloc[k]}})
+            if 'Tsa' in self.forcing and self.soil.solve_heat is False:
+                soil_forcing.update({
+                    'state_heat':{'temperature': self.forcing['Tsa'].iloc[k]}})
 
             # call self.soil to solve below-ground water and heat flow
             soil_flux, soil_state = self.soil.run(
@@ -327,7 +363,6 @@ class MLM_model(object):
             self.results = _append_results('soil', k, soil_state, self.results)
             self.results = _append_results('pt', k, out_planttype, self.results)
             self.results = _append_results('gt', k, out_groundtype, self.results)
-
         print('100%')
 
         # append plantype, groundtype and grid information
@@ -389,7 +424,7 @@ def _initialize_results(variables: Dict,
         else:
             var_shape = [Nstep]
 
-        results[var_name] = np.full(var_shape, np.NAN)
+        results[var_name] = np.full(var_shape, np.nan)
         # print(var_name, var_shape, dimensions)
 
     return results

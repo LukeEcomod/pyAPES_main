@@ -17,7 +17,7 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : '/forcing/FIHy_forcing_2006_2008.dat', # forcing data file
+         'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
          'results_directory':'results/'
          }
 
@@ -81,7 +81,7 @@ pt1 = { 'name': 'pine',
             'fmin': 0.1, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 18.0  # threshold for full acclimation [degC]
+            'smax': 15.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
@@ -135,7 +135,7 @@ pt2 = { 'name': 'shrubs',
             'fmin': 0.1, # minimum relative photosynthetic capacity
             'Tbase': -4.7,  # base temperature [degC]
             'tau': 8.33,  # time constant [d]
-            'smax': 18.0  # threshold for full acclimation [degC]
+            'smax': 15.0  # threshold for full acclimation [degC]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
@@ -286,7 +286,8 @@ snow = {
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'beta': 0.943, # root distribution shape parameter [-]
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer

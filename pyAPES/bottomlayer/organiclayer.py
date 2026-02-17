@@ -1548,7 +1548,7 @@ def evaporation_through_organic_layer(forcing: Dict, boundary_layer_conductance:
     cair = Pamb / (GAS_CONSTANT * (Ta + DEG_TO_KELVIN))
 
     # D/Do, diffusivity in porous media relative to that in free air, Millington and Quirk (1961)
-    relative_diffusivity = (np.power((Ta + DEG_TO_KELVIN) / 293.16, 1.75) * np.power(afp, 10.0/3.0) / porosity**2)
+    relative_diffusivity = (np.power((Ta+DEG_TO_KELVIN) / 293.16, 1.75) * np.power(afp, 10.0/3.0) / porosity**2)
 
     g_molecular = cair * MOLECULAR_DIFFUSIVITY_H2O * relative_diffusivity / moss_height
 
@@ -1609,6 +1609,8 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
         # checks limits
         x = np.minimum(x, Ts)
         x = np.maximum(x, Tr + 0.001) # avoids water potential of -1e17
+        # x = np.min((x, Ts))
+        # x = np.max((x, Tr + 0.001)) # avoids water potential of -1e17
         s = (Ts - Tr) / ((x - Tr) + EPS)
         Psi = -1e-2 / alfa*(s**(1.0 / m) - 1.0)**(1.0 / n)  # m
         # Psi[np.isnan(Psi)] = 0.0
@@ -1622,8 +1624,8 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
     
     if theta is not None:
         Psi,x = theta_psi(theta)
-        # if any(psi < -10 for psi in Psi):
-        #     logger.info(x[0])
+        #if any(psi < -10 for psi in Psi):
+        #    logger.info(x[0])
         return Psi
     else:
         return psi_theta(psi)

@@ -3,9 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 build/
@@ -51,18 +48,6 @@ coverage.xml
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
 # Sphinx documentation
 docs/_build/
 
@@ -74,12 +59,6 @@ target/
 
 # pyenv
 .python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
 
 # Environments
 .env
@@ -106,25 +85,47 @@ venv.bak/
 sand*.py
 sand*.ipynb
 
-#bryo_ebal.ipynb
-
-/figures
-/results
-
-/forcing/Hyytiala/FIHy_forcing_1997-2019.dat
-/forcing/Hyytiala/FIHy_flx_1997-2019.dat
-/forcing/Hyytiala/FIHy_met_1997-2019.dat
-
-.DS_Store
-
-*.log
-
-*.sh
+# ipython:
+/__pycache__
+.ipynb_checkpoints
+.spyproject
 
 #Poetry
 pyproject.toml
 poetry.lock
 
-docs/_build
-
+# vscode settings
 .vscode
+
+# Mac stuff
+.DS_Store
+docs/.DS_Store
+
+# pyAPES folder specific
+
+figures/
+results/
+
+# Example demos
+Examples/results/*.*
+
+# datasets --> put in separate storage
+/data/*.*
+
+# forcing files --> put later in separate storage
+/forcing/*.*
+
+# logs
+*.log
+
+# shell scripts
+*.sh
+
+# nc files
+*.nc
+
+# image files
+*.png
+*.jpg
+*.gif
+*.svg
