@@ -16,8 +16,8 @@ from typing import List, Dict, Tuple
 
 from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, LATENT_HEAT, \
                              STEFAN_BOLTZMANN, DEG_TO_KELVIN, SPECIFIC_HEAT_AIR, \
-                             SPECIFIC_HEAT_ORGANIC_MATTER, SPECIFIC_HEAT_H2O, GAS_CONSTANT, \
-                             MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
+                             SPECIFIC_HEAT_ORGANIC_MATTER, SPECIFIC_HEAT_H2O, SPECIFIC_HEAT_ICE, GAS_CONSTANT, \
+                             LATENT_HEAT_FREEZING, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
                              THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL
 
 from pyAPES.bottomlayer.carbon import BryophyteFarquhar, OrganicRespiration
@@ -148,8 +148,14 @@ class OrganicLayer(object):
         # [kg m-2]
         self.water_storage = self.water_content * self.dry_mass
 
+        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature,
+                                                                      self.water_storage)
+        
         #: [m\ :sup:`3` m\ :sup:`-3`\ ]
         self.volumetric_water = (self.water_content / WATER_DENSITY * self.bulk_density)
+
+        # [W m-1 K-1]
+        self.thermal_conductivity = thermal_conductivity(self.volumetric_water)
 
         #: [m]
         self.water_potential = water_retention_curve(
@@ -175,9 +181,12 @@ class OrganicLayer(object):
         self.temperature = self.iteration_results['temperature']
         self.surface_temperature = self.iteration_results['surface_temperature']
         self.water_storage = self.iteration_results['water_storage']
+        self.liquid_water_storage = self.iteration_results['liquid_water_storage']
+        self.ice_storage = self.iteration_results['ice_storage']
         self.water_content = self.iteration_results['water_content']
         self.volumetric_water = self.iteration_results['volumetric_water']
         self.water_potential = self.iteration_results['water_potential']
+        self.thermal_conductivity = self.iteration_results['thermal_conductivity']
 
         #self.Carbon.carbon_pool = self.iteration_results['carbon_pool']
 
@@ -381,12 +390,16 @@ class OrganicLayer(object):
 
         # energy closure [W m-2] or [J m-2 s-1]
         # heat capacities [J m-2 K-1]
-        C_old = (SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass +
-                 SPECIFIC_HEAT_H2O * self.water_content * self.dry_mass)
-        C_new = (SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass +
-                 SPECIFIC_HEAT_H2O * water_storage)
+        heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                            + SPECIFIC_HEAT_H2O * self.liquid_water_storage
+                            + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
+                            - LATENT_HEAT_FREEZING * self.ice_storage)
 
-        heat_storage_change = (C_new * temperature - C_old * self.temperature) / dt
+        wliq, wice, _ = frozen_water(temperature, water_storage)
+        heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                            + SPECIFIC_HEAT_H2O * wliq
+                            + SPECIFIC_HEAT_ICE * wice) * temperature
+                            - LATENT_HEAT_FREEZING * wice)
 
         heat_fluxes = (net_radiation
                        - sensible_heat_flux
@@ -394,7 +407,8 @@ class OrganicLayer(object):
                        - ground_heat_flux
                        + heat_advection)
 
-        energy_closure = -heat_storage_change + heat_fluxes
+        energy_closure = ((heat_conten_new - heat_content_old) / dt
+                           - heat_fluxes)
 
         # --- State variables of bryophyte layer
         # [g g-1]
@@ -434,6 +448,8 @@ class OrganicLayer(object):
             'water_potential': matrix_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2] or [mm]
+            'liquid_water_storage': wliq,  # [kg m-2 == mm]
+            'ice_storage': wice,  # [kg m-2 == mm]  # NOT included yet!!!
             'temperature': temperature,  # [degC]
             'surface_temperature': surface_temperature, # [degC]
             'hydraulic_conductivity': Kliq,  # [m s-1]
@@ -718,26 +734,64 @@ class OrganicLayer(object):
                         + capillary_rise * forcing['soil_temperature']
                         + pond_recharge_rate * forcing['soil_temperature']
                         )
-
-        # heat capacities [J K-1]
-        heat_capacity_old = (
-            SPECIFIC_HEAT_ORGANIC_MATTER
-            * self.dry_mass
-            + SPECIFIC_HEAT_H2O * y[1])
-
-        heat_capacity_new = (
-            SPECIFIC_HEAT_ORGANIC_MATTER
-            * self.dry_mass
-            + SPECIFIC_HEAT_H2O * (y[1] + dy_water * dt))
-
-        # calculate new temperature from heat balance
+    
+         # heat fluxes
         heat_fluxes = (
                 + conducted_heat_flux
                 + heat_advection
                 - ground_heat_flux
-                )
+                )   
+        # liquid and ice content, and dWliq/dTs
+        wliq_old, wice_old, _ = frozen_water(y[0], y[1])
+        
+        # heat capacities [J K-1 m-2]  - air content?
+        heat_capacity_old = (
+            SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+            + SPECIFIC_HEAT_H2O * wliq_old
+            + SPECIFIC_HEAT_ICE * wice_old)        
+        
+        T_old = y[0]
+        
+        # changes during iteration
+        T_iter = y[0]
+        wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
 
-        new_temperature = (heat_fluxes * dt + heat_capacity_old * y[0]) / heat_capacity_new
+        # specifications for iterative solution
+        Conv_crit1 = 1.0e-3  # degC
+        Conv_crit2 = 1.0e-5  # ice content m3/m3
+        err1 = 999.0
+        err2 = 999.0
+        iterNo = 0
+
+        """ iterative solution """
+        while err1 > Conv_crit1 or err2 > Conv_crit2:
+
+            iterNo += 1
+            
+            heat_capacity = (
+                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                + SPECIFIC_HEAT_H2O * wliq_iter
+                + SPECIFIC_HEAT_ICE * wice_iter)
+            A = LATENT_HEAT_FREEZING * gamma
+
+            # save old iteration values
+            T_iterold = T_iter
+            wice_iterold = wice_iter
+            
+            # solved as in soil
+            T_iter = (heat_fluxes * dt + heat_capacity_old * T_old
+                    + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
+            
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
+                                
+            err1 = abs(T_iter - T_iterold)
+            err2 = abs(wice_iter - wice_iterold)     
+                
+            if iterNo == 20:
+                print("not converging", err1, err2, wice_iter, T_iter)  # to logger?
+                break
+                
+        new_temperature = T_iter
 
         # -- return mean tendencies [K s-1] and fluxes
         dudt[0] = (new_temperature - y[0]) / dt
@@ -1111,7 +1165,7 @@ def evaporation_through_organic_layer(forcing: Dict, boundary_layer_conductance:
     cair = Pamb / (GAS_CONSTANT * (Ta + DEG_TO_KELVIN))
 
     # D/Do, diffusivity in porous media relative to that in free air, Millington and Quirk (1961)
-    relative_diffusivity = (np.power(Ta / 293.16, 1.75) * np.power(afp, 10.0/3.0) / porosity**2)
+    relative_diffusivity = (np.power((Ta + DEG_TO_KELVIN) / 293.16, 1.75) * np.power(afp, 10.0/3.0) / porosity**2)
 
     g_molecular = cair * MOLECULAR_DIFFUSIVITY_H2O * relative_diffusivity / moss_height
 
@@ -1364,6 +1418,36 @@ def soil_boundary_layer_conductance(u: float, z: float, zo: float,
     gb_c = MOLECULAR_DIFFUSIVITY_CO2 / THERMAL_DIFFUSIVITY_AIR * gb_h
 
     return gb_h, gb_c, gb_v
+
+def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
+    r""" 
+    Approximates ice content from soil temperature and total water content.
+    References:
+        For peat soils, see experiment of Nagare et al. 2012:
+        http://scholars.wlu.ca/cgi/viewcontent.cgi?article=1018&context=geog_faculty
+    Args:
+        T (float): soil temperature [degC]
+        wtot (float): total water storage [kg m-2]
+        fp (float): parameter of freezing curve [-]. 2...4 for clay and 0.5-1.5 for sandy soils; 
+            < 0.5 for peat soils (Nagare et al. 2012 HESS)
+        To (float): freezing temperature of soil water [degC]
+    
+    Returns:
+        wliq (float): liquid water storage [kg m-2]
+        wice (float): ice storage [kg m-2]
+        gamma (float): dwice/dT
+    """
+    if  T <= To:
+        wice = wtot*(1.0 - np.exp(-(To - T) / fp))
+        # derivative dwliq/dT
+        gamma = (wtot - wice) / fp
+    else:
+        wice = 0.0
+        gamma = 0.0
+
+    wliq = wtot - wice
+
+    return wliq, wice, gamma
 
 # EOF
 
