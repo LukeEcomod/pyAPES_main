@@ -298,7 +298,7 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
             iterNo += 1
 
             # bulk soil heat capacity [Jm-3K-1]
-            CP = volumetric_heat_capacity(poros, cs, Wtot, Wice)
+            CP = volumetric_heat_capacity(poros, cs, Wtot, Wice_iter)
             # heat capacity due to freezing/thawing [Jm-3K-1]
             A = ICE_DENSITY*LATENT_HEAT_FREEZING*gamma
 
