@@ -70,136 +70,26 @@ class EnergyBalance:
         self.kext = properties['params']['kext'] # Vegetation light extinction coefficient
         self.leaf = properties['params']['leaf'] # Leaf boundary resistance (s/m)^(1/2)
         self.wcan = properties['params']['wcan'] # Canopy wind decay coefficient
-        #self.z0sf = properties['params']['z0sf'] # Snow-free surface roughness length (m)
         self.z0sn = properties['params']['z0sn'] # Snow roughness length (m)
         self.kfix = properties['params']['kfix'] 
         self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
 
         self.VAI = properties['params']['VAI']
         self.vegh = properties['params']['vegh']
-        #self.zT = properties['params']['zT']
-        #self.zU = properties['params']['zU']
-
-        #self.fcans = properties['params']['fcans']
-        #self.lveg = properties['params']['lveg']
 
         self.DENSTY = properties['physics_options']['DENSTY']
         self.ZOFFST = properties['physics_options']['ZOFFST']
         self.CANMOD = properties['physics_options']['CANMOD']
         self.EXCHNG = properties['physics_options']['EXCHNG']
         self.CONDCT = properties['physics_options']['CONDCT']
-        # Model state variables
+
         self.Tsrf = properties['initial_conditions']['Tsrf']
-
-        # Coming IN!
-        #self.Ds1 = np.zeros(1) # Surface layer thickness (m)
-        #self.dt = np.zeros(1) # Timestep (s)
-        #self.fsnow = np.zeros(1) # Ground snowcover fraction
-        #self.gs1 = np.zeros(1) # Surface moisture conductance (m/s)
-        #self.ks1 = np.zeros(1) # Surface layer thermal conductivity (W/m/K)
-        #self.LW = np.zeros(1) # Incoming longwave radiation (W/m2)
-        #self.Ps = np.zeros(1) # Surface pressure (Pa)
-        #self.Qa = np.zeros(1) # Specific humidity (kg/kg)
-        #self.SWsrf = np.zeros(1) # SW absorbed by snow/ground surface (W/m^2)
-        #self.Ta = np.zeros(1) # Air temperature (K)
-        #self.Ts1 = np.zeros(1) # Surface layer temperature (K)
-        #self.Ua = np.zeros(1) # Wind speed (m/s)
-
-        # These also coming IN but probably should be taken from parameter file etc. and read in initizaliation!
-        #self.VAI = np.zeros(1) # Vegetation area index
-        #self.vegh = np.zeros(1) # Canopy height (m)
-
-        # Canopy related (some coming only IN)
-        #self.cveg = np.zeros(self.Ncnpy) # Vegetation heat capacities (J/K/m^2)
-        #self.fcans = np.zeros(self.Ncnpy) # Canopy layer snowcover fractions
-        #self.lveg =  = np.zeros(self.Ncnpy) # Canopy layer vegetation area indices
-        #self.Sveg =  = np.zeros(self.Ncnpy) # Snow mass on vegetation layers (kg/m^2)
-        #self.SWveg =  = np.zeros(self.Ncnpy) # SW absorbed by vegetation layers (W/m^2)
-        #self.tdif =  = np.zeros(self.Ncnpy) # Canopy layer diffuse transmittances
-        #self.Tveg0 =  = np.zeros(self.Ncnpy) # Vegetation temperatures at start of timestep (K)
-
-        # next goes in and out
-        #self.Tsrf = np.zeros(1) # Snow/ground surface temperature (K)
-        #self.Qcan = np.zeros(Ncnpy) # Canopy air space humidities
-        #self.Sice = np.zeros(Nsmax) # Ice content of snow layers (kg/m^2)
-        #self.Tcan = np.zeros(Ncnpy) # Canopy air space temperatures (K)
-        #self.Tveg = np.zeros(Ncnpy) # Vegetation layer temperatures (K)
-
-        # These should also be returning from the run_timestep!
-        #self.Esrf = np.zeros(1) # Moisture flux from the surface (kg/m^2/s)
-        #self.Gsrf = np.zeros(1) # Heat flux into snow/ground surface (W/m^2)
-        #self.H = np.zeros(1) # Sensible heat flux to the atmosphere (W/m^2)
-        #self.LE = np.zeros(1) # Latent heat flux to the atmosphere (W/m^2)
-        #self.LWout = np.zeros(1) # Outgoing LW radiation (W/m^2)
-        #self.LWsub = np.zeros(1) # Subcanopy downward LW radiation (W/m^2)
-        #self.Melt = np.zeros(1) # Surface melt rate (kg/m^2/s)
-        #self.subl = np.zeros(1) # Sublimation rate (kg/m^2/s)
-        #self.Usub = np.zeros(1) # Subcanopy wind speed (m/s)
         self.Eveg = np.zeros(self.Ncnpy) # Moisture flux from vegetation layers (kg/m^2/s)
-        
-        # Counters
-        #self.k = np.zeros(1) # Canopy layer counter
-        #self.ne = np.zeros(1) # Energy balance iteration counter
-
-        # State fluxes
-        #self.B = np.zeros(1) # Kinematic bouyancy flux (Km/s)
         self.d = 0 #  Displacement height (m)
-        #self.Dsrf = np.zeros(1) # dQsat/dT at ground surface temperature (1/K)
-        #self.dEs = np.zeros(1) # Change in surface moisture flux (kg/m^2/s)
-        #self.dGs = np.zeros(1) # Change in surface heat flux (kg/m^2/s)
-        #self.dHs = np.zeros(1) # Change in surface sensible heat flux (kg/m^2/s)
-        #self.dTs = np.zeros(1) # Change in surface temperature (K)
-        #self.E = np.zeros(1) # Moisture flux to the atmosphere (kg/m^2/s)
-        #self.ebal = np.zeros(1) # Surface energy balance closure (W/m^2)
-        #self.Ecan = np.zeros(1) # Within-canopy moisture flux (kg/m^2/s)
         self.fveg = 0 # Vegetation weighting
-        #self.ga = np.zeros(1) # Aerodynamic conductance to the atmosphere (m/s)
-        #self.gc = np.zeros(1) # Conductance within canopy air space (m/s)
-        #self.gs = np.zeros(1) # Surface to canopy air space conductance (m/s)
-        #self.Hcan = np.zeros(1) # Within-canopy sensible heat flux (W/m^2)
-        #self.Hsrf = np.zeros(1) # Sensible heat flux from the surface (W/m^2)
-        #self.Kh = np.zeros(1) # Eddy diffusivity at canopy top (m^2/s)
-        #self.Lsrf = np.zeros(1) # Latent heat for phase change on ground (J/kg)
-        #self.psih = np.zeros(1) # Stability function for heat
-        #self.psim = np.zeros(1) # Stability function for momentum
-        #self.Qsrf = np.zeros(1) # Saturation humidity at surface temperature
-        #self.rd = np.zeros(1) # Dense vegetation aerodynamic resistance (s/m)
-        #self.rho = np.zeros(1) # Air density (kg/m^3)
-        #self.rL = np.zeros(1) # Reciprocal of Obukhov length (1/m)
-        #self.ro = np.zeros(1) # Open aerodynamic resistance (s/m)
-        #self.Rsrf = np.zeros(1) # Net radiation absorbed by the surface (W/m^2)
         self.Ssub = 0 # Mass of snow available for sublimation (kg/m^2)
-        #self.Uc = np.zeros(1) # Within-canopy wind speed (m/s)
-        #self.Uh = np.zeros(1) # Wind speed at canopy top (m/s)
-        #self.usd = np.zeros(1) # Dense canopy friction velocity (m/s)
-        #self.uso = np.zeros(1) # Friction velocity (m/s)
-        #self.ustar = np.zeros(1) # Open friction velocity (m/s)
-        #self.wsrf = np.zeros(1) # Surface water availability factor
-        
-        # Below are defined before run timestep!
-        #self.zT1 = np.zeros(1) # Temperature measurement height with offset (m)
-        #self.zU1 = np.zeros(1) # Wind measurement height with offset (m)
-        #self.z0g = np.zeros(1) # Snow/ground surface roughness length (m)
-        #self.z0h = np.zeros(1) # Roughness length for heat (m)
-        #self.z0v = np.zeros(1) # Vegetation roughness length (m)
-
-        #self.dEv = np.array(Ncnpy) # Change in vegetation moisture flux (kg/m^2/s)
-        #self.dHv = np.array(Ncnpy) # Change in veg sensible heat flux (kg/m^2/s)
-        #self.dQc = np.array(Ncnpy) # Change in canopy air humidity (kg/kg)
-        #self.dTv = np.array(Ncnpy) # Change in vegetation temperature (K)
-        #self.dTc = np.array(Ncnpy) # Change in canopy air temperature (K)
-        #self.Dveg = np.array(Ncnpy) # dQsat/dT at vegetation layer temperature (1/K)
-        #self.gv = np.array(Ncnpy) # Vegetation to canopy air space conductance (m/s)
         self.Hveg = np.zeros(self.Ncnpy) # Sensible heat flux from vegetation (W/m^2)
-        #self.Lcan = np.array(Ncnpy) # Latent heat for canopy water phase change (J/kg)
-        #self.Qveg = np.array(Ncnpy) # Saturation humidity at vegetation temperature
-        #self.Rveg = np.array(Ncnpy) # Net radiation absorbed by vegetation (W/m^2)
-        #self.wveg = np.array(Ncnpy) # Vegetation water availability factor
         self.zh = np.array(self.Ncnpy) # Vegetation layer heights (m)
-
-        #self.J = np.array(3*Ncnpy+1,3*Ncnpy+1) # Jacobian of energy and mass balance equations
-        #self.f = np.array(3*Ncnpy+1) # Residuals of energy and mass balance equations
-        #self.x = np.array(3*Ncnpy+1) # Temperature and humidity increments
 
         # temporary storage of iteration results
         self.iteration_state = None  
@@ -256,26 +146,17 @@ class EnergyBalance:
             states (dict):
                 Tsrf:
         """
-        #cveg = forcing['cveg']
         Ds1 = forcing['Ds1']
-        #fcans = forcing['fcans']
         fsnow = forcing['fsnow']
         gs1 = forcing['gs1']
         ks1 = forcing['ks1']
-        #lveg = forcing['lveg']
         LW = forcing['LW']
         Ps = forcing['Ps']
         RH = forcing['RH']
         SWsrf = forcing['SWsrf']
-        #Sveg = forcing['Sveg']
-        #SWveg = forcing['SWveg']
         Ta = forcing['Ta']
-        #tdif = forcing['tdif']
         Ts1 = forcing['Ts1']
-        #Tveg0 = forcing['Tveg0']
         Ua = forcing['Ua']
-        #VAI = forcing['VAI']
-        #vegh = forcing['vegh']
         Sice = forcing['Sice']
         Nsnow = forcing['Nsnow']
         Sice = forcing['Sice']
@@ -286,7 +167,11 @@ class EnergyBalance:
         Tsrf = forcing['Tsrf']
         z0sf = forcing['z0sf']
 
-        #print('Dsnw:', Dsnw, 'Nsnow:', Nsnow)
+        n_geom = np.count_nonzero(Dsnw > np.finfo(float).eps)
+        if n_geom != Nsnow:
+            print("Layer mismatch!")
+            print("Dsnw:", Dsnw)
+            print("n_geom:", n_geom, "Nsnow:", Nsnow)
         
         if self.ZOFFST == 0:
             # Heights specified above ground

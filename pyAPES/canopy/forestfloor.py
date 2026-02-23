@@ -440,6 +440,12 @@ class ForestFloor(object):
             fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
             fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
             fluxes['snow_net_radiation'] = fluxes_snow['snow_net_radiation']
+            # same as for whole ffloor
+            fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
+            fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
+            fluxes['latent_heat'] = fluxes_snow['snow_latent_heat']
+            fluxes['net_radiation'] = fluxes_snow['snow_net_radiation']
+            #
             state['snow_ice_storage'] = states_snow['snow_ice_storage']
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']

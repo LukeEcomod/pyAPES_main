@@ -71,7 +71,6 @@ class SnowModel(object):
         self.Dzsnow = properties['layers']['Dzsnow']
         # Maximum number of snow layers
         self.Nsmax = properties['layers']['Nsmax']
-        # self.Nsoil = properties['layers']['Nsoil'] # Number of soil layers
 
         # from parameters
         # Reference snow viscosity (Pa s)
@@ -199,14 +198,14 @@ class SnowModel(object):
         Tsoil = forcing['Tsoil']
         ksoil = forcing['ksoil']
         Dzsoil = forcing['Dzsoil']
-        
+
         # old states
-        Nsnow = self.Nsnow
-        Sliq = self.Sliq
-        Sice = self.Sice
-        Tsnow = self.Tsnow
-        Dsnw = self.Dsnw
-        Rgrn = self.Rgrn
+        Nsnow = int(self.Nsnow)
+        Sliq = self.Sliq.copy()
+        Sice = self.Sice.copy()
+        Tsnow = self.Tsnow.copy()
+        Dsnw = self.Dsnw.copy()
+        Rgrn = self.Rgrn.copy()
 
         # No snow
         Gsoil = Gsrf.copy()
@@ -267,7 +266,7 @@ class SnowModel(object):
                 if (coldcont < 0.):
                     dSice = dSice - coldcont / LATENT_HEAT_FUSION
                     Tsnow[k] = T_MELT
-                if (dSice > 0.):
+                if (dSice > EPS):
                     if (dSice > Sice[k]):  # Layer melts completely
                         dSice = dSice - Sice[k]
                         Dsnw[k] = 0.
@@ -278,23 +277,25 @@ class SnowModel(object):
                         Sice[k] = Sice[k] - dSice
                         Sliq[k] = Sliq[k] + dSice
                         dSice = 0.
+                        break
 
             # Remove snow by sublimation
             dSice = Esrf * dt
-            if (dSice > 0.):
+            if (dSice > EPS):
                 for k in range(Nsnow):
                     if (dSice > Sice[k]):  # Layer sublimates completely
                         dSice = dSice - Sice[k]
                         Dsnw[k] = 0.
                         Sice[k] = 0.
-                    else:                       # Layer sublimates partially
+                    else:                  # Layer sublimates partially
                         Dsnw[k] = (1 - dSice/Sice[k])*Dsnw[k]
                         Sice[k] = Sice[k] - dSice
                         dSice = 0.
+                        break
 
             # Remove wind-transported snow
             dSice = trans * dt
-            if (dSice > 0.):
+            if (dSice > EPS):
                 for k in range(Nsnow):
                     if (dSice > Sice[k]):  # Layer completely removed
                         dSice = dSice - Sice[k]
@@ -304,6 +305,7 @@ class SnowModel(object):
                         Dsnw[k] = (1 - dSice/Sice[k])*Dsnw[k]
                         Sice[k] = Sice[k] - dSice
                         dSice = 0.
+                        break
 
             if self.DENSTY == 0:
                 # Fixed snow density
@@ -376,14 +378,14 @@ class SnowModel(object):
 
         # Add wind-blown snow to layer 1 with wind-packed density and fresh grain size
         dSice = - trans*dt
-        if (dSice > 0.):
+        if (dSice > EPS):
             Dsnw[0] = Dsnw[0] + dSice / self.rhow
             Rgrn[0] = (Sice[0]*Rgrn[0] + dSice *
                             self.rgr0) / (Sice[0] + dSice)
             Sice[0] = Sice[0] + dSice
 
         # New snowpack
-        if (Nsnow == 0) and (Sice[0] > 0.):
+        if (Nsnow == 0) and (Sice[0] > EPS):
             Nsnow = 1
             Rgrn[0] = self.rgr0
             Tsnow[0] = min(Ta, T_MELT)
@@ -411,7 +413,7 @@ class SnowModel(object):
         self.U[:] = 0.0
         Nsnow = 0
 
-        if (hs > 0.):  # Existing or new snowpack
+        if (hs > EPS):  # Existing or new snowpack
             # Re-assign and count snow layers
             dnew = hs
             Dsnw[0] = dnew
@@ -478,7 +480,7 @@ class SnowModel(object):
 
         if self.HYDRL == 1:
             # Bucket storage
-            if (np.max(Sliq) > 0.) or (Rf > 0.):
+            if (np.max(Sliq) > EPS) or (Rf > EPS):
                 for k in range(Nsnow):
                     self.phi[k] = 1 - Sice[k]/(ICE_DENSITY * Dsnw[k])
                     SliqMax = WATER_DENSITY * \
@@ -496,7 +498,7 @@ class SnowModel(object):
                         Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
 
-                    if (coldcont > 0.):            # Liquid can freeze
+                    if (coldcont > EPS):            # Liquid can freeze
                         dSice = np.minimum(
                             Sliq[k], coldcont / LATENT_HEAT_FUSION)
                         Sliq[k] = Sliq[k] - dSice
@@ -506,7 +508,7 @@ class SnowModel(object):
 
         if self.HYDRL == 2:  # NOTE THIS NEEDS TESTING!
             # Gravitational drainage
-            if (np.max(Sliq) > 0.) | (Rf > 0.):
+            if (np.max(Sliq) > EPS) | (Rf > EPS):
                 self.Qw[:] = 0.
                 self.Qw[0] = Rf/WATER_DENSITY
                 Roff = 0.
@@ -566,7 +568,7 @@ class SnowModel(object):
                     self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
                         Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
-                    if (coldcont > 0.):  # Liquid can freeze
+                    if (coldcont > EPS):  # Liquid can freeze
                         dSice = min(Sliq[k], coldcont/LATENT_HEAT_FUSION)
                         Sliq[k] = Sliq[k] - dSice
                         Sice[k] = Sice[k] + dSice
@@ -583,12 +585,12 @@ class SnowModel(object):
         wbal = sum(self.Sliq[:] + self.Sice[:]) - sum(Sliq[:] + Sice[:]) - Sf - Rf + Roff + Esrf
         
         # store iteration state
-        self.iteration_state =  {'Nsnow': Nsnow,
-                                 'Sliq': Sliq,
-                                 'Sice': Sice,
-                                 'Tsnow': Tsnow,
-                                 'Dsnw': Dsnw,
-                                 'Rgrn': Rgrn
+        self.iteration_state =  {'Nsnow': int(Nsnow),
+                                 'Sliq': Sliq.copy(),
+                                 'Sice': Sice.copy(),
+                                 'Tsnow': Tsnow.copy(),
+                                 'Dsnw': Dsnw.copy(),
+                                 'Rgrn': Rgrn.copy()
                                  }
 
         fluxes = {'Gsoil': Gsoil,
