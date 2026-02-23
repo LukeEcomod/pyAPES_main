@@ -285,6 +285,8 @@ class EnergyBalance:
         zT = forcing['reference_height']
         Tsrf = forcing['Tsrf']
         z0sf = forcing['z0sf']
+
+        #print('Dsnw:', Dsnw, 'Nsnow:', Nsnow)
         
         if self.ZOFFST == 0:
             # Heights specified above ground
@@ -480,31 +482,27 @@ class EnergyBalance:
 
     def psim(self, z, rL):
         """
-        Stability function for momentum, corresponding exactly to the Fortran version.
+        Stability function for momentum.
         """
-        zeta = np.clip(z * rL, -2.0, 1.0)
-        stable = -5. * zeta  # Stable conditions (zeta > 0)
+        zeta = float(np.clip(z * rL, -2.0, 1.0))
 
-        x = (1.0 - 16.0 * zeta) ** 0.25
-
-        # Unstable condition formula
-        unstable = (2. * np.log((1. + x) / 2.) + 
-                    np.log((1. + x**2) / 2.) - 
-                    2. * np.arctan(x) + np.pi / 2.)
-
-        return np.where(zeta > 0., stable, unstable)
+        if zeta > 0.0:
+            return -5.0 * zeta  # stable
+        else:
+            x = (1.0 - 16.0 * zeta) ** 0.25
+            return (2.0 * np.log((1.0 + x) / 2.0) +
+                    np.log((1.0 + x**2) / 2.0) -
+                    2.0 * np.arctan(x) + np.pi / 2.0)
 
     
-
     def psih(self, z, rL):
         """
-        Stability function for heat, corresponding exactly to the Fortran version.
+        Stability function for heat.
         """
-        zeta = np.clip(z * rL, -2.0, 1.0)
-        x = (1.0 - 16.0 * zeta) ** 0.25
+        zeta = float(np.clip(z * rL, -2.0, 1.0))
 
-        psih = np.where(zeta > 0., 
-                        -5. * zeta, 
-                        2. * np.log((1. + x**2) / 2.))
-
-        return psih
+        if zeta > 0.0:
+            return -5.0 * zeta  # stable
+        else:
+            x = (1.0 - 16.0 * zeta) ** 0.25
+            return 2.0 * np.log((1.0 + x**2) / 2.0)

@@ -95,7 +95,7 @@ class FSM2(object):
         RH = forcing['RH']
         Ta = forcing['Ta']
         Ua = forcing['Ua']
-        reference_height = forcing['reference_height']
+        reference_height = forcing['reference_height'] # default reference height (m)
         
         gs1 = forcing['gs1'] # Surface moisture conductance (m/s), used in ebal
         Tsoil = forcing['Tsoil'] # Uppermost soil temperature, used in snow
@@ -205,7 +205,8 @@ class FSM2(object):
                     'snow_net_radiation': ebal_fluxes['Rsrf'],
                     'snow_ustar': ebal_fluxes['ustar'],
                     'snow_ga': ebal_fluxes['ga'],
-                    'snow_energy_closure': ebal_fluxes['ebal']
+                    'snow_energy_closure': ebal_fluxes['ebal'],
+                    'water_closure': snow_fluxes['wbal']
                     }
 
             states = {'snow_water_equivalent': snow_states['swe'],
@@ -243,8 +244,11 @@ class FSM2(object):
                     'snow_longwave_out': 0.,
                     'snow_sensible_heat': 0.,
                     'snow_latent_heat': 0.,
+                    'snow_net_radiation': 0.,
+                    'snow_energy_closure': 0.,
                     'snow_ustar': 0.,
-                    'snow_ga': 0.
+                    'snow_ga': 0.,
+                    'water_closure': 0.
                     }
 
             states = {'snow_water_equivalent': 0.,

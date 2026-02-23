@@ -398,7 +398,7 @@ class OrganicLayer(object):
         water_closure = -water_storage_change + water_fluxes
 
         # energy closure [W m-2] or [J m-2 s-1]
-        # energy closure
+        # heat capacities [J m-2 K-1]
         heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
                             + SPECIFIC_HEAT_H2O * self.liquid_water_storage
                             + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
@@ -743,32 +743,64 @@ class OrganicLayer(object):
                         + capillary_rise * forcing['soil_temperature']
                         + pond_recharge_rate * forcing['soil_temperature']
                         )
-
-        # liquid and ice content, and dWliq/dTs - both based on old temperature (causes error to energy balance closure - but do we want iterative solution?)!
-        wliq_old, wice_old, _ = frozen_water(y[0], y[1])
-        wliq, wice, gamma = frozen_water(y[0], y[1] + dy_water * dt)
-
-        # heat capacities [J K-1 m-2]  - air content?
-        apparent_heat_capacity_old = (
-            SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-            + SPECIFIC_HEAT_H2O * wliq_old
-            + SPECIFIC_HEAT_ICE * wice_old
-            + LATENT_HEAT_FREEZING * gamma)
-
-        apparent_heat_capacity_new = (
-            SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-            + SPECIFIC_HEAT_H2O * wliq
-            + SPECIFIC_HEAT_ICE * wice
-            + LATENT_HEAT_FREEZING * gamma)
-
-        # calculate new temperature from heat balance
+    
+         # heat fluxes
         heat_fluxes = (
                 + conducted_heat_flux
                 + heat_advection
                 - ground_heat_flux
-                )
+                )   
+        # liquid and ice content, and dWliq/dTs
+        wliq_old, wice_old, _ = frozen_water(y[0], y[1])
+        
+        # heat capacities [J K-1 m-2]  - air content?
+        heat_capacity_old = (
+            SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+            + SPECIFIC_HEAT_H2O * wliq_old
+            + SPECIFIC_HEAT_ICE * wice_old)        
+        
+        T_old = y[0]
+        
+        # changes during iteration
+        T_iter = y[0]
+        wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
 
-        new_temperature = (heat_fluxes * dt + apparent_heat_capacity_old * y[0]) / apparent_heat_capacity_new
+        # specifications for iterative solution
+        Conv_crit1 = 1.0e-3  # degC
+        Conv_crit2 = 1.0e-5  # ice content m3/m3
+        err1 = 999.0
+        err2 = 999.0
+        iterNo = 0
+
+        """ iterative solution """
+        while err1 > Conv_crit1 or err2 > Conv_crit2:
+
+            iterNo += 1
+            
+            heat_capacity = (
+                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                + SPECIFIC_HEAT_H2O * wliq_iter
+                + SPECIFIC_HEAT_ICE * wice_iter)
+            A = LATENT_HEAT_FREEZING * gamma
+
+            # save old iteration values
+            T_iterold = T_iter
+            wice_iterold = wice_iter
+            
+            # solved as in soil
+            T_iter = (heat_fluxes * dt + heat_capacity_old * T_old
+                    + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
+            
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
+                                
+            err1 = abs(T_iter - T_iterold)
+            err2 = abs(wice_iter - wice_iterold)     
+                
+            if iterNo == 20:
+                print("not converging", err1, err2, wice_iter, T_iter)  # to logger?
+                break
+                
+        new_temperature = T_iter
 
         # -- return mean tendencies [K s-1] and fluxes
         dudt[0] = (new_temperature - y[0]) / dt
@@ -1800,6 +1832,36 @@ def soil_boundary_layer_conductance(u: float, z: float, zo: float,
     gb_c = MOLECULAR_DIFFUSIVITY_CO2 / THERMAL_DIFFUSIVITY_AIR * gb_h
 
     return gb_h, gb_c, gb_v
+
+def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
+    r""" 
+    Approximates ice content from soil temperature and total water content.
+    References:
+        For peat soils, see experiment of Nagare et al. 2012:
+        http://scholars.wlu.ca/cgi/viewcontent.cgi?article=1018&context=geog_faculty
+    Args:
+        T (float): soil temperature [degC]
+        wtot (float): total water storage [kg m-2]
+        fp (float): parameter of freezing curve [-]. 2...4 for clay and 0.5-1.5 for sandy soils; 
+            < 0.5 for peat soils (Nagare et al. 2012 HESS)
+        To (float): freezing temperature of soil water [degC]
+    
+    Returns:
+        wliq (float): liquid water storage [kg m-2]
+        wice (float): ice storage [kg m-2]
+        gamma (float): dwice/dT
+    """
+    if  T <= To:
+        wice = wtot*(1.0 - np.exp(-(To - T) / fp))
+        # derivative dwliq/dT
+        gamma = (wtot - wice) / fp
+    else:
+        wice = 0.0
+        gamma = 0.0
+
+    wliq = wtot - wice
+
+    return wliq, wice, gamma
 
 # EOF
 

@@ -20,9 +20,9 @@ from pyAPES_utilities.soiltypes.sphagnum_peat import soil_properties, zh
 gpara = {
     'dt' : 1800.0,  # timestep in forcing data file [s]
     'start_time' : "2016-06-01",  # start time of simulation [yyyy-mm-dd]
-    'end_time' : "2016-06-30",  # end time of simulation [yyyy-mm-dd]
-    'forc_filename' : r"/forcing/Degero/Degero_forcing_2021-2023.dat",  # forcing data file*
-    'results_directory': r'/results/Degero/'
+    'end_time' : "2016-06-10",  # end time of simulation [yyyy-mm-dd]
+    'forc_filename' : r"forcing/Degero/Degero_forcing_2021-2023.dat",  # forcing data file*
+    'results_directory': r'results/'
 }
 
 # --- control flags (True/False) ---
@@ -130,9 +130,9 @@ pt1 = {
     'rootp': {
         'root_depth': 0.2, # rooting depth [m]
         'beta': 0.943, # root distribution shape [-]
-        'RAI_LAI_multiplier': 2.0, # fine-root to leaf-area ratio [-]
-        'fine_radius': 2.0e-3, # [m]
-        'root_cond': 5.0e8, # [s]
+        'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
+        'root_radius': 2.0e-3, # [m]
+        'root_conductance': 5.0e8, # [s]
     }
 }
 
@@ -183,9 +183,9 @@ pt2 = { 'name': 'pine',
         'rootp': {
             'root_depth': 0.5, # rooting depth [m]
             'beta': 0.943, # root distribution shape [-]
-            'RAI_LAI_multiplier': 2.0, # fine-root to leaf-area ratio [-]
-            'fine_radius': 2.0e-3, # [m]
-            'root_cond': 5.0e8, # [s]
+            'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
+            'root_radius': 2.0e-3, # [m]
+            'root_conductance': 5.0e8, # [s]
             }
         }
 
@@ -196,7 +196,7 @@ pt2 = { 'name': 'pine',
 
 # --- pyAPES.snow
 snow = {
-    'snow_model': 'degreeday', # snow model being used - 'degreeday' or 'fsm2'
+    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
     # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
     'degreeday': {
             'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
@@ -272,7 +272,7 @@ snow = {
             'initial_conditions': {
                 'Nsnow': 0,             # Number of snow layers
                 'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
-                'Rgrn': np.array([0.0, 0.0, 0.0]),      # Snow layer grain radius (m)
+                'Rgrn': np.array([5e-5, 5e-5, 5e-5]),      # Snow layer grain radius (m)
                 'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
                 'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
                 'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)
@@ -296,7 +296,8 @@ snow = {
 soil_respiration = {
     'r10': 2.5, # [umol m-2 s-1]
     'q10': 2.0, # [-]
-    'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # Skopp moisture function param [a ,b, d, g]}
+    'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # Skopp moisture function param [a ,b, d, g]}
+    'beta': 0.943, # root distribution shape parameter [-]
 }
 
 # Note: renewed bryophyte parameters

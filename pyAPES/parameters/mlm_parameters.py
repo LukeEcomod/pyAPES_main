@@ -16,7 +16,7 @@ from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2006-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2006-06-10",  # end time of simulation [yyyy-mm-dd]
+         'end_time' : "2007-06-01",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : 'forcing/Hyytiala/FIHy_forcing_2006_2008.dat', # forcing data file
          'results_directory':'results/'
          }
@@ -261,7 +261,7 @@ snow = {
             'initial_conditions': {
                 'Nsnow': 0,             # Number of snow layers
                 'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
-                'Rgrn': np.array([0.0, 0.0, 0.0]),      # Snow layer grain radius (m)
+                'Rgrn': np.array([5e-5, 5e-5, 5e-5]),      # Snow layer grain radius (m)
                 'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
                 'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
                 'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)

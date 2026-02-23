@@ -369,7 +369,7 @@ class ForestFloor(object):
                 'reference_height': parameters['reference_height'],
                 'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
                 'Dzbt': self.height, # organic layer depth [m]
-                'Tsoil': forcing['soil_temperature'] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
+                'Tsoil': forcing['soil_temperature'][0] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
                 'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN, # surface temperature [K] from organiclayer
                 'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
                 'kbt': self.thermal_conductivity, # organic layer thermal conductivity [W m-1 K-1]
@@ -400,7 +400,7 @@ class ForestFloor(object):
         
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
-                'soil_temperature': forcing['soil_temperature'], # HOX TÄSSÄ OLI INDEKSI ?
+                'soil_temperature': forcing['soil_temperature'][0], # HOX TÄSSÄ OLI INDEKSI ?
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
                 'snow_heat_flux': fluxes_snow['snow_heat_flux'],
                 'snow_temperature': snow_bottom_temperature}
@@ -444,6 +444,7 @@ class ForestFloor(object):
             state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
             state['snow_density'] = states_snow['snow_density']
             fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
+            state['snow_layers'] = states_snow['snow_layers']
         elif (self.snowpack.snowpack.swe == 0. and states_snow['snow_water_equivalent'] == 0.)  and self.snow_model == 'fsm2':
             fluxes['snow_heat_flux'] = 0.
             state['snow_temperature'] = np.array([np.nan, np.nan, np.nan])
@@ -457,6 +458,7 @@ class ForestFloor(object):
             state['snow_ice_storage'] = 0.
             state['snow_density'] = np.nan
             fluxes['snow_energy_closure'] = 0.
+            state['snow_layers'] = 0.
         elif self.snow_model == 'degreeday':
             state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
 

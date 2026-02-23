@@ -213,7 +213,6 @@ class SnowModel(object):
         Roff = Rf + drip / dt
         Wflx = np.zeros(self.Nsmax)
 
-
         # Existing snowpack
         if (Nsnow > 0):
             # Heat conduction
@@ -265,10 +264,10 @@ class SnowModel(object):
             dSice = Melt * dt
             for k in range(Nsnow):
                 coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
-                if (coldcont < 0):
+                if (coldcont < 0.):
                     dSice = dSice - coldcont / LATENT_HEAT_FUSION
                     Tsnow[k] = T_MELT
-                if (dSice > 0):
+                if (dSice > 0.):
                     if (dSice > Sice[k]):  # Layer melts completely
                         dSice = dSice - Sice[k]
                         Dsnw[k] = 0.
@@ -282,7 +281,7 @@ class SnowModel(object):
 
             # Remove snow by sublimation
             dSice = Esrf * dt
-            if (dSice > 0):
+            if (dSice > 0.):
                 for k in range(Nsnow):
                     if (dSice > Sice[k]):  # Layer sublimates completely
                         dSice = dSice - Sice[k]
@@ -295,7 +294,7 @@ class SnowModel(object):
 
             # Remove wind-transported snow
             dSice = trans * dt
-            if (dSice > 0):
+            if (dSice > 0.):
                 for k in range(Nsnow):
                     if (dSice > Sice[k]):  # Layer completely removed
                         dSice = dSice - Sice[k]
@@ -353,8 +352,8 @@ class SnowModel(object):
         # End if for existing snowpack
 
         # Add snowfall and frost to layer 1 with fresh snow density and grain size
-        Esnow = 0
-        if (Esrf < 0) & (Tsrf < T_MELT):
+        Esnow = 0.
+        if (Esrf < 0.) and (Tsrf < T_MELT):
             Esnow = Esrf
         dSice = (Sf - Esnow)*dt
         Dsnw[0] = Dsnw[0] + dSice / self.rhof
@@ -377,14 +376,14 @@ class SnowModel(object):
 
         # Add wind-blown snow to layer 1 with wind-packed density and fresh grain size
         dSice = - trans*dt
-        if (dSice > 0):
+        if (dSice > 0.):
             Dsnw[0] = Dsnw[0] + dSice / self.rhow
             Rgrn[0] = (Sice[0]*Rgrn[0] + dSice *
                             self.rgr0) / (Sice[0] + dSice)
             Sice[0] = Sice[0] + dSice
 
         # New snowpack
-        if (Nsnow == 0) & (Sice[0] > 0):
+        if (Nsnow == 0) and (Sice[0] > 0.):
             Nsnow = 1
             Rgrn[0] = self.rgr0
             Tsnow[0] = min(Ta, T_MELT)
@@ -405,22 +404,23 @@ class SnowModel(object):
 
         # Initialise new layers
         Dsnw[:] = 0.0
-        Rgrn[:] = 0.0
+        Rgrn[:] = self.rgr0
         Sice[:] = 0.0
         Sliq[:] = 0.0
         Tsnow[:] = T_MELT
         self.U[:] = 0.0
         Nsnow = 0
 
-        if (hs > 0):  # Existing or new snowpack
+        if (hs > 0.):  # Existing or new snowpack
             # Re-assign and count snow layers
             dnew = hs
             Dsnw[0] = dnew
+            k = 0 # means one layer
             if (Dsnw[0] > self.Dzsnow[0]):
                 for k in range(self.Nsmax):
                     Dsnw[k] = self.Dzsnow[k]
                     dnew = dnew - self.Dzsnow[k]
-                    if (dnew <= self.Dzsnow[k]) | (k == self.Nsmax - 1):
+                    if (dnew <= self.Dzsnow[k]) or (k == self.Nsmax - 1):
                         Dsnw[k] = Dsnw[k] + dnew
                         break
             Nsnow = k + 1
@@ -473,12 +473,12 @@ class SnowModel(object):
             for k in range(Nsnow):
                 Roff = Roff + Sliq[k] / dt
                 Sliq[k] = 0
-                if (k < Nsnow):
+                if (k < Nsnow - 1):
                     Wflx[k+1] = Roff
 
         if self.HYDRL == 1:
             # Bucket storage
-            if (np.max(Sliq) > 0) or (Rf > 0):
+            if (np.max(Sliq) > 0.) or (Rf > 0.):
                 for k in range(Nsnow):
                     self.phi[k] = 1 - Sice[k]/(ICE_DENSITY * Dsnw[k])
                     SliqMax = WATER_DENSITY * \
@@ -496,7 +496,7 @@ class SnowModel(object):
                         Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
 
-                    if (coldcont > 0):            # Liquid can freeze
+                    if (coldcont > 0.):            # Liquid can freeze
                         dSice = np.minimum(
                             Sliq[k], coldcont / LATENT_HEAT_FUSION)
                         Sliq[k] = Sliq[k] - dSice
@@ -506,10 +506,10 @@ class SnowModel(object):
 
         if self.HYDRL == 2:  # NOTE THIS NEEDS TESTING!
             # Gravitational drainage
-            if (np.max(Sliq) > 0) | (Rf > 0):
-                self.Qw[:] = 0
+            if (np.max(Sliq) > 0.) | (Rf > 0.):
+                self.Qw[:] = 0.
                 self.Qw[0] = Rf/WATER_DENSITY
-                Roff = 0
+                Roff = 0.
                 for k in range(Nsnow):
                     self.ksat[k] = 0.31*(WATER_DENSITY*GRAVITY/WATER_VISCOCITY) * Rgrn[k]**2 * \
                         np.exp(-7.8 * Sice[k] /
@@ -525,7 +525,7 @@ class SnowModel(object):
                 for i in range(10):  # subdivide timestep NOTE CHECK THIS LATER!
                     self.theta0[:] = self.thetaw[:]
                     for j in range(10):  # Newton-Raphson iteration
-                        self.a[:] = 0
+                        self.a[:] = 0.
                         self.b[:] = 1/dth
                         if (self.thetaw[0] > self.thetar[0]):
                             self.b[0] = 1/dth + 3*self.ksat[0]*(self.thetaw[0] - self.thetar[0])**2/(
@@ -566,7 +566,7 @@ class SnowModel(object):
                     self.csnow[k] = Sice[k]*SPECIFIC_HEAT_ICE + \
                         Sliq[k]*SPECIFIC_HEAT_H2O
                     coldcont = self.csnow[k]*(T_MELT - Tsnow[k])
-                    if (coldcont > 0):  # Liquid can freeze
+                    if (coldcont > 0.):  # Liquid can freeze
                         dSice = min(Sliq[k], coldcont/LATENT_HEAT_FUSION)
                         Sliq[k] = Sliq[k] - dSice
                         Sice[k] = Sice[k] + dSice
@@ -579,6 +579,9 @@ class SnowModel(object):
         Tsnow_out = np.array([np.nan, np.nan, np.nan])
         Tsnow_out[:Nsnow] = Tsnow[:Nsnow]
 
+        # Swe0 - Swe1 = Sf + Rf - Roff - Evap
+        wbal = sum(self.Sliq[:] + self.Sice[:]) - sum(Sliq[:] + Sice[:]) - Sf - Rf + Roff + Esrf
+        
         # store iteration state
         self.iteration_state =  {'Nsnow': Nsnow,
                                  'Sliq': Sliq,
@@ -590,6 +593,7 @@ class SnowModel(object):
 
         fluxes = {'Gsoil': Gsoil,
                   'Roff': Roff,
+                  'wbal': wbal,
                   }
 
         states = {'swe': swe,
