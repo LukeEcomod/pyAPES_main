@@ -554,7 +554,6 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
             Qin = (q_bot - sum(S * dz) - q0) * dt
             # airvolume available in soil profile after previous time step
             Airvol = max(0.0, sum((poros - W_old) * dz))
-
             if q0 < 0:  # case infiltration
                 if Airvol <= EPS:  # initially saturated profile
                     if Qin >= 0:  # inflow exceeds outflow
@@ -699,7 +698,7 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
             q_bot = -KLh[-1] * (h[-1] - h_bot) / dzl[-1] - KLh[-1] * cosalfa
 
         """ cumulative fluxes and h_pond """
-        if q_sur < 0.0:  # infiltration dominates, evaporation at potential rate
+        if q_sur < 0.0 or h_pond >= h_pond_max:  # infiltration dominates, evaporation at potential rate
             h_pond = h_pond - (-Prec + Evap - q_sur) * dt
             rr = max(0, h_pond - h_pond_max)  # surface runoff if h_pond > maxpond
             h_pond = h_pond - rr
@@ -745,7 +744,6 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
     mbe = forcing['potential_infiltration'] * t_final + (
             sum(W_ini*dz) - sum(W*dz)) + (pond_ini - h_pond) - (
             C_dra + C_trans + C_roff + C_eva)
-
     fluxes = {'infiltration': C_inf / t_final,
               'evaporation': C_eva / t_final,
               'drainage': C_dra / t_final,

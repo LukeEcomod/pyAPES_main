@@ -129,3 +129,6 @@ Examples/results/*.*
 *.jpg
 *.gif
 *.svg
+
+# Profiling results
+*.prof
