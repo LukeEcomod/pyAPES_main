@@ -218,7 +218,6 @@ snow = {
                 'HYDRL': 1,
                 'CONDCT': 1,
                 'ZOFFST': 0,
-                'CANMOD': 0,
                 'EXCHNG': 1,
                 'ALBEDO': 2,
                 'SNFRAC': 0,
@@ -243,29 +242,15 @@ snow = {
                 'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
                 'trho': 200*3600,       # Snow compaction timescale (s)
                 'Wirr': 0.03,           # Irreducible liquid water content of snow
-                'gsnf': 0.01,           # Snow-free vegetation moisture conductance (m/s)
-                'hbas': 2.0,            # Canopy base height (m)
-                'kext': 0.5,            # Vegetation light extinction coefficient
-                'leaf': 20,             # Leaf boundary resistance (s/m)^(1/2)
-                'wcan': 2.5,            # Canopy wind decay coefficient
-                'svai': 4.4,            # Intercepted snow capacity per unit VAI (kg/m^2)
-                'tunl': 240 * 3600,     # Canopy snow unloading time scale (s)
                 'z0sf': 0.1,           # Snow-free surface roughness length (m)
                 'z0sn': 0.001,          # Snow roughness length (m)
-                'VAI': 0.0,             # Vegetation area index
-                'vegh': 0.0,            # Canopy height (m)
                 'zT': 2.,              # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
                 'zU': 3.,              # Wind measurement height with offset (m) ! only in fsm2_standalone
                 'hfsn': 0.1,            # Snowcover fraction depth scale (m)
-                'acn0': 0.1,            # Snow-free dense canopy albedo
-                'acns': 0.4,            # Snow-covered dense canopy albedo
             },
             'layers': {
                 'Nsmax': 3,                 # Maximum number of snow layers
-                'Ncnpy': 0,                 # Number of canopy layers
                 'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
-                'fvg1': [],                 # Fraction of vegetation in the upper canopy layer
-                'zsub': 2.0,                # Subcanopy wind speed diagnostic height (m)
                 'Nsoil': 4,                 # Soil layers
                 'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]), # Soil layer thicknesses
             },
@@ -280,7 +265,6 @@ snow = {
                 'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
                 'Tsrf': 285.,         # Snow/ground surface temperature (K)
                 'fsnow': 0.0,           # Snow cover fraction
-                'fcans': 0.0,
                 'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])  # Volumetric water content in soil, only for fsm soil module
             },
             'soilprops': { # only for fsm soil module

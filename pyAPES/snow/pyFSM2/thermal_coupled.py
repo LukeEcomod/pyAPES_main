@@ -13,7 +13,6 @@ from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import WATER_DENSITY
 EPS = np.finfo(float).eps  # machine epsilon
 
-
 class Thermal:
     def __init__(self, properties: Dict) -> object:
         """
@@ -67,6 +66,7 @@ class Thermal:
                 ksoil (np.ndarray): Thermal conductivity of soil layers (W/m/K)
         """
         
+        # read forcings
         Nsnow = forcing['Nsnow']
         Dsnw = forcing['Dsnw']
         Sice = forcing['Sice']

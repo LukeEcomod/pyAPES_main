@@ -38,7 +38,7 @@ class SnowModel(object):
                     'rcld' (float): # Maximum density for cold snow (kg/m^3)
                     'rfix' (float): # Fixed snow density (kg/m^3)
                     'rgr0' (float): # Fresh snow grain radius (m)
-                    'rhof' (float): # Fresh snow density (kg/m^3) # NOTE FSM2 HAS OPTION!
+                    'rhof' (float): # Fresh snow density (kg/m^3)
                     'rhow' (float): # Wind-packed snow density (kg/m^3)
                     'rmlt' (float): # Maximum density for melting snow (kg/m^3)
                     'Salb' (float): # Snowfall to refresh albedo (kg/m^2)
@@ -67,31 +67,21 @@ class SnowModel(object):
         """
 
         # from layers
-        # Minimum snow layer thicknesses (m)
-        self.Dzsnow = properties['layers']['Dzsnow']
-        # Maximum number of snow layers
-        self.Nsmax = properties['layers']['Nsmax']
+        self.Dzsnow = properties['layers']['Dzsnow'] # Minimum snow layer thicknesses (m)
+        self.Nsmax = properties['layers']['Nsmax'] # Maximum number of snow layers
 
         # from parameters
-        # Reference snow viscosity (Pa s)
-        self.eta0 = properties['params']['eta0']
-        # Maximum density for cold snow (kg/m^3)
-        self.rcld = properties['params']['rcld']
+        self.eta0 = properties['params']['eta0'] # Reference snow viscosity (Pa s)
+        self.rcld = properties['params']['rcld'] # Maximum density for cold snow (kg/m^3)
         self.rfix = properties['params']['rfix']  # Fixed snow density (kg/m^3)
         self.rgr0 = properties['params']['rgr0']  # Fresh snow grain radius (m)
         self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
-        # Wind-packed snow density (kg/m^3)
-        self.rhow = properties['params']['rhow']
-        # Maximum density for melting snow (kg/m^3)
-        self.rmlt = properties['params']['rmlt']
-        # Thermal metamorphism parameter (1/s)
-        self.snda = properties['params']['snda']
-        # Snow compaction timescale (s)
-        self.trho = properties['params']['trho']
-        # Irreducible liquid water content of snow
-        self.Wirr = properties['params']['Wirr']
-        # Fixed thermal conductivity of snow (W/m/K)
-        self.kfix = properties['params']['kfix']
+        self.rhow = properties['params']['rhow']  # Wind-packed snow density (kg/m^3)
+        self.rmlt = properties['params']['rmlt']  # Maximum density for melting snow (kg/m^3)
+        self.snda = properties['params']['snda']  # Thermal metamorphism parameter (1/s)
+        self.trho = properties['params']['trho']  # Snow compaction timescale (s)
+        self.Wirr = properties['params']['Wirr']  # Irreducible liquid water content of snow
+        self.kfix = properties['params']['kfix']  # Fixed thermal conductivity of snow (W/m/K)
         self.hfsn = properties['params']['hfsn']
 
         # from physics options
@@ -100,44 +90,32 @@ class SnowModel(object):
         self.DENSTY = properties['physics_options']['DENSTY']
 
         # Model state variables
-        # Number of snow layers
-        self.Nsnow = properties['initial_conditions']['Nsnow']
-        # Snow layer thicknesses (m)
-        self.Dsnw = properties['initial_conditions']['Dsnw']
-        # Snow layer grain radius (m)
-        self.Rgrn = properties['initial_conditions']['Rgrn']
-        # Ice content of snow layers (kg/m^2)
-        self.Sice = properties['initial_conditions']['Sice']
-        # Liquid content of snow layers (kg/m^2)
-        self.Sliq = properties['initial_conditions']['Sliq']
-        # Snow layer temperatures (K)
-        self.Tsnow = properties['initial_conditions']['Tsnow']
+        self.Nsnow = properties['initial_conditions']['Nsnow']    # Number of snow layers
+        self.Dsnw = properties['initial_conditions']['Dsnw']      # Snow layer thicknesses (m)
+        self.Rgrn = properties['initial_conditions']['Rgrn']      # Snow layer grain radius (m)
+        self.Sice = properties['initial_conditions']['Sice']      # Ice content of snow layers (kg/m^2)
+        self.Sliq = properties['initial_conditions']['Sliq']      # Liquid content of snow layers (kg/m^2)
+        self.Tsnow = properties['initial_conditions']['Tsnow']    # Snow layer temperatures (K)
         self.Wflx = properties['initial_conditions']['Wflx']
 
         # Below are variables that need to have shape rightaway
         self.a = np.zeros(self.Nsmax)  # Below-diagonal matrix elements
         self.b = np.zeros(self.Nsmax)  # Diagonal matrix elements
         self.c = np.zeros(self.Nsmax)  # Above-diagonal matrix elements
-        # Areal heat capacity of snow (J/K/m^2)
-        self.csnow = np.zeros(self.Nsmax)
+        self.csnow = np.zeros(self.Nsmax) # Areal heat capacity of snow (J/K/m^2)
         self.dTs = np.zeros(self.Nsmax)  # Temperature increments (k)
         self.D = np.zeros(self.Nsmax)  # Layer thickness before adjustment (m)
-        # Energy contents before adjustment (J/m^2)
-        self.E = np.zeros(self.Nsmax)
-        # Thermal conductivity between layers (W/m^2/k)
-        self.Gs = np.zeros(self.Nsmax)
+        self.E = np.zeros(self.Nsmax) # Energy contents before adjustment (J/m^2)
+        self.Gs = np.zeros(self.Nsmax) # Thermal conductivity between layers (W/m^2/k)
         self.phi = np.zeros(self.Nsmax)  # Porosity of snow layers
         self.rhs = np.zeros(self.Nsmax)  # Matrix equation rhs
         self.U = np.zeros(self.Nsmax)  # Layer internal energy contents (J/m^2)
         self.dtheta = np.zeros(self.Nsmax)  # Change in liquid water content
-        # Saturated hydraulic conductivity (m/s)
-        self.ksat = np.zeros(self.Nsmax)
+        self.ksat = np.zeros(self.Nsmax) # Saturated hydraulic conductivity (m/s)
         self.thetar = np.zeros(self.Nsmax)  # Irreducible water content
         self.thetaw = np.zeros(self.Nsmax)  # Volumetric liquid water content
-        # Liquid water content at start of timestep
-        self.theta0 = np.zeros(self.Nsmax)
-        # Water flux at snow layer boundaruess (m/s)
-        self.Qw = np.zeros(self.Nsmax+1)
+        self.theta0 = np.zeros(self.Nsmax)  # Liquid water content at start of timestep
+        self.Qw = np.zeros(self.Nsmax+1)    # Water flux at snow layer boundaruess (m/s)
 
         # temporary storage of iteration results
         self.iteration_state = None
@@ -184,6 +162,7 @@ class SnowModel(object):
                 snow_depth:         # Snow depth (m)
         """
 
+        # read forcings
         drip = forcing['drip']
         Esrf = forcing['Esrf']
         Gsrf = forcing['Gsrf']
@@ -428,7 +407,6 @@ class SnowModel(object):
             Nsnow = k + 1
 
             # Fill new layers from the top downwards
-
             knew = 0
             dnew = Dsnw[0]
 
