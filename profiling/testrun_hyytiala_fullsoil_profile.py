@@ -24,7 +24,7 @@ print(params[0]['general'])
 
 # run model
 
-cProfile.run("driver(parameters=params, create_ncf=True, result_file= 'testrun_fullsoil_profile_moss_iteration.nc')","lad_run_profile_long_fullsoil_moss_iteration.prof")
+# cProfile.run("driver(parameters=params, create_ncf=True, result_file= 'testrun_fullsoil_profile_moss_iteration.nc')","lad_run_profile_long_fullsoil_moss_iteration.prof")
 
 # # run model
 # outputfile, Model = driver(parameters=params, create_ncf=True, result_file= 'testrun_fullsoil_profile.nc')
