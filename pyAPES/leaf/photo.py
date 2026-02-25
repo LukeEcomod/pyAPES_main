@@ -803,17 +803,8 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
         et al. 2001. Plant Cell Environ., 24, 253-260.
     """
 
-
-    TN_GAS_CONSTANT_T = TN * GAS_CONSTANT * T
-    TN_GAS_CONSTANT = TN*GAS_CONSTANT
-    T_GAS_CONSTANT = T*GAS_CONSTANT
-    T_minus_TN = T - TN
-    Tresp = np.array([[1e3*Vcmax_T[0], 1e3*Vcmax_T[1], Vcmax_T[2]],
-                      [1e3*Jmax_T[0], 1e3*Jmax_T[1], Jmax_T[2]],
-                      [1e3*Rd_T[0], 0, 0]])
-
     # --- CO2 compensation point -------
-    Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
+    Gamma_star = 42.75 * np.exp(37830*(T-TN) / (TN*GAS_CONSTANT*T))
 
     # ------  Vcmax (umol m-2(leaf)s-1) ------------
     # Ha = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
@@ -823,8 +814,24 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     # NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
     #     (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
     # DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    Vcmax = Vcmax0 * NOM / DENOM
+    # Vcmax = Vcmax0 * NOM / DENOM
+    T = T.reshape(T.shape[0],1)
+    TN_GAS_CONSTANT_T = np.repeat(TN * GAS_CONSTANT * T, repeats=3, axis=1)
+    TN_GAS_CONSTANT = TN*GAS_CONSTANT
+    T_GAS_CONSTANT = np.repeat(T*GAS_CONSTANT, repeats=3, axis=1)
+    T_minus_TN = np.repeat(T - TN, repeats=3, axis=1)
 
+    tresp = np.array([[1e3*Vcmax_T[0], 1e3*Vcmax_T[1], Vcmax_T[2]],
+                      [1e3*Jmax_T[0], 1e3*Jmax_T[1], Jmax_T[2]],
+                      [1e3*Rd_T[0], 0, 0]])
+
+    base_values = np.array([Vcmax0, Jmax0, Rd0])
+
+    output = (base_values.T * 
+              (np.exp(tresp[:,0] * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * 
+        (1.0 + np.exp((TN*tresp[:,2] - tresp[:,1]) / (TN_GAS_CONSTANT)))) /
+        (1.0 + np.exp((T*tresp[:,2] - tresp[:,1]) / (T_GAS_CONSTANT)))
+    )
     #del Ha, Hd, Sd, DENOM, NOM
 
     # ----  Jmax (umol m-2(leaf)s-1) ------------
@@ -838,7 +845,7 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     # NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
     #     (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
     # DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    Jmax = Jmax0*NOM / DENOM
+    # Jmax = Jmax0*NOM / DENOM
 
     #del Ha, Hd, Sd, DENOM, NOM
 
@@ -846,8 +853,9 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     # Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
     # Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
-    return Vcmax, Jmax, Rd, Gamma_star
+    # return Vcmax, Jmax, Rd, Gamma_star
 
+    return output[:,0], output[:,1], output[:,2], Gamma_star
 
 def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     """
