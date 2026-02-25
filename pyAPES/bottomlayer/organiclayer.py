@@ -21,7 +21,7 @@ from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, 
                              THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL
 
 from pyAPES.bottomlayer.carbon import BryophyteFarquhar, OrganicRespiration
-
+import line_profiler
 # machine epsilon
 EPS = np.finfo(float).eps
 
@@ -233,7 +233,7 @@ class OrganicLayer(object):
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
-                                sub_dt=60.0,
+                                sub_dt=1800,
                                 logger_info=controls['logger_info']
                                 )
 
@@ -288,7 +288,7 @@ class OrganicLayer(object):
         fluxes['soil_evaporation'] = MOLAR_MASS_H2O * soil_evaporation
 
         return fluxes, states
-
+    
     def heat_and_water_exchange(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0, logger_info: str=''):
         r""" 
         Solves coupled water and energy balance by Forward Euler integration
@@ -457,7 +457,6 @@ class OrganicLayer(object):
             }
 
         return fluxes, states
-
 
     def water_heat_tendencies(self, y: np.ndarray, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
         """
@@ -781,7 +780,9 @@ class OrganicLayer(object):
             # solved as in soil
             T_iter = (heat_fluxes * dt + heat_capacity_old * T_old
                     + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
-            
+            if (T_iter > 0.) and (T_old > 0.):
+                break
+
             wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
                                 
             err1 = abs(T_iter - T_iterold)

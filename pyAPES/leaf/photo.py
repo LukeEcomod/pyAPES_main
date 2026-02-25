@@ -471,7 +471,6 @@ def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray
 
     return An, Rd, fe, gs_opt, ci, cs
 
-@line_profiler.profile
 def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
                              ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
     """
@@ -542,7 +541,7 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
     cnt = 1
     cs = ca  # leaf surface CO2
     ci = 0.8*ca  # internal CO2
-    while err > 1e-4 and cnt < MaxIter:
+    while err > 0.01 and cnt < MaxIter:
         # -- rubisco -limited rate
         Av = Vcmax * (ci - Tau_c) / (ci + Km)
         # -- RuBP -regeneration limited rate
@@ -768,7 +767,6 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
-@line_profiler.profile
 def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
                                Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
     """
@@ -809,8 +807,8 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
     # ------  Vcmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Ha = 1e3*Vcmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3*Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
 
     NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
@@ -819,8 +817,8 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     Vcmax = Vcmax0 * NOM / DENOM
 
     # ----  Jmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3 * Jmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Ha = 1e3*Jmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3*Jmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
 
     NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
@@ -829,7 +827,7 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
     Jmax = Jmax0*NOM / DENOM
 
     # --- Rd (umol m-2(leaf)s-1) -------
-    Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
+    Ha = 1e3*Rd_T[0]  # J mol-1, activation energy dark respiration
     Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
     return Vcmax, Jmax, Rd, Gamma_star
