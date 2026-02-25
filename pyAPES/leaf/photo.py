@@ -22,11 +22,9 @@ from typing import List, Dict, Tuple
 from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
-    GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O
+    GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O, H2O_CO2_RATIO, TN_GAS_CONSTANT, TN
 import line_profiler
 
-H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
-TN = 25.0 + DEG_TO_KELVIN  # reference temperature, 283.15 [K]
 
 logger = logging.getLogger(__name__)
 
@@ -803,59 +801,38 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
         et al. 2001. Plant Cell Environ., 24, 253-260.
     """
 
+    TN_GAS_CONSTANT_T = TN_GAS_CONSTANT * T
+    T_GAS_CONSTANT = T*GAS_CONSTANT
+    T_minus_TN = T - TN
+
     # --- CO2 compensation point -------
-    Gamma_star = 42.75 * np.exp(37830*(T-TN) / (TN*GAS_CONSTANT*T))
+    Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
     # ------  Vcmax (umol m-2(leaf)s-1) ------------
-    # Ha = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
-    # Hd = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
-    # Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
+    Ha = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
 
-    # NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
-    #     (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
-    # DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    # Vcmax = Vcmax0 * NOM / DENOM
-    T = T.reshape(T.shape[0],1)
-    TN_GAS_CONSTANT_T = np.repeat(TN * GAS_CONSTANT * T, repeats=3, axis=1)
-    TN_GAS_CONSTANT = TN*GAS_CONSTANT
-    T_GAS_CONSTANT = np.repeat(T*GAS_CONSTANT, repeats=3, axis=1)
-    T_minus_TN = np.repeat(T - TN, repeats=3, axis=1)
-
-    tresp = np.array([[1e3*Vcmax_T[0], 1e3*Vcmax_T[1], Vcmax_T[2]],
-                      [1e3*Jmax_T[0], 1e3*Jmax_T[1], Jmax_T[2]],
-                      [1e3*Rd_T[0], 0, 0]])
-
-    base_values = np.array([Vcmax0, Jmax0, Rd0])
-
-    output = (base_values.T * 
-              (np.exp(tresp[:,0] * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * 
-        (1.0 + np.exp((TN*tresp[:,2] - tresp[:,1]) / (TN_GAS_CONSTANT)))) /
-        (1.0 + np.exp((T*tresp[:,2] - tresp[:,1]) / (T_GAS_CONSTANT)))
-    )
-    #del Ha, Hd, Sd, DENOM, NOM
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
+    Vcmax = Vcmax0 * NOM / DENOM
 
     # ----  Jmax (umol m-2(leaf)s-1) ------------
-    # Ha = 1e3 * Jmax_T[0]  # J mol-1, activation energy Vcmax
-    # Hd = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Vcmax
-    # Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
+    Ha = 1e3 * Jmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
 
-    # NOM = np.exp(Ha * (T - TN) / (GAS_CONSTANT*TN*T)) * \
-    #     (1.0 + np.exp((TN*Sd - Hd) / (TN*GAS_CONSTANT)))
-    # DENOM = (1.0 + np.exp((T*Sd - Hd) / (T*GAS_CONSTANT)))
-    # NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
-    #     (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
-    # DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    # Jmax = Jmax0*NOM / DENOM
-
-    #del Ha, Hd, Sd, DENOM, NOM
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
+    Jmax = Jmax0*NOM / DENOM
 
     # --- Rd (umol m-2(leaf)s-1) -------
-    # Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
-    # Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
+    Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
+    Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
-    # return Vcmax, Jmax, Rd, Gamma_star
-
-    return output[:,0], output[:,1], output[:,2], Gamma_star
+    return Vcmax, Jmax, Rd, Gamma_star
 
 def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     """
