@@ -233,7 +233,6 @@ class OrganicLayer(object):
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
-                                sub_dt=180,
                                 logger_info=controls['logger_info']
                                 )
 
@@ -288,8 +287,8 @@ class OrganicLayer(object):
         fluxes['soil_evaporation'] = MOLAR_MASS_H2O * soil_evaporation
 
         return fluxes, states
-    
-    def heat_and_water_exchange(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0, logger_info: str=''):
+
+    def heat_and_water_exchange(self, dt: float, forcing: Dict, parameters: Dict, logger_info: str=''):
         r""" 
         Solves coupled water and energy balance by Forward Euler integration
 
@@ -312,7 +311,6 @@ class OrganicLayer(object):
                 - 'soil_thermal_conductivity' (float): [W m-1 K-1]
                 - 'reference_height' (float): height of forcing data [m]
                 
-            - sub_dt (float): internal timestep [s]
             - logger_info (str): logger config.
 
         Returns:
@@ -340,53 +338,362 @@ class OrganicLayer(object):
                 - 'thermal_conductivity' (float): [W m-1 K-1]
         """
 
-        # initial conditions
-        u = np.zeros(12) # 11
-        u[0] = self.temperature # [degC]
-        u[1] = self.water_storage # [kg m-2]
+        logger = logging.getLogger(__name__)
 
+        # initial conditions
+        temperature = self.temperature # [degC]
+        water_storage = self.water_storage # [kg m-2]
+
+        # initiate arrays to calculate cumulative fluxes
+        u = np.zeros(10)
+        dudt = np.zeros(10)
+
+        zm = 0.5 * self.height
+        zs = abs(parameters['soil_depth'])
+        zref = parameters['reference_height']
+
+        max_storage = self.max_water_content * self.dry_mass
+        min_storage = self.min_water_content * self.dry_mass
+        symplast_storage = self.max_symplast_water * self.dry_mass
+
+        Ta = forcing['air_temperature']
+        
+        sub_dt = 600.  # 1800. does not show energy closure error but differs from results with smaller sub_dt
+
+        # [J m-2 s-1] or [W m-2]
+        SWabs = (1.0 - self.albedo['PAR']) * forcing['par'] + \
+                (1.0 - self.albedo['NIR']) * forcing['nir']
+        
         # -- time loop
         t = 0.0
         while t < dt:
-            # compute derivatives
-            dudt, surface_temperature = self.water_heat_tendencies(u, sub_dt, forcing, parameters)
-            # integrate in time
-            u = u + dudt * sub_dt
+            REDO = False
 
-            # advance in time
-            t = t + sub_dt
-            #sub_dt = min(t-dt, sub_dt)
+            # --- compute water balance ---
+            # nomenclature:
+            #   water_content [g g-1], water_storage [kg m-2 s-1 == mm]
+            #   volumetric water content [-], water potential [m]
+            #   all fluxes [kg m-2 s-1]
 
-        # unpack variables
-        # [deg C]
-        temperature = u[0]
+            # initial state
 
-        # [kg m-2]
-        water_storage = u[1]
+            # [g g-1]
+            water_content = (water_storage / self.dry_mass)
+
+            # [m m-3]
+            volumetric_water = (water_content / WATER_DENSITY
+                                * self.bulk_density)
+
+            # [m]
+            # theta is restricted above or equal Theta_r in water_retention_curve
+            water_potential = water_retention_curve(self.water_retention,
+                                                    theta=volumetric_water
+                                                    )
+
+            # --- constraints for recharge & evaporation
+            max_recharge = max(max_storage - water_storage, 0.0)
+            max_recharge = min(max_storage, max_recharge)
+
+            # [kg m-2 s-1] or [mm s-1]
+            max_recharge_rate = max_recharge / sub_dt
+
+            # [kg m-2 s-1] or [mm s-1]
+            max_evaporation_rate = (water_storage - (min_storage + EPS)) / sub_dt
+
+            if np.isinf(max_evaporation_rate) or max_evaporation_rate < 0.0:
+                max_evaporation_rate = 0.0
+
+            # [kg m-2 s-1] or [mm s-1]
+            max_condensation_rate = -((max_storage - EPS) - water_storage) / sub_dt
+
+            if np.isinf(max_condensation_rate) or max_condensation_rate > 0.0:
+                max_condensation_rate = 0.0
+
+            #--- compute surface temperature from surface energy balance
+
+            # take reflectivities from previous timestep
+            # radiation balance # [J m-2 s-1] or [W m-2]
+
+            # thermal conductance in moss (O'Donnell et al.)
+            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+            gms = moss_thermal_conductivity / zm
+
+            # conductances from surface to air
+            conductance_to_air = surface_atm_conductance(wind_speed=forcing['wind_speed'],
+                                                        zref=zref,
+                                                        zom=self.roughness_height,
+                                                        dT=0.0)
+            
+            ga = conductance_to_air['heat'] # heat [mol m-2 s-1]
+            gav = conductance_to_air['h2o'] # water vapor [mol m-2 s-1]
+            
+            # linear decrease of evaporation when external capillary (micropore) water has been evaporated
+            # Follows Williams and Flanagan (1996) Oecologia
+            relative_conductance = min(1.0, (water_storage / symplast_storage) + EPS)
+            gv = gav * relative_conductance # h2o, [mol m-2 s-1]
+
+            # -- solve surface temperature Ts iteratively
+            Rni = SWabs + self.emissivity * forcing['lw_dn'] \
+                - self.emissivity * STEFAN_BOLTZMANN *(Ta + DEG_TO_KELVIN) **4
+
+            err = 999.0
+            itermax = 50
+            iter_no = 0
+            wo = 0.5 # weight of old Ts
+
+            # initial guess
+            Ts = 0.5 * (Ta + self.temperature)
+
+            while err > 0.01 and iter_no < itermax:
+                # evaporation demand and supply --> latent heat flux
+                es = saturation_vapor_pressure(Ts) / forcing['air_pressure']
+                LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
+
+                if LEdemand > 0:
+                    LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate)
+                    if iter_no > 100:
+                        LE = 0.1 * LATENT_HEAT * max_evaporation_rate 
+                else: # condensation
+                    LE = max(LEdemand, LATENT_HEAT * max_condensation_rate) 
+
+                Told = Ts.copy()
+
+                # --- find Ts: Long-wave term is linearized as in Campbell & Norman 1998 Ch 12.
+                Te =  0.5 * (Ta + Ts)
+
+                gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
+                a = Rni - LE
+                b = SPECIFIC_HEAT_AIR * (ga + gr)
+                Ts = (a + b * Ta + gms * temperature) / (b + gms)
+
+                err = abs(Ts - Told)
+
+                # new guess
+                Ts =  wo * Told + (1 - wo) * Ts
+
+                iter_no += 1
+
+            if iter_no == itermax:
+                logger.debug('gt Tsurf: Maximum number of iterations reached: Ts = %.2f, err = %.2f', np.mean(Ts), err)
+                # solve Ts assuming evaporating surface is at Ta, then compute Ts and other fluxes
+
+                # evaporation demand and supply --> latent heat flux
+                es = saturation_vapor_pressure(Ta) / forcing['air_pressure']
+                LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
+
+                if LEdemand > 0:
+                    LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate) 
+                    # logger.info(f'LEdemand: {LEdemand}; max evaporation rate: {LATENT_HEAT*max_evaporation_rate}')
+                    if iter_no > 100:
+                        LE = 0.1 * LATENT_HEAT * max_evaporation_rate
+                
+                else: # condensation
+                    LE = max(LEdemand, LATENT_HEAT * max_condensation_rate)
+
+                Te =  0.5 * (Ta + Ts)
+
+                gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
+                a = Rni - LE
+                b = SPECIFIC_HEAT_AIR * (ga + gr)
+                Ts = (a + b * Ta + gms * temperature) / (b + gms)
+
+            # -- energy fluxes  [J m-2 s-1] or [W m-2]
+            LWup = self.emissivity * STEFAN_BOLTZMANN * (Ts + DEG_TO_KELVIN)**4
+            net_radiation = SWabs +  self.emissivity * forcing['lw_dn'] - LWup
+            sensible_heat_flux = SPECIFIC_HEAT_AIR * ga * (Ts - Ta)
+            conducted_heat_flux = gms * (Ts - temperature)
+            latent_heat_flux = LE
+
+            # -- evaporation rate [kg m-2 s-1]
+            evaporation_rate = LE / LATENT_HEAT * MOLAR_MASS_H2O
+
+            max_recharge_rate = max(max_recharge_rate + evaporation_rate, 0.0)
+            max_recharge = max_recharge_rate * sub_dt
+
+            # -- recharge from rainfall interception and/or from pond storage
+            # assumptotic function
+            interception = (max_recharge *
+                            (1.0 - np.exp(-(1.0 / max_storage)
+                            * forcing['precipitation'] * sub_dt)))
+
+            # [kg m-2 s-1] or [mm s-1]
+            interception_rate = interception / sub_dt
+
+            # [kg m-2] or [mm]
+            max_recharge = max(max_recharge - interception, 0.0)
+
+            pond_recharge = min(max_recharge - EPS, forcing['max_pond_recharge'] * sub_dt)
+
+            # [kg m-2 s-1] or [mm s-1]
+            pond_recharge_rate = pond_recharge / sub_dt
+
+            # [kg m-2 s-1] or [mm s-1]
+            max_recharge_rate = max(max_recharge - pond_recharge, 0.0) / sub_dt
+
+            # --- compute capillary rise from soil [ kg m-2 s-1 = mm s-1]
+
+            # Kh: soil-moss hydraulic conductivity assuming two resistors in series
+            Km = hydraulic_conductivity(self.water_retention, volumetric_water)
+            Ks = parameters['soil_hydraulic_conductivity']
+
+            # conductance of layer [s-1]
+            g_moss = Km / zm
+            g_soil = Ks / zs
+
+            # [m s-1]
+            Kh = (g_moss * g_soil / (g_moss + g_soil)) * (zm + zs)
+
+            # [kg m-2 s-1] or [mm s-1]
+            capillary_rise = (WATER_DENSITY * max(
+                    0.0, - Kh * ((water_potential - forcing['soil_water_potential']) / (zm + zs) + 1.0))
+                    )
+
+            capillary_rise = min(capillary_rise, max_recharge_rate)
+
+            # --- calculate mass balance of water
+
+            # [kg m-2] or [mm]
+            new_water_storage = water_storage + (
+                    interception_rate
+                    + pond_recharge_rate
+                    + capillary_rise
+                    - evaporation_rate
+                    ) * sub_dt
+
+            # --- calculate change in moss heat content
+
+            # heat conduction between moss and soil [W m-2 K-1]
+            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+
+            # thermal conductance [W m-2 K-1], assume the layers act as two resistors in series
+            g_moss = moss_thermal_conductivity / zm
+            g_soil = parameters['soil_thermal_conductivity'] / zs
+
+            thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
+
+            # [J m-2 s-1 == W m-2]
+            ground_heat_flux = thermal_conductance *(temperature - forcing['soil_temperature'])
+
+            # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
+            heat_advection = SPECIFIC_HEAT_H2O * (
+                            interception_rate * forcing['air_temperature']
+                            + capillary_rise * forcing['soil_temperature']
+                            + pond_recharge_rate * forcing['soil_temperature']
+                            )
+        
+            # heat fluxes
+            heat_fluxes = (
+                    + conducted_heat_flux
+                    + heat_advection
+                    - ground_heat_flux
+                    )   
+            
+            # liquid and ice content, and dWliq/dTs
+            wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
+            
+            # heat capacities [J K-1 m-2]  - air content?
+            heat_capacity_old = (
+                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                + SPECIFIC_HEAT_H2O * wliq_old
+                + SPECIFIC_HEAT_ICE * wice_old)        
+            
+            T_old = temperature
+            
+            # changes during iteration
+            T_iter = temperature
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+
+            # specifications for iterative solution
+            Conv_crit1 = 1.0e-3  # degC
+            Conv_crit2 = 1.0e-5  # ice content m3/m3
+            err1 = 999.0
+            err2 = 999.0
+            iterNo = 0
+
+            """ iterative solution """
+            while err1 > Conv_crit1 or err2 > Conv_crit2:
+
+                iterNo += 1
+                
+                heat_capacity = (
+                    SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                    + SPECIFIC_HEAT_H2O * wliq_iter
+                    + SPECIFIC_HEAT_ICE * wice_iter)
+                A = LATENT_HEAT_FREEZING * gamma
+
+                # save old iteration values
+                T_iterold = T_iter
+                wice_iterold = wice_iter
+                
+                # solved as in soil
+                T_iter = (heat_fluxes * sub_dt + heat_capacity_old * T_old
+                        + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
+                
+                if (T_iter > 0.) and (T_old> 0.) and (iterNo == 1):
+                    break
+                
+                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+                                    
+                err1 = abs(T_iter - T_iterold)
+                err2 = abs(wice_iter - wice_iterold)     
+
+                if iterNo == 20:
+                    print("not converging", sub_dt, err1, err2, wice_iter, T_iter)  # to logger?
+                    break
+                
+                # adapt time step and restart
+                if (iterNo >= 5) and (sub_dt > 300):
+                    sub_dt = 300.
+                    REDO = True
+                    break
+
+            if REDO == False:
+                temperature = T_iter
+
+                water_storage = new_water_storage
+
+                # water fluxes [kg m-2 s-1 == mm s-1]
+                dudt[0] = pond_recharge_rate
+                dudt[1] = capillary_rise
+                dudt[2] = interception_rate
+                dudt[3] = evaporation_rate 
+
+                # energy fluxes [J m-2 s-1 == W m-2]
+                dudt[4] = net_radiation
+                dudt[5] = sensible_heat_flux
+                dudt[6] = latent_heat_flux
+                dudt[7] = conducted_heat_flux
+                dudt[8] = heat_advection
+                dudt[9] = ground_heat_flux
+
+                # integrate in time
+                u = u + dudt * sub_dt
+
+                # advance in time
+                t = t + sub_dt
 
         # water fluxes [kg m-2 s-1]
-        pond_recharge_rate = u[2] / dt
-        capillary_rise = u[3] / dt
-        interception_rate = u[4] / dt
-        evaporation_rate = u[5] / dt
+        pond_recharge_rate = u[0] / dt
+        capillary_rise = u[1] / dt
+        interception_rate = u[2] / dt
+        evaporation_rate = u[3] / dt
 
         # energy fluxes [W m-2] or [J m-2 s-1]
-        net_radiation = u[6] / dt
-        sensible_heat_flux = u[7] / dt
-        latent_heat_flux = u[8] / dt
-        conducted_heat_flux = u[9] / dt
-        heat_advection = u[10] / dt
-        ground_heat_flux = u[11] / dt
+        net_radiation = u[4] / dt
+        sensible_heat_flux = u[5] / dt
+        latent_heat_flux = u[6] / dt
+        conducted_heat_flux = u[7] / dt
+        heat_advection = u[8] / dt
+        ground_heat_flux = u[9] / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
-        water_storage_change = (water_storage - self.water_content * self.dry_mass) / dt
-
         water_fluxes = (pond_recharge_rate
                         + capillary_rise
                         - evaporation_rate
                         + interception_rate)
 
-        water_closure = -water_storage_change + water_fluxes
+        water_closure = ((water_storage - self.water_content * self.dry_mass) / dt 
+                         - water_fluxes)
 
         # energy closure [W m-2] or [J m-2 s-1]
         # heat capacities [J m-2 K-1]
@@ -451,369 +758,12 @@ class OrganicLayer(object):
             'liquid_water_storage': wliq,  # [kg m-2 == mm]
             'ice_storage': wice,  # [kg m-2 == mm]  # NOT included yet!!!
             'temperature': temperature,  # [degC]
-            'surface_temperature': surface_temperature, # [degC]
+            'surface_temperature': Ts, # [degC]
             'hydraulic_conductivity': Kliq,  # [m s-1]
             'thermal_conductivity': Lambda,  # [W m-1 K-1]
             }
 
         return fluxes, states
-
-    def water_heat_tendencies(self, y: np.ndarray, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
-        """
-        Solves coupled water and heat balance over timestep dt.
-        Returns temperature and water storage tendensies (du/dt) and water & energy fluxes.
-        Args:
-            - y (array): initial values
-                0. temperature [degC] --> computes (du/dt)
-                1. water storage [kg m-2] --> (du/dt)
-                2-11. zeros
-            - dt (float): time step [s]
-            - forcing (dict): see calling function 
-            - parameters (dict): see calling function
-        Returns:
-            - derivatives (du/dt) of y (array):
-                0. temperature, dT/dt [K s-1]
-                1. water storage [kg m-2 s-1] 
-                2. pond_recharge [kg m-2 s-1]
-                3. capillary_rise [kg m-2 s-1]
-                4. interception [kg m-2 s-1]
-                5. evaporation/condensation [kg m-2 s-1]
-                6. radiative_heat flux [J m-2 s-1 = W m-2]
-                7. sensible_heat flux [W m-2]
-                8. latent_heat flux [W m-2]
-                9. conducted_heat flux [W m-2]
-                10 advected_heat flux [W m-2]
-                11. ground_heat flux [W m-2]
-            
-            - surface_temperature [deg C]
-
-        """
-        logger = logging.getLogger(__name__)
-
-        dudt = np.zeros(12)
-
-        if dt == 0.0:
-            dt = dt + EPS
-
-        zm = 0.5 * self.height
-        zs = abs(parameters['soil_depth'])
-        zref = parameters['reference_height']
-
-        max_storage = self.max_water_content * self.dry_mass
-        min_storage = self.min_water_content * self.dry_mass
-        symplast_storage = self.max_symplast_water * self.dry_mass
-
-        # --- compute water balance ---
-        # nomenclature:
-        #   water_content [g g-1], water_storage [kg m-2 s-1 == mm]
-        #   volumetric water content [-], water potential [m]
-        #   all fluxes [kg m-2 s-1]
-
-        # initial state
-
-        # [kg m-2] or [mm]
-        water_storage = min(max_storage, y[1])
-        water_storage = max(min_storage, water_storage)
-
-        # [g g-1]
-        water_content = (water_storage / self.dry_mass)
-
-        # [m m-3]
-        volumetric_water = (water_content / WATER_DENSITY
-                            * self.bulk_density)
-
-        # [m]
-        # theta is restricted above or equal Theta_r in water_retention_curve
-        water_potential = water_retention_curve(self.water_retention,
-                                                theta=volumetric_water
-                                                )
-
-        # --- constraints for recharge & evaporation
-        max_recharge = max(max_storage - water_storage, 0.0)
-        max_recharge = min(max_storage, max_recharge)
-
-        # [kg m-2 s-1] or [mm s-1]
-        max_recharge_rate = max_recharge / dt
-
-        # [kg m-2 s-1] or [mm s-1]
-        max_evaporation_rate = (y[1] - (min_storage + EPS)) / dt
-
-        if np.isinf(max_evaporation_rate) or max_evaporation_rate < 0.0:
-            max_evaporation_rate = 0.0
-
-        # [kg m-2 s-1] or [mm s-1]
-        max_condensation_rate = -((max_storage - EPS) - y[1]) / dt
-
-        if np.isinf(max_condensation_rate) or max_condensation_rate > 0.0:
-            max_condensation_rate = 0.0
-
-        #--- compute surface temperature from surface energy balance
-        Ta = forcing['air_temperature']
-
-        # take reflectivities from previous timestep
-        # radiation balance # [J m-2 s-1] or [W m-2]
-
-        # [J m-2 s-1] or [W m-2]
-        SWabs = (1.0 - self.albedo['PAR']) * forcing['par'] + \
-                (1.0 - self.albedo['NIR']) * forcing['nir']
-
-        # thermal conductance in moss (O'Donnell et al.)
-        moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-        gms = moss_thermal_conductivity / zm
-
-         # conductances from surface to air
-        conductance_to_air = surface_atm_conductance(wind_speed=forcing['wind_speed'],
-                                                     zref=zref,
-                                                     zom=self.roughness_height,
-                                                     dT=0.0)
-        
-        ga = conductance_to_air['heat'] # heat [mol m-2 s-1]
-        gav = conductance_to_air['h2o'] # water vapor [mol m-2 s-1]
-        
-        # linear decrease of evaporation when external capillary (micropore) water has been evaporated
-        # Follows Williams and Flanagan (1996) Oecologia
-        relative_conductance = min(1.0, (y[1] / symplast_storage) + EPS)
-        gv = gav * relative_conductance # h2o, [mol m-2 s-1]
-
-        # -- solve surface temperature Ts iteratively
-        Rni = SWabs + self.emissivity * forcing['lw_dn'] \
-            - self.emissivity * STEFAN_BOLTZMANN *(Ta + DEG_TO_KELVIN) **4
-
-        err = 999.0
-        itermax = 50
-        iter_no = 0
-        wo = 0.5 # weight of old Ts
-
-        # initial guess
-        Ts = 0.5 * (Ta + self.temperature)
-
-        while err > 0.01 and iter_no < itermax:
-            # evaporation demand and supply --> latent heat flux
-            es = saturation_vapor_pressure(Ts) / forcing['air_pressure']
-            LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
-
-            if LEdemand > 0:
-                LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate)
-                if iter_no > 100:
-                    LE = 0.1 * LATENT_HEAT * max_evaporation_rate 
-            else: # condensation
-                LE = max(LEdemand, LATENT_HEAT * max_condensation_rate) 
-
-            Told = Ts.copy()
-
-            # --- find Ts: Long-wave term is linearized as in Campbell & Norman 1998 Ch 12.
-            Te =  0.5 * (Ta + Ts)
-
-            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
-            a = Rni - LE
-            b = SPECIFIC_HEAT_AIR * (ga + gr)
-            Ts = (a + b * Ta + gms * y[0]) / (b + gms)
-
-#            #LW_up linearized against Told (instead of Ta): eoT_s^4 ~= eoT_old^4 + 4eoT_old^3*Ts
-#            #This results in smaller err but solution does not converge in all cases!
-#            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
-#            Rn = (SWabs
-#                  + self.emissivity * forcing['lw_dn']
-#                  - self.emissivity * STEFAN_BOLTZMANN * (Told + DEG_TO_KELVIN)**4)
-#
-#            Ts = (Rn + SPECIFIC_HEAT_AIR * (gr * Told + ga * Ta) - LE + gms * y[0]) / (
-#                SPECIFIC_HEAT_AIR * (ga + gr) + gms)
-
-            err = abs(Ts - Told)
-
-            # new guess
-            Ts =  wo * Told + (1 - wo) * Ts
-
-            iter_no += 1
-
-        if iter_no == itermax:
-            logger.debug('gt Tsurf: Maximum number of iterations reached: Ts = %.2f, err = %.2f', np.mean(Ts), err)
-            # solve Ts assuming evaporating surface is at Ta, then compute Ts and other fluxes
-
-            # evaporation demand and supply --> latent heat flux
-            es = saturation_vapor_pressure(Ta) / forcing['air_pressure']
-            LEdemand = LATENT_HEAT * gv * (es - forcing['h2o'])
-
-            if LEdemand > 0:
-                LE = min(LEdemand, LATENT_HEAT * max_evaporation_rate) 
-                # logger.info(f'LEdemand: {LEdemand}; max evaporation rate: {LATENT_HEAT*max_evaporation_rate}')
-                if iter_no > 100:
-                    LE = 0.1 * LATENT_HEAT * max_evaporation_rate
-            
-            else: # condensation
-                LE = max(LEdemand, LATENT_HEAT * max_condensation_rate)
-
-            Te =  0.5 * (Ta + Ts)
-
-            gr = 4 * self.emissivity * STEFAN_BOLTZMANN * (Te + DEG_TO_KELVIN)**3 / SPECIFIC_HEAT_AIR
-            a = Rni - LE
-            b = SPECIFIC_HEAT_AIR * (ga + gr)
-            Ts = (a + b * Ta + gms * y[0]) / (b + gms)
-
-        # -- energy fluxes  [J m-2 s-1] or [W m-2]
-        LWup = self.emissivity * STEFAN_BOLTZMANN * (Ts + DEG_TO_KELVIN)**4
-        net_radiation = SWabs +  self.emissivity * forcing['lw_dn'] - LWup
-        sensible_heat_flux = SPECIFIC_HEAT_AIR * ga * (Ts - Ta)
-        conducted_heat_flux = gms * (Ts - y[0])
-        latent_heat_flux = LE
-
-        # -- evaporation rate [kg m-2 s-1]
-        evaporation_rate = LE / LATENT_HEAT * MOLAR_MASS_H2O
-
-        max_recharge_rate = max(max_recharge_rate + evaporation_rate, 0.0)
-        max_recharge = max_recharge_rate * dt
-
-        # -- recharge from rainfall interception and/or from pond storage
-        # assumptotic function
-        interception = (max_recharge *
-                        (1.0 - np.exp(-(1.0 / max_storage)
-                         * forcing['precipitation'] * dt)))
-
-        # [kg m-2 s-1] or [mm s-1]
-        interception_rate = interception / dt
-
-        # [kg m-2] or [mm]
-        max_recharge = max(max_recharge - interception, 0.0)
-
-        pond_recharge = min(max_recharge - EPS, forcing['max_pond_recharge'] * dt)
-
-        # [kg m-2 s-1] or [mm s-1]
-        pond_recharge_rate = pond_recharge / dt
-
-        # [kg m-2 s-1] or [mm s-1]
-        max_recharge_rate = max(max_recharge - pond_recharge, 0.0) / dt
-
-        # --- compute capillary rise from soil [ kg m-2 s-1 = mm s-1]
-
-        # Kh: soil-moss hydraulic conductivity assuming two resistors in series
-        Km = hydraulic_conductivity(self.water_retention, volumetric_water)
-        Ks = parameters['soil_hydraulic_conductivity']
-
-        # conductance of layer [s-1]
-        g_moss = Km / zm
-        g_soil = Ks / zs
-
-        # [m s-1]
-        Kh = (g_moss * g_soil / (g_moss + g_soil)) * (zm + zs)
-
-        # [kg m-2 s-1] or [mm s-1]
-        capillary_rise = (WATER_DENSITY * max(
-                0.0, - Kh * ((water_potential - forcing['soil_water_potential']) / (zm + zs) + 1.0))
-                )
-
-        capillary_rise = min(capillary_rise, max_recharge_rate)
-
-        # --- calculate mass balance of water
-
-        # [kg m-2 s-1] or [mm s-1]
-        dy_water = (
-                interception_rate
-                + pond_recharge_rate
-                + capillary_rise
-                - evaporation_rate
-                )
-
-        # --- calculate change in moss heat content
-
-        # heat conduction between moss and soil [W m-2 K-1]
-        moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-
-        # thermal conductance [W m-2 K-1], assume the layers act as two resistors in series
-        g_moss = moss_thermal_conductivity / zm
-        g_soil = parameters['soil_thermal_conductivity'] / zs
-
-        thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
-
-        # [J m-2 s-1 == W m-2]
-        ground_heat_flux = thermal_conductance *(y[0] - forcing['soil_temperature'])
-
-        # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
-        heat_advection = SPECIFIC_HEAT_H2O * (
-                        interception_rate * forcing['air_temperature']
-                        + capillary_rise * forcing['soil_temperature']
-                        + pond_recharge_rate * forcing['soil_temperature']
-                        )
-    
-         # heat fluxes
-        heat_fluxes = (
-                + conducted_heat_flux
-                + heat_advection
-                - ground_heat_flux
-                )   
-        # liquid and ice content, and dWliq/dTs
-        wliq_old, wice_old, _ = frozen_water(y[0], y[1])
-        
-        # heat capacities [J K-1 m-2]  - air content?
-        heat_capacity_old = (
-            SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-            + SPECIFIC_HEAT_H2O * wliq_old
-            + SPECIFIC_HEAT_ICE * wice_old)        
-        
-        T_old = y[0]
-        
-        # changes during iteration
-        T_iter = y[0]
-        wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
-
-        # specifications for iterative solution
-        Conv_crit1 = 1.0e-3  # degC
-        Conv_crit2 = 1.0e-5  # ice content m3/m3
-        err1 = 999.0
-        err2 = 999.0
-        iterNo = 0
-
-        """ iterative solution """
-        while err1 > Conv_crit1 or err2 > Conv_crit2:
-
-            iterNo += 1
-            
-            heat_capacity = (
-                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-                + SPECIFIC_HEAT_H2O * wliq_iter
-                + SPECIFIC_HEAT_ICE * wice_iter)
-            A = LATENT_HEAT_FREEZING * gamma
-
-            # save old iteration values
-            T_iterold = T_iter
-            wice_iterold = wice_iter
-            
-            # solved as in soil
-            T_iter = (heat_fluxes * dt + heat_capacity_old * T_old
-                    + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
-            if (T_iter > 0.) and (T_old > 0.):
-                break
-
-            wliq_iter, wice_iter, gamma = frozen_water(T_iter, y[1] + dy_water * dt)
-                                
-            err1 = abs(T_iter - T_iterold)
-            err2 = abs(wice_iter - wice_iterold)     
-                
-            if iterNo == 20:
-                print("not converging", err1, err2, wice_iter, T_iter)  # to logger?
-                break
-                
-        new_temperature = T_iter
-
-        # -- return mean tendencies [K s-1] and fluxes
-        dudt[0] = (new_temperature - y[0]) / dt
-        # [kg m-2 s-1 == mm s-1]
-        dudt[1] = dy_water
-
-        # water fluxes [kg m-2 s-1 == mm s-1]
-        dudt[2] = pond_recharge_rate
-        dudt[3] = capillary_rise
-        dudt[4] = interception_rate
-        dudt[5] = evaporation_rate 
-
-        # energy fluxes [J m-2 s-1 == W m-2]
-        dudt[6] = net_radiation
-        dudt[7] = sensible_heat_flux
-        dudt[8] = latent_heat_flux
-        dudt[9] = conducted_heat_flux
-        dudt[10] = heat_advection
-        dudt[11] = ground_heat_flux
-        
-        return dudt, Ts
 
     def water_exchange(self, dt: float, forcing: Dict, parameters: Dict) -> Tuple:
         """

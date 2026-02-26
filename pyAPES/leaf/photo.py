@@ -470,7 +470,7 @@ def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray
     fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
 
     return An, Rd, fe, gs_opt, ci, cs
-@line_profiler.profile
+
 def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
                              ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
     """
