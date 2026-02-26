@@ -233,7 +233,7 @@ class OrganicLayer(object):
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
-                                sub_dt=180,
+                                sub_dt=60,
                                 logger_info=controls['logger_info']
                                 )
 
