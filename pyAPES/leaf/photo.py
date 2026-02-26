@@ -470,7 +470,7 @@ def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray
     fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
 
     return An, Rd, fe, gs_opt, ci, cs
-
+@line_profiler.profile
 def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
                              ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
     """
@@ -557,14 +557,15 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
         # print An1
         # stomatal conductance
         gs_opt = g0 + (1.0 + g1 / (VPD**0.5)) * An1 / cs
-        gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
+        #gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
+        gs_opt[gs_opt<g0] = g0
         # print gs_opt
         # CO2 supply
         cs = np.maximum(ca - An1 / gb_c, 0.5*ca)  # through boundary layer
         ci0 = ci
         ci = np.maximum(cs - An1 / gs_opt, 0.1*ca)  # through stomata
 
-        err = max((ci0 - ci)**2.0)
+        err = max((ci0 - ci)*(ci0-ci))
         cnt += 1
 
     # when Rd > photo, assume stomata closed and ci == ca
