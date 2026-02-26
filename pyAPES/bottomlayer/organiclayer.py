@@ -513,9 +513,12 @@ class OrganicLayer(object):
         logger = logging.getLogger(__name__)
 
         # initial conditions
-        u = np.zeros(12) # 11
         temperature = self.temperature # [degC]
-        u[1] = self.water_storage # [kg m-2]
+        water_storage = self.water_storage # [kg m-2]
+
+        # initiate arrays to calculate cumulative fluxes
+        u = np.zeros(10)
+        dudt = np.zeros(10)
 
         zm = 0.5 * self.height
         zs = abs(parameters['soil_depth'])
@@ -535,8 +538,6 @@ class OrganicLayer(object):
         t = 0.0
         while t < dt:
 
-            dudt = np.zeros(12)
-
             if sub_dt == 0.0:
                 sub_dt = sub_dt + EPS
 
@@ -548,9 +549,9 @@ class OrganicLayer(object):
 
             # initial state
 
-            # [kg m-2] or [mm]  -- is it possible that is goes over or under??
-            water_storage = min(max_storage, u[1])
-            water_storage = max(min_storage, water_storage)
+            # # [kg m-2] or [mm]  -- is it possible that is goes over or under??
+            # water_storage = min(max_storage, water_storage)
+            # water_storage = max(min_storage, water_storage)
 
             # [g g-1]
             water_content = (water_storage / self.dry_mass)
@@ -573,13 +574,13 @@ class OrganicLayer(object):
             max_recharge_rate = max_recharge / sub_dt
 
             # [kg m-2 s-1] or [mm s-1]
-            max_evaporation_rate = (u[1] - (min_storage + EPS)) / sub_dt
+            max_evaporation_rate = (water_storage - (min_storage + EPS)) / sub_dt
 
             if np.isinf(max_evaporation_rate) or max_evaporation_rate < 0.0:
                 max_evaporation_rate = 0.0
 
             # [kg m-2 s-1] or [mm s-1]
-            max_condensation_rate = -((max_storage - EPS) - u[1]) / sub_dt
+            max_condensation_rate = -((max_storage - EPS) - water_storage) / sub_dt
 
             if np.isinf(max_condensation_rate) or max_condensation_rate > 0.0:
                 max_condensation_rate = 0.0
@@ -604,7 +605,7 @@ class OrganicLayer(object):
             
             # linear decrease of evaporation when external capillary (micropore) water has been evaporated
             # Follows Williams and Flanagan (1996) Oecologia
-            relative_conductance = min(1.0, (u[1] / symplast_storage) + EPS)
+            relative_conductance = min(1.0, (water_storage / symplast_storage) + EPS)
             gv = gav * relative_conductance # h2o, [mol m-2 s-1]
 
             # -- solve surface temperature Ts iteratively
@@ -727,13 +728,13 @@ class OrganicLayer(object):
 
             # --- calculate mass balance of water
 
-            # [kg m-2 s-1] or [mm s-1]
-            dy_water = (
+            # [kg m-2] or [mm]
+            new_water_storage = water_storage + (
                     interception_rate
                     + pond_recharge_rate
                     + capillary_rise
                     - evaporation_rate
-                    )
+                    ) * sub_dt
 
             # --- calculate change in moss heat content
 
@@ -763,7 +764,7 @@ class OrganicLayer(object):
                     - ground_heat_flux
                     )   
             # liquid and ice content, and dWliq/dTs
-            wliq_old, wice_old, _ = frozen_water(temperature, u[1])
+            wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
             
             # heat capacities [J K-1 m-2]  - air content?
             heat_capacity_old = (
@@ -775,7 +776,7 @@ class OrganicLayer(object):
             
             # changes during iteration
             T_iter = temperature
-            wliq_iter, wice_iter, gamma = frozen_water(T_iter, u[1] + dy_water * sub_dt)
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
 
             # specifications for iterative solution
             Conv_crit1 = 1.0e-3  # degC
@@ -806,7 +807,7 @@ class OrganicLayer(object):
                 if (T_iter > 0.) and (T_old> 0.):
                     break
                 
-                wliq_iter, wice_iter, gamma = frozen_water(T_iter, u[1] + dy_water * sub_dt)
+                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
                                     
                 err1 = abs(T_iter - T_iterold)
                 err2 = abs(wice_iter - wice_iterold)     
@@ -816,27 +817,21 @@ class OrganicLayer(object):
                     break
                     
             temperature = T_iter
-
-            # -- return mean tendencies [K s-1] and fluxes
-            # dudt[0] = (new_temperature - u[0]) / sub_dt
-            # [kg m-2 s-1 == mm s-1]
-            dudt[1] = dy_water
+            water_storage = new_water_storage
 
             # water fluxes [kg m-2 s-1 == mm s-1]
-            dudt[2] = pond_recharge_rate
-            dudt[3] = capillary_rise
-            dudt[4] = interception_rate
-            dudt[5] = evaporation_rate 
+            dudt[0] = pond_recharge_rate
+            dudt[1] = capillary_rise
+            dudt[2] = interception_rate
+            dudt[3] = evaporation_rate 
 
             # energy fluxes [J m-2 s-1 == W m-2]
-            dudt[6] = net_radiation
-            dudt[7] = sensible_heat_flux
-            dudt[8] = latent_heat_flux
-            dudt[9] = conducted_heat_flux
-            dudt[10] = heat_advection
-            dudt[11] = ground_heat_flux
-            
-            surface_temperature = Ts
+            dudt[4] = net_radiation
+            dudt[5] = sensible_heat_flux
+            dudt[6] = latent_heat_flux
+            dudt[7] = conducted_heat_flux
+            dudt[8] = heat_advection
+            dudt[9] = ground_heat_flux
 
             # integrate in time
             u = u + dudt * sub_dt
@@ -845,36 +840,29 @@ class OrganicLayer(object):
             t = t + sub_dt
             #sub_dt = min(t-dt, sub_dt)
 
-        # unpack variables
-        # [deg C]
-        # temperature = new_temperature
-
-        # [kg m-2]
-        water_storage = u[1]
-
         # water fluxes [kg m-2 s-1]
-        pond_recharge_rate = u[2] / dt
-        capillary_rise = u[3] / dt
-        interception_rate = u[4] / dt
-        evaporation_rate = u[5] / dt
+        pond_recharge_rate = u[0] / dt
+        capillary_rise = u[1] / dt
+        interception_rate = u[2] / dt
+        evaporation_rate = u[3] / dt
 
         # energy fluxes [W m-2] or [J m-2 s-1]
-        net_radiation = u[6] / dt
-        sensible_heat_flux = u[7] / dt
-        latent_heat_flux = u[8] / dt
-        conducted_heat_flux = u[9] / dt
-        heat_advection = u[10] / dt
-        ground_heat_flux = u[11] / dt
+        net_radiation = u[4] / dt
+        sensible_heat_flux = u[5] / dt
+        latent_heat_flux = u[6] / dt
+        conducted_heat_flux = u[7] / dt
+        heat_advection = u[8] / dt
+        ground_heat_flux = u[9] / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
-        water_storage_change = (water_storage - self.water_content * self.dry_mass) / dt
 
         water_fluxes = (pond_recharge_rate
                         + capillary_rise
                         - evaporation_rate
                         + interception_rate)
 
-        water_closure = -water_storage_change + water_fluxes
+        water_closure = ((water_storage - self.water_content * self.dry_mass) / dt 
+                         - water_fluxes)
 
         # energy closure [W m-2] or [J m-2 s-1]
         # heat capacities [J m-2 K-1]
@@ -939,7 +927,7 @@ class OrganicLayer(object):
             'liquid_water_storage': wliq,  # [kg m-2 == mm]
             'ice_storage': wice,  # [kg m-2 == mm]  # NOT included yet!!!
             'temperature': temperature,  # [degC]
-            'surface_temperature': surface_temperature, # [degC]
+            'surface_temperature': Ts, # [degC]
             'hydraulic_conductivity': Kliq,  # [m s-1]
             'thermal_conductivity': Lambda,  # [W m-1 K-1]
             }
