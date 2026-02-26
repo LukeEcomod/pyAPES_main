@@ -166,7 +166,7 @@ class ForestFloor(object):
                                    for bt in self.bottomlayer_types])
         # check below
         self.temperature = sum([bt.coverage * bt.temperature
-                                for bt in self.bottomlayer_types])  # used as boundary for snowpack
+                                for bt in self.bottomlayer_types])
         self.surface_temperature = sum([bt.coverage * bt.surface_temperature
                                 for bt in self.bottomlayer_types])  #     
         self.water_storage = sum([bt.coverage * bt.water_storage
@@ -400,7 +400,7 @@ class ForestFloor(object):
         
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
-                'soil_temperature': forcing['soil_temperature'][0], # HOX TÄSSÄ OLI INDEKSI ?
+                'soil_temperature': forcing['soil_temperature'][0],
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
                 'snow_heat_flux': fluxes_snow['snow_heat_flux'],
                 'snow_temperature': snow_bottom_temperature}
@@ -427,46 +427,21 @@ class ForestFloor(object):
 
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
+        state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
+        fluxes['snow_water_closure'] = fluxes_snow['water_closure']
+        fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
 
-        if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0) and self.snow_model == 'fsm2':
-            state['surface_temperature'] = states_snow['temperature']   # used in solving longwave rad. when snow (=Tair in degreeday approach)
-            fluxes['snow_heat_flux'] = fluxes_snow['snow_heat_flux']
-            state['snow_depth'] = states_snow['snow_depth']
-            state['fsm_surface_temperature'] = states_snow['temperature']
-            state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
-            state['snow_temperature'] = states_snow['snow_temperature']
-            state['snow_layer_depth'] = states_snow['snow_layer_depth']
-            fluxes['snow_longwave_out'] = fluxes_snow['snow_longwave_out']
-            fluxes['snow_sensible_heat'] = fluxes_snow['snow_sensible_heat']
-            fluxes['snow_latent_heat'] = fluxes_snow['snow_latent_heat']
-            fluxes['snow_net_radiation'] = fluxes_snow['snow_net_radiation']
-            # same as for whole ffloor
-            fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
-            fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
-            fluxes['latent_heat'] = fluxes_snow['snow_latent_heat']
-            fluxes['net_radiation'] = fluxes_snow['snow_net_radiation']
-            #
-            state['snow_ice_storage'] = states_snow['snow_ice_storage']
-            state['snow_liquid_storage'] = states_snow['snow_liquid_storage']
-            state['snow_density'] = states_snow['snow_density']
-            fluxes['snow_energy_closure'] = fluxes_snow['snow_energy_closure']
-            state['snow_layers'] = states_snow['snow_layers']
-        elif (self.snowpack.snowpack.swe == 0. and states_snow['snow_water_equivalent'] == 0.)  and self.snow_model == 'fsm2':
-            fluxes['snow_heat_flux'] = 0.
-            state['snow_temperature'] = np.array([np.nan, np.nan, np.nan])
-            state['snow_layer_depth'] = 0.
-            state['snow_water_equivalent'] = 0.
-            fluxes['snow_sensible_heat'] = 0.
-            fluxes['snow_latent_heat'] = 0.
-            fluxes['snow_net_radiation'] = 0.
-            state['snow_depth'] = 0.
-            state['snow_liquid_storage'] = 0.
-            state['snow_ice_storage'] = 0.
-            state['snow_density'] = np.nan
-            fluxes['snow_energy_closure'] = 0.
-            state['snow_layers'] = 0.
-        elif self.snow_model == 'degreeday':
-            state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
+        if self.snow_model == 'fsm2': # fsm snow outputs
+            for key in fluxes_snow.keys():
+                fluxes[key] = fluxes_snow[key]
+            for key in states_snow.keys():
+                state[key] = states_snow[key]
+            if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0):
+                state['surface_temperature'] = states_snow['snow_surface_temperature']
+                fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
+                fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
+                fluxes['latent_heat'] = fluxes_snow['snow_latent_heat']
+                fluxes['net_radiation'] = fluxes_snow['snow_net_radiation']
 
         # bottomlayer_type specific results (fluxes & state): convert list of dicts to dict of lists
         blt_outputs = {}
