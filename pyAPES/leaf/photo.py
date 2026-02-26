@@ -768,6 +768,7 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
+@line_profiler.profile
 def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
                                Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
     """
