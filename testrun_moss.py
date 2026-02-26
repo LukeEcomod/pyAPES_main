@@ -3,7 +3,7 @@ from pyAPES.parameters.mlm_parameters import gpara, cpara, spara
 from pyAPES.utils.iotools import read_forcing
 
 gpara['start_time'] = "2007-04-01"
-gpara['end_time'] = "2007-04-30"
+gpara['end_time'] = "2007-04-10"
 
 forcing = read_forcing(
     forcing_file=gpara['forc_filename'],
