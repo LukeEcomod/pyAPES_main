@@ -34,7 +34,6 @@ from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
 from scipy.linalg import solve_banded
 
-from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
 logger = logging.getLogger(__name__)
 
@@ -339,10 +338,6 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
 
     return Kd
 
-<<<<<<< HEAD
-=======
-# @line_profiler.profile
->>>>>>> e80999cb513015589d63b81ca8319f39847f343a
 def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float, 
                          IbSky: float, IdSky:float, LeafAlbedo: float, SoilAlbedo: float
                          , PlotFigs: bool=False) -> Tuple:

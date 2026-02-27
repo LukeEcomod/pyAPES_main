@@ -947,8 +947,8 @@ def reflectance(water_content: float, max_water_content: float, albedo: Dict) ->
         Relative moisture dependency is assumed same for both wavebands.
 
         Args:
-            - 'water_content' (float): gravimetric water content [g g\ :sup:`-1`\]
-            - 'max_water_content' (float): maximum gravimetric water content [g g\ :sup:`-1`\]
+            - 'water_content' (float): gravimetric water content [g g-1]
+            - 'max_water_content' (float): maximum gravimetric water content [g g-1]
             - albedo (dict):
                 - 'PAR' (float): PAR albedo at max_water_content [-]
                 - 'NIR' (float): NIR albedo at max_water_content [-]
