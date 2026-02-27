@@ -48,12 +48,10 @@ from typing import List, Dict, Tuple
 from pyAPES.leaf.photosynthesis import Photosyntehsis_model, initialize_photo_forcing, set_photo_forcing
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.microclimate.micromet import e_sat, latent_heat
-from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS
+from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS, H2O_CO2_RATIO
 
 from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle
 from pyAPES.planttype.rootzone import RootUptake
-
-H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +231,8 @@ class PlantType(object):
             Lc = np.flipud(np.cumsum(np.flipud(self.lad*self.dz)))
             Lc = Lc / np.maximum(Lc[0], EPS)
             f = np.exp(-kn*Lc)
+        # Change in CSC hackathon 2026 -> save f as self.f_photo_capapcity and use it in
+        # leaf_gas_exchange to scale Vcmax and Jmax
         # preserve proportionality of Jmax and Rd to Vcmax
         self.photop['Vcmax'] = f * self.pheno_state * self.photop0['Vcmax']
         self.photop['Jmax'] = f * self.pheno_state * self.photop0['Jmax']
