@@ -23,7 +23,6 @@ from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
     GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O, H2O_CO2_RATIO, TN_GAS_CONSTANT, TN
-import line_profiler
 
 
 logger = logging.getLogger(__name__)
@@ -768,7 +767,6 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
-# @line_profiler.profile
 def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
                                Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
     """

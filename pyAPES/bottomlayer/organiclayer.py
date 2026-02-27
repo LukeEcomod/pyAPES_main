@@ -21,7 +21,6 @@ from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, 
                              THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL
 
 from pyAPES.bottomlayer.carbon import BryophyteFarquhar, OrganicRespiration
-import line_profiler
 # machine epsilon
 EPS = np.finfo(float).eps
 
