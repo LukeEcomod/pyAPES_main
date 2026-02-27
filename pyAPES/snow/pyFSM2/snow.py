@@ -28,27 +28,17 @@ class SnowModel(object):
                 'physics_options' (dict):
                     'DENSTY' (int): 0,1,2
                     'HYDRL': (int): 0,1,2
-                    'CONDCT': (int): 0,1,2
                 'params' (dict):
-                    'asmn' (float): # Minimum albedo for melting snow
-                    'asmx' (float): # Maximum albedo for fresh snow
                     'eta0' (float): # Reference snow viscosity (Pa s)
-                    'hfsn' (float): # Snowcover fraction depth scale (m)
-                    'kfix' (float): # Fixed thermal conductivity of snow (W/m/K)
                     'rcld' (float): # Maximum density for cold snow (kg/m^3)
                     'rfix' (float): # Fixed snow density (kg/m^3)
                     'rgr0' (float): # Fresh snow grain radius (m)
                     'rhof' (float): # Fresh snow density (kg/m^3)
                     'rhow' (float): # Wind-packed snow density (kg/m^3)
                     'rmlt' (float): # Maximum density for melting snow (kg/m^3)
-                    'Salb' (float): # Snowfall to refresh albedo (kg/m^2)
                     'snda' (float): # Thermal metamorphism parameter (1/s)
-                    'Talb' (float): # Snow albedo decay temperature threshold (C)
-                    'tcld' (float): # Cold snow albedo decay time scale (s)
-                    'tmlt' (float): # Melting snow albedo decay time scale (s)
                     'trho' (float): # Snow compaction timescale (s)
                     'Wirr' (float): # Irreducible liquid water content of snow
-                    'z0sn' (float): # Snow roughness length (m)  
                 'layers' (dict):
                     'Nsmax' (int): # Maximum number of snow layers
                     'Dzsnow' (list): # Minimum snow layer thicknesses (m)
@@ -61,44 +51,33 @@ class SnowModel(object):
                     Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
                     Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
 
-
         Returns:
             self (object)
         """
 
-        # from layers
-        self.Dzsnow = properties['layers']['Dzsnow'] # Minimum snow layer thicknesses (m)
-        self.Nsmax = properties['layers']['Nsmax'] # Maximum number of snow layers
-
-        # from parameters
-        self.eta0 = properties['params']['eta0'] # Reference snow viscosity (Pa s)
-        self.rcld = properties['params']['rcld'] # Maximum density for cold snow (kg/m^3)
-        self.rfix = properties['params']['rfix']  # Fixed snow density (kg/m^3)
-        self.rgr0 = properties['params']['rgr0']  # Fresh snow grain radius (m)
-        self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
-        self.rhow = properties['params']['rhow']  # Wind-packed snow density (kg/m^3)
-        self.rmlt = properties['params']['rmlt']  # Maximum density for melting snow (kg/m^3)
-        self.snda = properties['params']['snda']  # Thermal metamorphism parameter (1/s)
-        self.trho = properties['params']['trho']  # Snow compaction timescale (s)
-        self.Wirr = properties['params']['Wirr']  # Irreducible liquid water content of snow
-        self.kfix = properties['params']['kfix']  # Fixed thermal conductivity of snow (W/m/K)
-        self.hfsn = properties['params']['hfsn']
-
-        # from physics options
+        self.Dzsnow = properties['layers']['Dzsnow']
+        self.Nsmax = properties['layers']['Nsmax']
+        self.eta0 = properties['params']['eta0']
+        self.rcld = properties['params']['rcld']
+        self.rfix = properties['params']['rfix']
+        self.rgr0 = properties['params']['rgr0']
+        self.rhof = properties['params']['rhof']
+        self.rhow = properties['params']['rhow']
+        self.rmlt = properties['params']['rmlt']
+        self.snda = properties['params']['snda']
+        self.trho = properties['params']['trho']
+        self.Wirr = properties['params']['Wirr']
         self.HYDRL = properties['physics_options']['HYDRL']
-        self.CONDCT = properties['physics_options']['CONDCT']
         self.DENSTY = properties['physics_options']['DENSTY']
-
-        # Model state variables
-        self.Nsnow = properties['initial_conditions']['Nsnow']    # Number of snow layers
-        self.Dsnw = properties['initial_conditions']['Dsnw']      # Snow layer thicknesses (m)
-        self.Rgrn = properties['initial_conditions']['Rgrn']      # Snow layer grain radius (m)
-        self.Sice = properties['initial_conditions']['Sice']      # Ice content of snow layers (kg/m^2)
-        self.Sliq = properties['initial_conditions']['Sliq']      # Liquid content of snow layers (kg/m^2)
-        self.Tsnow = properties['initial_conditions']['Tsnow']    # Snow layer temperatures (K)
+        self.Nsnow = properties['initial_conditions']['Nsnow']
+        self.Dsnw = properties['initial_conditions']['Dsnw'] 
+        self.Rgrn = properties['initial_conditions']['Rgrn'] 
+        self.Sice = properties['initial_conditions']['Sice']
+        self.Sliq = properties['initial_conditions']['Sliq'] 
+        self.Tsnow = properties['initial_conditions']['Tsnow']
         self.Wflx = properties['initial_conditions']['Wflx']
 
-        # Below are variables that need to have shape rightaway
+        # Initializing other variables
         self.a = np.zeros(self.Nsmax)  # Below-diagonal matrix elements
         self.b = np.zeros(self.Nsmax)  # Diagonal matrix elements
         self.c = np.zeros(self.Nsmax)  # Above-diagonal matrix elements
@@ -122,7 +101,7 @@ class SnowModel(object):
 
     def update(self):
         """ 
-        Updates swrad state.
+        Updates snow state.
         """
         self.Sliq = self.iteration_state['Sliq']
         self.Sice = self.iteration_state['Sice']
@@ -133,33 +112,41 @@ class SnowModel(object):
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
-        Calculates one timestep and updates snowpack state
+        Calculates one timestep.
 
         Args:
             dt (float): timestep [s]
             forcing (dict):
-                drip:       # Melt water drip from vegetation (kg/m^2)
-                Esrf:       # Moisture flux from the surface (kg/m^2/s)
-                Gsrf        # Heat flux into snow/ground surface (W/m^2)
-                ksow       # Thermal conductivity of snow layers (W/m/K)
-                Melt        # Surface melt rate (kg/m^2/s)
-                Rf:         # Rainfall rate (kg/m2/s)
-                Sf:         # Snowfall rate (kg/m2/s)
-                Ta:         # Air temperature (K)
-                trans:      # Wind-blown snow transport rate (kg/m^2/s)
-                Tsrf:       # Snow/ground surface temperature (K)
-                unload:     # Snow mass unloaded from vegetation (kg/m^2)
-                Tsoil:      # Soil layer temperatures (K)
-                Dzsoil:     #      
+                'drip' (float):       # Melt water drip from vegetation (kg/m^2)
+                'Esrf' (float):       # Moisture flux from the surface (kg/m^2/s)
+                'Gsrf' (float):       # Heat flux into snow/ground surface (W/m^2)
+                'ksnow' (float):      # Thermal conductivity of snow layers (W/m/K)
+                'Melt' (float):       # Surface melt rate (kg/m^2/s)
+                'Rf' (float):         # Rainfall rate (kg/m2/s)
+                'Sf' (float):         # Snowfall rate (kg/m2/s)
+                'Ta' (float):         # Air temperature (K)
+                'trans' (float):      # Wind-blown snow transport rate (kg/m^2/s)
+                'Tsrf' (float):       # Snow/ground surface temperature (K)
+                'unload' (float):     # Snow mass unloaded from vegetation (kg/m^2)
+                'Tsoil' (float):      # Soil layer temperature (K)
+                'ksoil' (float):      # Thermal conductivity of soil layer (W/m/K)
+                'Dzsoil' (float):     # Soil layer thickness (m)
 
         Returns
             (tuple):
             fluxes (dict):
-                soil_heat_flux:     # Heat flux into soil (W/m^2)
-                soil_runoff:        # Runoff from snow (kg/m^2/s)
+                'Gsoil' (float):        # Heat flux into soil (W/m^2)
+                'Roff' (float):         # Runoff from snow (kg/m^2/s)
+                'wbal' (float):         # Water balance error (kg/m^2/s)
             states (dict):
-                snow_water_equivalent: # Total snow mass on ground (kg/m^2)
-                snow_depth:         # Snow depth (m)
+                'swe' (float):          # Total snow mass on ground (kg/m^2)
+                'hs' (float):           # Snow depth (m)
+                'Sice' (np.ndarray):    # Snow ice content (kg/m^2)
+                'Sliq' (np.ndarray):    # Snow liquid content (kg/m^2)
+                'Nsnow' (int):          # Number of snow layers
+                'Dsnw' (np.ndarray):    # Snow layer thicknesses (m)
+                'Tsnow' (np.ndarray):   # Snow layer temperatures (K)
+                'rhos' (np.ndarray):    # Snow layer densities (kg/m^3)
         """
 
         # read forcings

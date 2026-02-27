@@ -386,7 +386,7 @@ class ForestFloor(object):
         # Add snowpack results to states and fluxes
 
         fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
-        fluxes['snow_water_closure'] = fluxes_snow['water_closure']
+        fluxes['snow_water_closure'] = fluxes_snow['snow_water_closure']
         state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
         # --- solve bottomlayer types and aggregate forest floor fluxes & state
         org_forcing = forcing.copy()
@@ -428,7 +428,7 @@ class ForestFloor(object):
         fluxes['evaporation'] += fluxes['soil_evaporation']
         fluxes['latent_heat'] += LATENT_HEAT / MOLAR_MASS_H2O * fluxes['soil_evaporation']
         state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
-        fluxes['snow_water_closure'] = fluxes_snow['water_closure']
+        fluxes['snow_water_closure'] = fluxes_snow['snow_water_closure']
         fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
 
         if self.snow_model == 'fsm2': # fsm snow outputs

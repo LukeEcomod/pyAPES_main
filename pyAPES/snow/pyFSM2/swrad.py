@@ -20,7 +20,6 @@ class SWrad(object):
         Args:
             properties (dict):
                 'physics_options' (dict):
-                    'DENSTY' (int): Snow density scheme (0,1,2)
                     'ALBEDO' (int): Snow albedo scheme (0,1,2)
                     'SNFRAC' (int): Snow cover fraction scheme (0,1,2)
                 'params' (dict):
@@ -31,31 +30,21 @@ class SWrad(object):
                     'Talb' (float): Snow albedo decay temperature threshold (C)
                     'tcld' (float): Cold snow albedo decay time scale (s)
                     'tmlt' (float): Melting snow albedo decay time scale (s)
-                'layers' (dict):
-                    'Nsmax' (int): Maximum number of snow layers
+                'intial_conditions' (dict):
+                    'fsnow' (float): Initial snow cover fraction [-]
         Returns:
             self (object)
         """
 
-        # Layers
-        self.Nsmax = properties['layers']['Nsmax']       # Maximum number of snow layers
-
-        # Parameters
-        self.asmx = properties['params']['asmx']         # Maximum albedo for fresh snow
-        self.asmn = properties['params']['asmn']         # Minimum albedo for melting snow
-        self.hfsn = properties['params']['hfsn']         # Snowcover fraction depth scale (m)
-        self.Salb = properties['params']['Salb']         # Snowfall to refresh albedo (kg/m^2)
-        self.Talb = properties['params']['Talb']         # Snow albedo decay temperature threshold (C)
-        self.tcld = properties['params']['tcld']         # Cold snow albedo decay time scale (s)
-        self.tmlt = properties['params']['tmlt']         # Melting snow albedo decay time scale (s)
-
- 
-        # from physics options
-        self.DENSTY = properties['physics_options']['DENSTY']
+        self.asmx = properties['params']['asmx']
+        self.asmn = properties['params']['asmn']
+        self.hfsn = properties['params']['hfsn']
+        self.Salb = properties['params']['Salb']
+        self.Talb = properties['params']['Talb']
+        self.tcld = properties['params']['tcld']
+        self.tmlt = properties['params']['tmlt']
         self.ALBEDO = properties['physics_options']['ALBEDO']
         self.SNFRAC = properties['physics_options']['SNFRAC']
-
-        # initial state
         self.fsnow = properties['initial_conditions']['fsnow']
         self.albs = 0.1  # initial albedo
 
@@ -71,21 +60,28 @@ class SWrad(object):
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
-            Calculates one timestep and updates state
+            Calculates one timestep
 
             Args:
                 dt (float): timestep [s]
                 forcing (dict):
-                    Sdif:  # Diffuse shortwave radiation (W/m^2)
-                    Sdir:  # Direct shortwave radiation (W/m^2)
-                    Sf:    # Snowfall rate (kg/m^2/s)
-                    Tsrf:  # Surface temperature (K)
-                    Dsnw:  # Snow depth (m)
+                    'Sdif' (float):  # Diffuse shortwave radiation (W/m^2)
+                    'Sdir' (float):  # Direct shortwave radiation (W/m^2)
+                    'Sf' (float):    # Snowfall rate (kg/m^2/s)
+                    'Tsrf' (float):  # Surface temperature (K)
+                    'Dsnw' (float):  # Snow depth (m)
+                    'alb0' (float):  # Surface albedo [-]
             
             Returns:
                 (tuple):
                     fluxes (dict):
+                        'SWout' (float): Shortwave radiation reflected by surface (W/m^2)
+                        'SWsrf' (float): Shortwave radiation absorbed by surface (W/m^2)
+                        'SWsub' (float): Shortwave radiation absorbed by snowpack (W/m^2)
                     states (dict):
+                        'snow_albedo' (float): Snow albedo
+                        'srf_albedo' (float): Surface albedo
+                        'fsnow' (float): Snow cover fraction
         """
         # read forcings
         Sdif = forcing['Sdif']

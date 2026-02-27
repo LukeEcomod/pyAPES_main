@@ -27,89 +27,65 @@ class EnergyBalance:
         Args:
             properties (dict)
                 'physics_options' (dict):
-                    'DENSTY': (int): 0,1,2
                     'ZOFFST': (int): 0,1,2
                     'EXCHNG': (int): 0,1,2
                 'params' (dict):
-                    'z0sf' (float): # Snow-free surface roughness length (m)
                     'z0sn' (float): # Snow roughness length (m)
-                    'kfix' (float): # Fixed thermal conductivity of snow (W/m/K)
-                'layers' (dict):
-                    'Nsmax' (int): # Maximum number of snow layers
                 'initial_conditions' (dict):
-                    Nsnow (int): # Number of snow layers
-                    Dsnw (np.ndarray): # Snow layer thicknesses (m)
-                    Rgrn (np.ndarray): # Snow layer grain radius (m)
-                    Tsnow (np.ndarray): # Snow layer temperatures (K)
-                    Sice (np.ndarray): # Liquid content of snow layers (kg/m^2)
-                    Sice (np.ndarray): # Ice content of snow layers (kg/m^2)
-                    Wflx (np.ndarray): # Water flux into snow layer (kg/m^2/s)
+                    'Tsrf' (float): Initial surface temperature (K)
 
         Returns:
             self (object)
         """        
 
-        # From Layers
-        self.Nsmax = properties['layers']['Nsmax'] # Maximum number of snow layers
-
-        # From Parameters
-        self.z0sn = properties['params']['z0sn'] # Snow roughness length (m)
-        self.kfix = properties['params']['kfix'] 
-        self.rhof = properties['params']['rhof']  # Fresh snow density (kg/m^3)
-
-        self.DENSTY = properties['physics_options']['DENSTY']
         self.ZOFFST = properties['physics_options']['ZOFFST']
         self.EXCHNG = properties['physics_options']['EXCHNG']
-        self.CONDCT = properties['physics_options']['CONDCT']
-
+        self.z0sn = properties['params']['z0sn']
         self.Tsrf = properties['initial_conditions']['Tsrf']
-        self.Ssub = 0 # Mass of snow available for sublimation (kg/m^2)
 
         # temporary storage of iteration results
         self.iteration_state = None  
 
-
     def update(self):
         """ 
-        Updates swrad state.
+        Updates srfebal state.
         """
         self.Tsrf = self.iteration_state['Tsrf']
-    
+
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
-        Calculates one timestep and updates surface temperature
+        Calculates one timestep
 
         Args:
             dt (float): timestep [s]
             forcing' (dict):
-                Ds1: 
-                fsnow:
-                gs1:
-                ks1:
-                LW:
-                Ps:
-                RH:
-                SWsrf:
-                Ta:
-                tdif:
-                Ts1:
-                Ua:
-                Sice: 
-                Nsnow
-                Sice
-                Sliq
-                Dsnw
+                'Ds1' (float): Surface layer thickness (m)
+                'fsnow' (float): Ground snowcover fraction
+                'gs1' (float): Surface moisture conductance (m/s)
+                'ks1' (float): Surface layer thermal conductivity (W/m/K)
+                'LW' (float): Incoming longwave radiation (W/m2)
+                'Ps' (float): Surface pressure (Pa)
+                'RH' (float): Relative humidity (%)
+                'SWsrf' (float): SW absorbed by snow/ground surface (W/m^2)
+                'Ta' (float): Air temperature (K)
+                'Ts1' (float): Surface layer temperature (K)
+                'Ua' (float): Wind speed (m/s)
+                'Sice' (np.ndarray): Ice content of snow layers (kg/m^2)
+                'z0sf' (float): Surface roughness length [m]
         Returns
             (tuple):
             fluxes (dict):
-                Esrf:
-                Gsrf:
-                H:
-                LE:
-                LWout:
-                Melt:
-                subl:
+                'Esrf' (float): Moisture flux from the surface (kg/m^2/s)
+                'Gsrf' (float): Heat flux into snow/ground surface (W/m^2)
+                'H' (float): Sensible heat flux to the atmosphere (W/m^2)
+                'LE' (float): Latent heat flux to the atmosphere (W/m^2)
+                'LWout' (float): Outgoing LW radiation (W/m^2)
+                'Melt' (float): Surface melt rate (kg/m^2/s)
+                'subl' (float): Sublimation rate (kg/m^2/s)
+            states (dict):
+                'Tsrf' (float): Surface temperature (K)
+                'rL' (float): Monin-Obukhov length (m)
         """
         # read forcings
         Ds1 = forcing['Ds1']
@@ -124,20 +100,11 @@ class EnergyBalance:
         Ts1 = forcing['Ts1']
         Ua = forcing['Ua']
         Sice = forcing['Sice']
-        Nsnow = forcing['Nsnow']
         Sice = forcing['Sice']
-        Sliq = forcing['Sliq']
-        Dsnw = forcing['Dsnw']
         zU = forcing['reference_height']
         zT = forcing['reference_height']
         Tsrf = forcing['Tsrf']
         z0sf = forcing['z0sf']
-
-        n_geom = np.count_nonzero(Dsnw > np.finfo(float).eps)
-        if n_geom != Nsnow:
-            print("Layer mismatch!")
-            print("Dsnw:", Dsnw)
-            print("n_geom:", n_geom, "Nsnow:", Nsnow)
         
         if self.ZOFFST == 0:
             # Heights specified above ground
@@ -152,7 +119,7 @@ class EnergyBalance:
         # Convert relative to specific humidity
         Tc = Ta - T_MELT
         es = SATURATION_VAPOR_PRESSURE_MELT * np.exp(17.5043*Tc/(241.3 + Tc))
-        Qa = (RH/100)*R_RATIO*es/Ps
+        Qa = (RH/100.)*R_RATIO*es/Ps
 
         # Roughness lengths
         self.z0g = (self.z0sn**fsnow) * (z0sf**(1 - fsnow))
@@ -250,9 +217,9 @@ class EnergyBalance:
     
         # Sublimation limited by available snow
         subl = 0
-        self.Ssub = np.sum(Sice[:]) - Melt * dt
-        if (self.Ssub > 0) or (Tsrf < T_MELT):
-            Esrf = np.minimum(Esrf, self.Ssub / dt)
+        Ssub = np.sum(Sice[:]) - Melt * dt
+        if (Ssub > 0.) or (Tsrf < T_MELT):
+            Esrf = np.minimum(Esrf, Ssub / dt)
             subl = Esrf
                 
         # Fluxes to the atmosphere
@@ -286,14 +253,14 @@ class EnergyBalance:
 
     def qsat(self, Ps, T):
         """
-        Computes the saturation specific humidity, corresponding exactly to the Fortran version.
+        Computes the saturation specific humidity.
         
         Args:
-            P (float): Air pressure (Pa)
-            T (float): Temperature (K)
+            'Ps' (float): Air pressure (Pa)
+            'T' (float): Temperature (K)
             
         Returns:
-            Qs (float): Saturation specific humidity
+            'Qs' (float): Saturation specific humidity
         """
         Tc = T - T_MELT  # Convert to Celsius
 
@@ -311,6 +278,13 @@ class EnergyBalance:
     def psim(self, z, rL):
         """
         Stability function for momentum.
+
+        Args:
+            'z' (float): Height above surface (m)
+            'rL' (float): Monin-Obukhov length (m)
+
+        Returns:
+             stability function for momentum
         """
         zeta = float(np.clip(z * rL, -2.0, 1.0))
 
@@ -326,6 +300,13 @@ class EnergyBalance:
     def psih(self, z, rL):
         """
         Stability function for heat.
+
+        Args:
+            'z' (float): Height above surface (m)
+            'rL' (float): Monin-Obukhov length (m)
+
+        Returns:
+             stability function for heat
         """
         zeta = float(np.clip(z * rL, -2.0, 1.0))
 

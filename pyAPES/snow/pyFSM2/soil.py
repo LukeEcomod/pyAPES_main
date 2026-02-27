@@ -20,17 +20,21 @@ class SoilModel:
         Initialize the SoilModel.
 
         Args:
-            properties (dict): Dictionary containing soil layer parameters.
-                It must include a key 'layers' with the following entries:
-                    - 'Dzsoil' (np.ndarray): Soil layer thicknesses (m).
-                    - 'Nsoil' (int): Number of soil layers.
+            'properties' (dict):
+                'layers' (dict):
+                    'Dzsoil' (np.ndarray): Soil layer thicknesses (m).
+                    'Nsoil' (int): Number of soil layers.
+                'soilprops' (dict):
+                    'fcly' (float): Fraction of clay
+                    'fsnd' (float): Fraction of sand
+                'initial_conditions' (dict):
+                    'Tsoil' (np.ndarray): Soil layer temperatures (k)
+                    'Vsmc' (np.ndarray): Soil layer moisture [-]
         """
-        self.Dzsoil = properties['layers']['Dzsoil'] # Soil layer thicknesses (m)
-        self.Nsoil = properties['layers']['Nsoil'] # Number of soil layers
-
+        self.Dzsoil = properties['layers']['Dzsoil']
+        self.Nsoil = properties['layers']['Nsoil']
         self.fcly = properties['soilprops']['fcly']
         self.fsnd = properties['soilprops']['fsnd']
-
         self.Tsoil = properties['initial_conditions']['Tsoil']
         self.Vsmc = properties['initial_conditions']['Vsmc']
 
@@ -61,28 +65,21 @@ class SoilModel:
 
     def run(self, dt: float, forcing: Dict) -> Tuple[Dict, Dict]:
             """
-            Update soil temperatures for a given timestep.
-
-            This method updates the soil temperature profile by setting up and solving a
-            tridiagonal system representing heat conduction between soil layers. The system
-            is constructed using the soil heat capacity, thermal conductivity, and the current
-            temperature profile. The solution yields the temperature increments for each layer,
-            which are then added to update the soil temperatures.
+            Calculates one timestep.
 
             Args:
-                dt (float): Timestep in seconds.
-                forcing (dict): Dictionary containing the following keys:
-                    - 'Gsoil' (float): Soil heat flux at the soil surface (W/m²).
-                    - 'csoil' (array_like): Heat capacity of each soil layer (J/m²/K).
-                    - 'ksoil' (array_like): Thermal conductivity of soil layers (W/m/K).
+                dt (float): timestep (s)
+                forcing (dict):
+                    'Gsoil' (float): Soil heat flux at the soil surface (W/m²).
+                    'csoil' (np.ndarray): Heat capacity of each soil layer (J/m²/K).
+                    'ksoil' (np.ndarray): Thermal conductivity of soil layers (W/m/K).
             Returns:
-                tuple: A tuple containing two dictionaries:
-                    - fluxes (dict): An empty dictionary (no fluxes are explicitly produced).
-                    - states (dict): A dictionary containing:
-                        - 'Tsoil' (array_like): Updated soil temperature profile (K).
+                tuple:
+                    'fluxes' (dict):
+                    'states' (dict):
+                        'Tsoil' (np.ndarray): Soil layer temperatures (K)
             """
 
-            # Extract required variables from the forcing dictionary
             Gsoil = forcing['Gsoil']
             csoil = forcing['csoil']
             ksoil = forcing['ksoil']
@@ -115,12 +112,11 @@ class SoilModel:
 
             # store iteration state
             self.iteration_state =  {'Tsoil': self.Tsoil,
-                                        'Vsmc': self.Vsmc}
+                                     'Vsmc': self.Vsmc}
 
-            # Return the updated soil temperature profile; no fluxes are produced.
             fluxes = {}
             states = {'Tsoil': self.Tsoil,
-                        'Vsmc': self.Vsmc}
+                      'Vsmc': self.Vsmc}
             
             return fluxes, states
 

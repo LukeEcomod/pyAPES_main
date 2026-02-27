@@ -14,43 +14,30 @@ class SolarPos():
     def __init__(self):
         """
         Initialize the SolarPos model.
-
-        This class uses a fixed value for π (PI) imported from the
-        pyAPES.utils.constants module. No additional parameters are required
-        at initialization.
         """
 
     def run(self, dt: float, forcing: dict):
         """
         Calculate the solar azimuth and elevation angles for a given timestep.
 
-        This method computes the solar position by first determining the day of the year
-        (DoY) using an approximate formula. It then calculates the sun's declination,
-        the equation of time, and the hour angle. These values are used to derive the solar
-        elevation and azimuth angles in radians.
-
         Args:
-            dt (float):
-                Timestep in seconds. Although dt is not used directly in the solar position
-                calculation, it is included for consistency with the SnowModel interface.
+            dt (float): timestep (s)
             forcing (dict):
-                Dictionary containing the necessary inputs with the following keys:
-                    - 'year' (int): Current year.
-                    - 'month' (int): Current month (1-12).
-                    - 'day' (int): Current day of the month.
-                    - 'hour' (float): Current time in decimal hours (e.g., 13.5 for 1:30 PM).
-                    - 'lat' (float): Latitude in radians.
-                    - 'noon' (float): Local solar noon in decimal hours.
+                'year' (int): Current year.
+                'month' (int): Current month (1-12).
+                'day' (int): Current day of the month.
+                'hour' (float): Current time in decimal hours (e.g., 13.5 for 1:30 PM).
+                'lat' (float): Latitude in radians.
+                'noon' (float): Local solar noon in decimal hours.
 
         Returns:
-            tuple: A tuple containing two dictionaries:
-                - fluxes (dict): An empty dictionary (no fluxes are produced in this module).
-                - states (dict): A dictionary with the following keys:
-                    - 'azimuth' (float): Solar azimuth angle in radians.
-                    - 'elevation' (float): Solar elevation angle in radians.
-        """     
+            tuple:
+                fluxes (dict):
+                states (dict):
+                    'azimuth' (float): Solar azimuth angle in radians.
+                    'elevation' (float): Solar elevation angle in radians.
+        """
 
-        # Extract required variables from the forcing dictionary
         year = forcing['year']
         month = forcing['month']
         day = forcing['day']
@@ -78,7 +65,7 @@ class SolarPos():
         if (hangle < 0):
                azim = - azim
 
-        fluxes = {}  # No fluxes are calculated in this module.
+        fluxes = {}
         states = {'azimuth': azim, 'elevation': elev}
     
         return fluxes, states

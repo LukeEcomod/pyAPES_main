@@ -42,7 +42,6 @@ class Thermal:
                     'Vcrit' (float): Critical soil moisture content
                     'Vsat' (float): Saturated soil moisture content
                 'physics_options' (dict):
-                    'HYDROL' (int): Hydrology scheme selection
                     'CONDCT' (int): Soil thermal conductivity scheme selection
                     'DENSTY' (int): Snow density scheme selection
 
@@ -52,16 +51,12 @@ class Thermal:
 
         self.kfix = properties['params']['kfix']
         self.rhof = properties['params']['rhof']
-
         self.Nsoil = properties['layers']['Nsoil']
         self.Nsmax = properties['layers']['Nsmax']
         self.Dzsoil = properties['layers']['Dzsoil']
-
         self.fcly = properties['soilprops']['fcly']
         self.fsnd = properties['soilprops']['fsnd']
         self.gsat = properties['soilprops']['gsat']
-
-        self.HYDRL = properties['physics_options']['HYDRL']
         self.CONDCT = properties['physics_options']['CONDCT']
         self.DENSTY = properties['physics_options']['DENSTY']
 
@@ -77,8 +72,7 @@ class Thermal:
 
     def run(self, forcing: Dict, solve_soil=True) -> Tuple:
         """
-        Calculates one timestep and updates thermal state.
-
+        Calculates one timestep.
         
         Args:
             forcing (dict):
@@ -95,13 +89,13 @@ class Thermal:
             (tuple):
             fluxes (dict):
             states (dict):
-                Ds1 (float): Surface layer thickness (m)
-                gs1 (float): Surface moisture conductance (m/s)
-                ks1 (float): Surface layer thermal conductivity (W/m/K)
-                Ts1 (float): Surface layer temperature (K)
-                csoil (np.ndarray): Areal heat capacity of soil layers (J/K/m^2)
-                ksnow (np.ndarray): Thermal conductivity of snow layers (W/m/K)
-                ksoil (np.ndarray): Thermal conductivity of soil layers (W/m/K)
+                'Ds1' (float): Surface layer thickness (m)
+                'gs1' (float): Surface moisture conductance (m/s)
+                'ks1' (float): Surface layer thermal conductivity (W/m/K)
+                'Ts1' (float): Surface layer temperature (K)
+                'csoil' (np.ndarray): Areal heat capacity of soil layers (J/K/m^2)
+                'ksnow' (np.ndarray): Thermal conductivity of snow layers (W/m/K)
+                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W/m/K)
         """
         
         Nsnow = forcing['Nsnow']
