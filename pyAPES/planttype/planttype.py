@@ -313,6 +313,7 @@ class PlantType(object):
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
 
         # sunlit & shaded separately
+        breakpoint()
         self.photo_forcing = set_photo_forcing(self.photo_forcing,
                                                forcing['par']['sunlit']['incident'] *
                                                PAR_TO_UMOL,

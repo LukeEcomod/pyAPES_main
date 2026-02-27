@@ -339,10 +339,6 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
 
     return Kd
 
-<<<<<<< HEAD
-=======
-# @line_profiler.profile
->>>>>>> e80999cb513015589d63b81ca8319f39847f343a
 def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float, 
                          IbSky: float, IdSky:float, LeafAlbedo: float, SoilAlbedo: float
                          , PlotFigs: bool=False) -> Tuple:
