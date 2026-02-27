@@ -32,6 +32,7 @@ import pandas as pd
 import logging
 from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
+from scipy.linalg import solve_banded
 
 from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
@@ -455,51 +456,50 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
 
     # --- set up tridiagonal matrix A and solve SW without multiple scattering
     # from A*SW = C (Zhao & Qualls, 2006. eq. 39 & 42)
-    A = np.zeros([2*M+2, 2*M+2])
 
-    # lowermost rows: 0 = soil surface, M+2 is upper boundary
-    A[0, 0] = 1.
-
-    A[1, 0] = - (taud[1] + (1 - taud[1])*(1 - aL[1])*(1 - rd[1]))
-    A[1, 1] = - 1*(taud[1] + (1 - taud[1])*(1 - aL[1])*(1 - rd[1]))*(1 - aL[0])
-    A[1, 2] = (1 - 1*rd[1]*(1 - aL[0])*1*(1 - aL[1])*(1 - taud[1]))
+    A_diag =np.zeros(2*M+2)
+    A_superdiag =np.zeros(2*M+2)
+    A_subdiag =np.zeros(2*M+2)
 
     # middle rows
-    for k in range(1, M + 1):
-        A[2*k-1, 2*k-2] = - (taud[k] + (1 - taud[k])*(1 - aL[k])*(1 - rd[k]))
-        A[2*k-1, 2*k-1] = - rd[k - 1]*(taud[k] + (1 - taud[k])*(1 - aL[k])*(1 - rd[k]))*(1 - aL[k-1])*(1 - taud[k-1])
-        A[2*k-1, 2*k] = (1 - rd[k-1]*rd[k]*(1 - aL[k-1])*(1 - taud[k-1])*(1 - aL[k])*(1 - taud[k]))
+    A_diag[1:2*M:2] = - rd[:-2]*(taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))*(1 - aL[:-2])*(1 - taud[:-2])
+    A_diag[2:2*M+1:2] = - rd[2:]*(taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))*(1 - aL[2:])*(1 - taud[2:])
+    
+    # solve banded needs superdiag with zero in beginning and subdiag with zero at end
+    A_superdiag[2:2*M+1:2] = (1 - rd[:-2]*rd[1:-1]*(1 - aL[:-2])*(1 - taud[:-2])*(1 - aL[1:-1])*(1 - taud[1:-1]))
+    A_superdiag[3:2*M+2:2] = -(taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))
 
-        A[2*k, 2*k-1] = (1 - rd[k]*rd[k+1]*(1 - aL[k])*(1 - taud[k])*(1 - aL[k+1])*(1 - taud[k+1]))
-        A[2*k, 2*k] = - rd[k+1]*(taud[k] + (1 - taud[k])*(1 - aL[k])*(1 - rd[k]))*(1 - aL[k+1])*(1 - taud[k+1])
-        A[2*k, 2*k+1] = -(taud[k] + (1 - taud[k])*(1 - aL[k])*(1 - rd[k]))
+    A_subdiag[0:2*M-1:2] = - (taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))
+    A_subdiag[1:2*M:2] = (1 - rd[1:-1]*rd[2:]*(1 - aL[1:-1])*(1 - taud[1:-1])*(1 - aL[2:])*(1 - taud[2:])) 
 
-    # uppermost node2*M+2
-    A[2*M+1, 2*M+1] = 1.
-    del k
+    # tridiag needs superdiag with zero in end and subdiag with zero at beginning
+    # A_superdiag[1:2*M:2] = (1 - rd[:-2]*rd[1:-1]*(1 - aL[:-2])*(1 - taud[:-2])*(1 - aL[1:-1])*(1 - taud[1:-1]))
+    # A_superdiag[2:2*M+1:2] = -(taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))
+
+    # A_subdiag[1:2*M:2] = - (taud[1:-1] + (1 - taud[1:-1])*(1 - aL[1:-1])*(1 - rd[1:-1]))
+    # A_subdiag[2:2*M+1:2] = (1 - rd[1:-1]*rd[2:]*(1 - aL[1:-1])*(1 - taud[1:-1])*(1 - aL[2:])*(1 - taud[2:])) 
+
+    # lower and upeermost nodes
+    A_diag[0] = 1.
+    A_diag[2*M+1] = 1.
 
     # --- RHS vector C
-    C = np.zeros([2*M+2, 1])
+    C = np.zeros([2*M+2])
 
-    # lowermost row
+    C[1:2*M:2] = (1 - rd[:-2]*rd[1:-1]*(1 - aL[:-2])*(1 - taud[:-2])*(1 - aL[1:-1])*(1 - taud[1:-1]) )*rb[1:-1]*(1 - taub[1:-1])*(1 - aL[1:-1])*Ib[1:-1]
+    C[2:2*M+1:2] = (1 - rd[1:-1]*rd[2:]*(1 - aL[1:-1])*(1 - taud[1:-1])*(1 - aL[2:])*(1 - taud[2:]))*(1 - taub[1:-1])*(1 - aL[1:-1])*(1 - rb[1:-1])*Ib[1:-1]
+
+    # lower and uppermost row
     C[0] = SoilAlbedo*Ib[0]
-    n = 1  # dummy
-    for k in range(1, M+1):  # k=2:M-1,
-        C[n] = (1 - rd[k-1]*rd[k]*(1 - aL[k-1])*(1 - taud[k-1])*(1 - aL[k])*(1 - taud[k]) )*rb[k]*(1 - taub[k])*(1 - aL[k])*Ib[k]
-        C[n+1] = (1 - rd[k]*rd[k+1]*(1 - aL[k])*(1 - taud[k])*(1 - aL[k+1])*(1 - taud[k+1]))*(1 - taub[k])*(1 - aL[k])*(1 - rb[k])*Ib[k]
-        # Ib(k+1) instead of Ib(k):n as we need radiation incoming to the layer k.
-        n = n + 2
-
-    # uppermost row
     C[2*M+1] = IdSky
 
     # ---- solve A*SW = C
-    SW = np.linalg.solve(A, C)
+    # SW = tridiag(A_subdiag, A_diag, A_superdiag, C)
+    SW = solve_banded((1,1), np.vstack((A_superdiag, A_diag, A_subdiag)), C)  # faster 
 
     # upward and downward hemispherical radiation (Wm-2 ground)
     SWu0 = SW[0:2*M+2:2]
     SWd0 = SW[1:2*M+2:2]
-    del A, C, SW, k
 
     # ---- Compute multiple scattering, Zhao & Qualls, 2005. eq. 24 & 25.
     # downwelling diffuse after multiple scattering, eq. 24
@@ -529,13 +529,11 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     f_slo = np.exp(-Kb*(Lcumo))
     SWbo = f_slo*IbSky  # Beam radiation
 
-
     # interpolate diffuse fluxes
     X = np.flipud(Lcumo)
     xi = np.flipud(Lcum)
     SWdo = np.flipud(np.interp(X, xi, np.flipud(SWd)))
     SWuo = np.flipud(np.interp(X, xi, np.flipud(SWu)))
-    del X, xi
 
     # incident radiation on sunlit and shaded leaves Wm-2
     # Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
