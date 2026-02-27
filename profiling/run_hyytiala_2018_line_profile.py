@@ -23,4 +23,4 @@ params = {
     'soil': spara,
     'forcing': forcing}
 
-driver(parameters=params, create_ncf=True, result_file= "FiHy2018_profiling_sanity_check_bl.nc")
+driver(parameters=params, create_ncf=True, result_file= "FiHy2018_profiling_sanity_check_photo_c_maxiter.nc")

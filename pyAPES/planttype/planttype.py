@@ -153,7 +153,7 @@ class PlantType(object):
         # water stress affects stomata
         self.Switch_WaterStress = ctr['WaterStress']
 
-        self.StomaModel = 'MEDLYN_FARQUHAR' # stomatal model
+        self.StomaModel = 'MEDLYN_FARQUHAR_C' # stomatal model
 
         self.name = p['name']
 
@@ -313,7 +313,6 @@ class PlantType(object):
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
 
         # sunlit & shaded separately
-        breakpoint()
         self.photo_forcing = set_photo_forcing(self.photo_forcing,
                                                forcing['par']['sunlit']['incident'] *
                                                PAR_TO_UMOL,

@@ -17,6 +17,8 @@ Key references:
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import ctypes
+leaf = ctypes.CDLL('./leaf.so')
 from typing import List, Dict, Tuple
 
 from pyAPES.microclimate.micromet import e_sat, latent_heat
@@ -582,7 +584,101 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
     fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
 
     return An, Rd, fe, gs_opt, ci, cs
+class CPhotoParams(ctypes.Structure):
+    _fields_ = [
+        ("Vcmax", ctypes.POINTER(ctypes.c_double)),
+        ("Jmax", ctypes.POINTER(ctypes.c_double)),
+        ("Rd", ctypes.POINTER(ctypes.c_double)),
+        ("alpha", ctypes.c_double),
+        ("theta", ctypes.c_double),
+        ("g1", ctypes.c_double),
+        ("g0", ctypes.c_double),
+        ("beta", ctypes.c_double),
+        ("Vcmax_T", ctypes.c_double * 3),
+        ("Jmax_T", ctypes.c_double * 3),
+        ("Rd_T", ctypes.c_double * 1),
+        ("tresp", ctypes.c_int),
+    ]
 
+
+# Required by the C implemenation of photo_c3_medlyn_farquhar_c
+class COutputs(ctypes.Structure):
+    _fields_ = [
+        ("An", ctypes.POINTER(ctypes.c_double)),
+        ("Rd", ctypes.POINTER(ctypes.c_double)),
+        ("fe", ctypes.POINTER(ctypes.c_double)),
+        ("gs_opt", ctypes.POINTER(ctypes.c_double)),
+        ("ci", ctypes.POINTER(ctypes.c_double)),
+        ("cs", ctypes.POINTER(ctypes.c_double)),
+    ]
+
+
+# This calls the C implementation
+def photo_c3_medlyn_farquhar_c(
+    photop: Dict,
+    Qp: np.ndarray,
+    T: np.ndarray,
+    VPD: np.ndarray,
+    ca: np.ndarray,
+    gb_c: np.ndarray,
+    gb_v: np.ndarray,
+    P: float = 101300.0,
+):
+    size = len(photop["Vcmax"])
+    Vcmax = photop["Vcmax"].ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+    Jmax = photop["Jmax"].ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+    Rd = photop["Rd"].ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+
+    alpha = ctypes.c_double(photop["alpha"])
+    theta = ctypes.c_double(photop["theta"])
+    g1 = ctypes.c_double(photop["g1"])
+    g0 = ctypes.c_double(photop["g0"])
+    beta = ctypes.c_double(photop["beta"])
+    trespdict = photop["tresp"]
+
+    assert len(trespdict["Vcmax"]) == 3
+    assert len(trespdict["Jmax"]) == 3
+    assert len(trespdict["Rd"]) == 1
+
+    Vcmax_T = (ctypes.c_double * 3)(*trespdict["Vcmax"])
+    Jmax_T = (ctypes.c_double * 3)(*trespdict["Jmax"])
+    Rd_T = (ctypes.c_double * 1)(*trespdict["Rd"])
+    tresp = ctypes.c_int(1)
+
+    c_params = CPhotoParams(
+        Vcmax, Jmax, Rd, alpha, theta, g1, g0, beta, Vcmax_T, Jmax_T, Rd_T, tresp
+    )
+
+    out_An = np.empty(size, dtype=np.float64)
+    out_Rd = np.empty(size, dtype=np.float64)
+    out_fe = np.empty(size, dtype=np.float64)
+    out_gs_opt = np.empty(size, dtype=np.float64)
+    out_ci = np.empty(size, dtype=np.float64)
+    out_cs = np.empty(size, dtype=np.float64)
+
+    outputs = COutputs(
+        out_An.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        out_Rd.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        out_fe.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        out_gs_opt.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        out_ci.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        out_cs.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+    )
+
+    leaf.photo_c3_medlyn_farquhar(
+        ctypes.byref(c_params),
+        Qp.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        T.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        VPD.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        ca.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        gb_c.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        gb_v.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_double(P),
+        ctypes.c_size_t(size),
+        ctypes.byref(outputs),
+    )
+
+    return out_An, out_Rd, out_fe, out_gs_opt, out_ci, out_cs
 
 def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray,
                  ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:

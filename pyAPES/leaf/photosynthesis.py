@@ -9,7 +9,7 @@ import numpy as np
 import logging
 from typing import List, Dict, Tuple
 
-from pyAPES.leaf.photo import photo_c3_medlyn_farquhar
+from pyAPES.leaf.photo import photo_c3_medlyn_farquhar, photo_c3_medlyn_farquhar_c
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +20,16 @@ class Photosyntehsis_model():
 
         if self.photo_model.upper() == 'MEDLYN_FARQUHAR':
             self.output_names = ['An', 'Rd', 'fe', 'gs_opt', 'Ci', 'Cs']
+        elif self.photo_model.upper() == 'MEDLYN_FARQUHAR_C':
+            self.output_names = ['An', 'Rd', 'fe', 'gs_opt', 'Ci', 'Cs']
 
     def run(self, forcing, photop):
         if self.photo_model.upper() == 'MEDLYN_FARQUHAR':
             results = photo_c3_medlyn_farquhar(photop,
+                                               forcing['Qp'], forcing['T'], forcing['VPD'],
+                                               forcing['co2'], forcing['gb_c'], forcing['gb_v'], P=forcing['air_pressure'])
+        elif self.photo_model.upper() == 'MEDLYN_FARQUHAR_C':
+            results = photo_c3_medlyn_farquhar_c(photop,
                                                forcing['Qp'], forcing['T'], forcing['VPD'],
                                                forcing['co2'], forcing['gb_c'], forcing['gb_v'], P=forcing['air_pressure'])
             results_dict = {k: v for k, v in zip(self.output_names, results)}
