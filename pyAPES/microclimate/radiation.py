@@ -37,6 +37,8 @@ from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
 logger = logging.getLogger(__name__)
 
+import line_profiler
+
 class Radiation(object):
     """
     Short-wave (SW) & long-wave (LW) radiation transfer within horizontally homogeneous multi-layer canopy.
@@ -338,6 +340,7 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
 
     return Kd
 
+@line_profiler.profile
 def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float, 
                          IbSky: float, IdSky:float, LeafAlbedo: float, SoilAlbedo: float
                          , PlotFigs: bool=False) -> Tuple:

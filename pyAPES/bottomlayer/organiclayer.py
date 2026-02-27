@@ -642,8 +642,8 @@ class OrganicLayer(object):
                     break
                 
                 # adapt time step and restart
-                if (iterNo >= 5) and (sub_dt > 300):
-                    sub_dt = 300.
+                if (iterNo >= 5) and (sub_dt > 100):
+                    sub_dt = sub_dt / 2
                     REDO = True
                     break
 
