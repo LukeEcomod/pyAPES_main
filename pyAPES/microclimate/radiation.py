@@ -341,7 +341,7 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
 
     return Kd
 
-@line_profiler.profile
+# @line_profiler.profile
 def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float, 
                          IbSky: float, IdSky:float, LeafAlbedo: float, SoilAlbedo: float
                          , PlotFigs: bool=False) -> Tuple:
@@ -1020,9 +1020,6 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     C = np.zeros(2*M+2)
     D = np.zeros(2*M+2)
 
-    # subdiagonal
-    A[1:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
-    A[2:2*M+1:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
     # diagonal
     B[0] = 1.0
     B[1:2*M+1:2] = - rd[0:M]*(taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))*(
@@ -1030,9 +1027,22 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     B[2:2*M+1:2] = - rd[2:M+2]*(taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))*(
                     1 - aL[2:M+2])*(1 - taud[2:M+2])
     B[2*M+1] = 1.0
+
+    # # for tridiag
+    # # subdiagonal
+    # A[1:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+    # A[2:2*M+1:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
+    # # superdiagonal
+    # C[1:2*M+1:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
+    # C[2:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+
+    # for solve_banded
+    # subdiagonal
+    A[0:2*M:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+    A[1:2*M:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
     # superdiagonal
-    C[1:2*M+1:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
-    C[2:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+    C[2:2*M+2:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
+    C[3:2*M+2:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
 
     # rhs
     LWsource = aL*STEFAN_BOLTZMANN*(T + DEG_TO_KELVIN)**4
@@ -1049,7 +1059,8 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
 
     # ---- solve a*LW = D
     if soil_emi < 1.0 and leaf_emi < 1.0:
-        LW = tridiag(A,B,C,D)
+        # LW = tridiag(A,B,C,D)
+        LW = solve_banded((1,1),np.vstack((C,B,A)),D)
     else:
         matrix = np.zeros([2*M+2, 2*M+2])
         row, col = np.diag_indices(matrix.shape[0])
