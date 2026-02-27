@@ -37,7 +37,8 @@ class FSM2(object):
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
         self.ice = np.sum(snowpara['initial_conditions']['Sice'])
         self.liq = np.sum(snowpara['initial_conditions']['Sliq'])
-        self.surface_temperature = snowpara['initial_conditions']['Tsrf']
+        #self.surface_temperature = snowpara['initial_conditions']['Tsrf']
+        self.temperature = snowpara['initial_conditions']['Tsrf']
         self.Nsmax = snowpara['layers']['Nsmax']
 
         # temporary storage of iteration results
@@ -59,7 +60,8 @@ class FSM2(object):
             self.ebal.update()
             self.snow.update()
             # updating snowmodel states
-            self.surface_temperature = self.iteration_state['snow_surface_temperature']
+            #self.surface_temperature = self.iteration_state['snow_surface_temperature']
+            self.temperature = self.iteration_state['temperature']
             self.ice = self.iteration_state['ice']
             self.liq = self.iteration_state['liq']
             self.swe = self.iteration_state['swe']
@@ -93,7 +95,7 @@ class FSM2(object):
         Returns:
             Tuple:
                 fluxes (dict):
-                    'potential_infiltration' (float):
+                    'potential_infiltration' (float): Infiltration from snowpack (m)
                     'snow_heat_flux' (float): Heat flux into snow/ground surface (W/m^2)
                     'snow_longwave_out' (float): Outgoing LW radiation (W/m^2)
                     'snow_shortwave_out' (float): Outgoing SW radiation (W/m^2)
@@ -156,7 +158,8 @@ class FSM2(object):
                 }
         
         states = {'snow_water_equivalent': 0.,
-                'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                #'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                 'snow_depth': 0.,
                 'snow_albedo': 0.,
                 'snow_fraction': 0.,
@@ -169,6 +172,7 @@ class FSM2(object):
                 }
         
         self.iteration_state = {'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                                'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                                 'swe': 0.,
                                 'ice': 0.,
                                 'liq': 0.,
@@ -243,7 +247,8 @@ class FSM2(object):
             snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
 
             # store iteration state
-            self.iteration_state = {'snow_surface_temperature': ebal_states['Tsrf'],
+            self.iteration_state = {#'snow_surface_temperature': ebal_states['Tsrf'],
+                                    'temperature': ebal_states['Tsrf'],
                                     'swe': snow_states['swe'],
                                     'ice': snow_states['Sice'],
                                     'liq': snow_states['Sliq'],
@@ -267,7 +272,8 @@ class FSM2(object):
                     }
 
             states = {'snow_water_equivalent': snow_states['swe'],
-                    'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                    #'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                    'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
                     'snow_depth': snow_states['hs'],
                     'snow_albedo': swrad_states['snow_albedo'],
                     'snow_fraction': swrad_states['fsnow'],

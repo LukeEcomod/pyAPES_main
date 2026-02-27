@@ -199,13 +199,14 @@ class ForestFloor(object):
         if self.snowpack.snowpack.swe > 0:
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
+            self.surface_temperature = self.snowpack.snowpack.temperature
         else: 
             self.albedo['PAR'] = sum([bt.coverage * bt.albedo['PAR']
                                       for bt in self.bottomlayer_types])
             self.albedo['NIR'] = sum([bt.coverage * bt.albedo['NIR']
                                       for bt in self.bottomlayer_types])
-            #self.surface_temperature = sum([bt.coverage * bt.surface_temperature
-            #                                  for bt in self.bottomlayer_types])
+            self.surface_temperature = sum([bt.coverage * bt.surface_temperature
+                                              for bt in self.bottomlayer_types])
             self.emissivity = sum([bt.coverage * bt.emissivity
                                    for bt in self.bottomlayer_types])
         
@@ -437,7 +438,8 @@ class ForestFloor(object):
             for key in states_snow.keys():
                 state[key] = states_snow[key]
             if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0):
-                state['surface_temperature'] = states_snow['snow_surface_temperature']
+                #state['surface_temperature'] = states_snow['snow_surface_temperature']
+                state['surface_temperature'] = states_snow['temperature']
                 fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
                 fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
                 fluxes['latent_heat'] = fluxes_snow['snow_latent_heat']
