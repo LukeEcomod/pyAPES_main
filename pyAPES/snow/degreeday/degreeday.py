@@ -30,7 +30,7 @@ class DegreeDaySnow(object):
                     emissivity (float): [-]
        
                 initial_conditions (dict):
-                    temperature (float): [degC]
+                    temperature (float): [K]
                     snow_water_equivalent (float): [kg m-2 == mm]
         Returns:
             self (object)
@@ -44,12 +44,12 @@ class DegreeDaySnow(object):
 
         # max fraction of liquid water in snow [-]
         self.retention = properties['retention']
-        self.Tmelt = properties['Tmelt']
+        self.Tmelt = properties['Tmelt'] # [K]
 
         self.optical_properties = properties['optical_properties']
 
         # state variables:
-        self.temperature = properties['initial_conditions']['temperature']
+        self.snow_surface_temperature = properties['initial_conditions']['temperature'] # [K]
         self.swe = properties['initial_conditions']['snow_water_equivalent']  # [kg m-2]
         self.ice = properties['initial_conditions']['snow_water_equivalent'] # ice content
         self.liq = 0.0  # liquid water storage in snowpack [kg m-2]
@@ -61,7 +61,7 @@ class DegreeDaySnow(object):
         """ 
         Updates snowpack state.
         """
-        self.temperature = self.iteration_state['temperature']
+        self.snow_surface_temperature = self.iteration_state['snow_surface_temperature']
         self.ice = self.iteration_state['ice']
         self.liq = self.iteration_state['liq']
         self.swe = self.iteration_state['swe']
@@ -73,7 +73,7 @@ class DegreeDaySnow(object):
         Args:
             dt (float): timestep [s]
             forcing' (dict):
-                air_temperature: [degC]
+                air_temperature: [K]
                 precipitation_rain: [kg m-2 s-1]
                 precipitation_snow: [kg m-2 s-1]
 
@@ -84,7 +84,7 @@ class DegreeDaySnow(object):
                water_closure: [kg m-2 s-1]
             states (dict):
                snow_water_equivalent: [kg m-2]
-               temperature: [degC]
+               snow_surface_temperature: [K]
         """
 
         """ --- melting and freezing in snowpack --- """
@@ -118,18 +118,18 @@ class DegreeDaySnow(object):
                          - (forcing['precipitation_rain'] * dt + forcing['precipitation_snow'] * dt - pot_inf))
 
         # store iteration state
-        self.iteration_state =  {'temperature': forcing['air_temperature'],
+        self.iteration_state =  {'snow_surface_temperature': forcing['air_temperature'],
                                  'swe': swe,
                                  'ice': ice,
                                  'liq': liq}
         
 
         fluxes = {'potential_infiltration': pot_inf / dt,
-                  'water_closure': water_closure / dt
+                  'snow_water_closure': water_closure / dt
                  }
 
         states = {'snow_water_equivalent': swe,
-                  'surface_temperature': forcing['air_temperature']
+                  'snow_surface_temperature': forcing['air_temperature']
                  }
         
         return fluxes, states

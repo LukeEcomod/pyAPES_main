@@ -168,7 +168,9 @@ class ForestFloor(object):
         self.temperature = sum([bt.coverage * bt.temperature
                                 for bt in self.bottomlayer_types])
         self.surface_temperature = sum([bt.coverage * bt.surface_temperature
-                                for bt in self.bottomlayer_types])  #     
+                                for bt in self.bottomlayer_types])  #
+        self.bt_surface_temperature = sum([bt.coverage * bt.surface_temperature
+                                for bt in self.bottomlayer_types])  #
         self.water_storage = sum([bt.coverage * bt.water_storage
                                   for bt in self.bottomlayer_types])
         self.height = sum([bt.coverage * bt.height
@@ -199,31 +201,31 @@ class ForestFloor(object):
         if self.snowpack.snowpack.swe > 0:
             self.albedo = self.snowpack.snowpack.optical_properties['albedo']
             self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
-            self.surface_temperature = self.snowpack.snowpack.temperature
-        else: 
+            self.surface_temperature = self.snowpack.snowpack.snow_surface_temperature - DEG_TO_KELVIN
+            self.bt_surface_temperature = self.snowpack.snowpack.snow_surface_temperature - DEG_TO_KELVIN
+        else:
             self.albedo['PAR'] = sum([bt.coverage * bt.albedo['PAR']
                                       for bt in self.bottomlayer_types])
             self.albedo['NIR'] = sum([bt.coverage * bt.albedo['NIR']
                                       for bt in self.bottomlayer_types])
             self.surface_temperature = sum([bt.coverage * bt.surface_temperature
                                               for bt in self.bottomlayer_types])
+            self.bt_surface_temperature = sum([bt.coverage * bt.surface_temperature
+                                for bt in self.bottomlayer_types])
             self.emissivity = sum([bt.coverage * bt.emissivity
                                    for bt in self.bottomlayer_types])
         
-        # NOTE! forestfloor temperature is weighted average of moss temperature
-        # check
+        # forestfloor temperature is weighted average of moss temperature
         self.temperature = sum([bt.coverage * bt.temperature
-                                for bt in self.bottomlayer_types])  # used as boundary for snowpack  
+                                for bt in self.bottomlayer_types]) 
         self.water_storage = sum([bt.coverage * bt.water_storage
                                       for bt in self.bottomlayer_types])
         self.thermal_conductivity =  sum([bt.coverage * bt.thermal_conductivity
-                                      for bt in self.bottomlayer_types])  # used as parameter for snowpack
-        
-        self.bt_albedo = {'PAR': sum([bt.coverage * bt.albedo['PAR'] # used as parameter for snowpack when partial snow cover
+                                      for bt in self.bottomlayer_types])
+        self.bt_albedo = {'PAR': sum([bt.coverage * bt.albedo['PAR']
                                 for bt in self.bottomlayer_types]),
                         'NIR': sum([bt.coverage * bt.albedo['NIR']
                                 for bt in self.bottomlayer_types])}
-
 
     def run(self, dt: float, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple:
         """
@@ -305,7 +307,6 @@ class ForestFloor(object):
                 thermal_conductivity [W m-1 K-1]
 
         """
-        
         # initialize fluxes and states
         fluxes = {
             'net_radiation': 0.0, # [W m-2]
@@ -354,10 +355,10 @@ class ForestFloor(object):
             snow_forcing = {
                 'precipitation_rain': forcing['precipitation_rain'],
                 'precipitation_snow': forcing['precipitation_snow'],
-                'air_temperature': forcing['air_temperature'],
+                'air_temperature': forcing['air_temperature'] + DEG_TO_KELVIN,
             }
         elif self.snow_model == 'fsm2':
-            # -- Snow: energy balance snow model'
+            # -- Snow: energy balance snow model
             snow_forcing = {
                 'SWsrf': forcing['par'] + forcing['nir'],
                 'Sf': forcing['precipitation_snow'],
@@ -371,7 +372,7 @@ class ForestFloor(object):
                 'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
                 'Dzbt': self.height, # organic layer depth [m]
                 'Tsoil': forcing['soil_temperature'][0] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
-                'Tsoil_surf': self.surface_temperature + DEG_TO_KELVIN, # surface temperature [K] from organiclayer
+                'Tbt': self.bt_surface_temperature + DEG_TO_KELVIN, # organic layer surface temperature [K]
                 'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
                 'kbt': self.thermal_conductivity, # organic layer thermal conductivity [W m-1 K-1]
                 'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
@@ -385,7 +386,6 @@ class ForestFloor(object):
         fluxes_snow, states_snow = self.snowpack.run(dt=dt, forcing=snow_forcing)
 
         # Add snowpack results to states and fluxes
-
         fluxes['snow_potential_infiltration'] = fluxes_snow['potential_infiltration']
         fluxes['snow_water_closure'] = fluxes_snow['snow_water_closure']
         state['snow_water_equivalent'] = states_snow['snow_water_equivalent']
@@ -397,7 +397,7 @@ class ForestFloor(object):
             fluxes_snow['snow_heat_flux'] = 0
             snow_bottom_temperature = 0.
         else:
-            snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1]
+            snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN
         
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
@@ -436,10 +436,12 @@ class ForestFloor(object):
             for key in fluxes_snow.keys():
                 fluxes[key] = fluxes_snow[key]
             for key in states_snow.keys():
-                state[key] = states_snow[key]
-            if (self.snowpack.snowpack.swe > 0 or states_snow['snow_water_equivalent'] > 0):
-                #state['surface_temperature'] = states_snow['snow_surface_temperature']
-                state['surface_temperature'] = states_snow['temperature']
+                if "temperature" in key.lower():
+                    state[key] = states_snow[key] - DEG_TO_KELVIN
+                else:
+                    state[key] = states_snow[key]
+            if (self.snowpack.snowpack.swe > 0. or states_snow['snow_water_equivalent'] > 0.):
+                state['surface_temperature'] = states_snow['snow_surface_temperature'] - DEG_TO_KELVIN
                 fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
                 fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
                 fluxes['latent_heat'] = fluxes_snow['snow_latent_heat']

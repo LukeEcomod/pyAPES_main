@@ -191,12 +191,12 @@ snow = {
             'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
             'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
             'retention': 0.2,  # max fraction of liquid water in snow [-]
-            'Tmelt': 0.0,  # temperature when melting starts [degC]
+            'Tmelt': 273.15,  # temperature when melting starts [K]
             'optical_properties': {
                     'emissivity': 0.97,
                     'albedo': {'PAR': 0.8, 'NIR': 0.8}
                     },
-            'initial_conditions': {'temperature': 0.0,
+            'initial_conditions': {'temperature': 273.15,
                                 'snow_water_equivalent': 0.0,
                                 }
             },
@@ -249,7 +249,7 @@ snow = {
                 'Rgrn': np.array([5e-5, 5e-5, 5e-5]),      # Snow layer grain radius (m)
                 'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
                 'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
-                'Tsnow': np.array([273., 273., 273.]),   # Snow layer temperatures (K)
+                'Tsnow': np.array([273.15, 273.15, 273.15]),   # Snow layer temperatures (K)
                 'Tsoil': np.array([285., 285., 285., 285.]),   # Soil layer temperatures (K)
                 'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
                 'Tsrf': 285.,         # Snow/ground surface temperature (K)

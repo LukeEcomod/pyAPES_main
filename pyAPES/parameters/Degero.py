@@ -202,12 +202,12 @@ snow = {
             'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
             'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
             'retention': 0.2,  # max fraction of liquid water in snow [-]
-            'Tmelt': 0.0,  # temperature when melting starts [degC]
+            'Tmelt': 273.15,  # temperature when melting starts [K]
             'optical_properties': {
                     'emissivity': 0.97,
                     'albedo': {'PAR': 0.8, 'NIR': 0.8}
                     },
-            'initial_conditions': {'temperature': 0.0,
+            'initial_conditions': {'temperature': 273.15,
                                 'snow_water_equivalent': 0.0,
                                 }
             },

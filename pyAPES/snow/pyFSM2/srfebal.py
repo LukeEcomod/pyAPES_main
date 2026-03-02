@@ -81,8 +81,10 @@ class EnergyBalance:
                 'H' (float): Sensible heat flux to the atmosphere (W/m^2)
                 'LE' (float): Latent heat flux to the atmosphere (W/m^2)
                 'LWout' (float): Outgoing LW radiation (W/m^2)
+                'SWout' (float): Outgoing SW radiation (W/m^2)
                 'Melt' (float): Surface melt rate (kg/m^2/s)
                 'subl' (float): Sublimation rate (kg/m^2/s)
+                'Rsrf' (float): Net radiation (W/m^2)
             states (dict):
                 'Tsrf' (float): Surface temperature (K)
                 'rL' (float): Monin-Obukhov length (m)

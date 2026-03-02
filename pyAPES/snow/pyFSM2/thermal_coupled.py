@@ -92,10 +92,6 @@ class Thermal:
                         rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
         
-        # properties of snow and organic layer combined
-        #Dsnw[0] += Dzbt # Dz for snow and organic layers
-        #ksnow[0] = Dsnw[0] / (Dsnw[0] - Dzbt / ksnow[0] + 
-        #                      Dzbt / kbt) # Effective k for stacked snow and organic layers (series conduction)
         # properties of organic layer and soil combined
         Dzsoil += Dzbt # Dz for soil and organic layers
         ksoil = Dzsoil / ((Dzsoil - Dzbt) / ksoil + 

@@ -182,6 +182,8 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
 
       # forest floor fsm2 state
       ['ffloor_snow_depth', 'snow depth (forest floor) [m]', ('date', 'simulation')],
+      ['ffloor_snow_heat_flux', 'snow heat flux', ('date', 'simulation')],
+      ['ffloor_snow_surface_temperature', 'snow surface temperature', ('date', 'simulation')],
 
       # ground-type specific outputs
       # energy

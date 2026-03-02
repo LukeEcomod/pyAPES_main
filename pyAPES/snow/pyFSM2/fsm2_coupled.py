@@ -37,8 +37,7 @@ class FSM2(object):
         self.swe = np.sum(snowpara['initial_conditions']['Sice']) + np.sum(snowpara['initial_conditions']['Sliq'])
         self.ice = np.sum(snowpara['initial_conditions']['Sice'])
         self.liq = np.sum(snowpara['initial_conditions']['Sliq'])
-        #self.surface_temperature = snowpara['initial_conditions']['Tsrf']
-        self.temperature = snowpara['initial_conditions']['Tsrf']
+        self.snow_surface_temperature = snowpara['initial_conditions']['Tsrf']
         self.Nsmax = snowpara['layers']['Nsmax']
 
         # temporary storage of iteration results
@@ -60,8 +59,7 @@ class FSM2(object):
             self.ebal.update()
             self.snow.update()
             # updating snowmodel states
-            #self.surface_temperature = self.iteration_state['snow_surface_temperature']
-            self.temperature = self.iteration_state['temperature']
+            self.snow_surface_temperature = self.iteration_state['snow_surface_temperature']
             self.ice = self.iteration_state['ice']
             self.liq = self.iteration_state['liq']
             self.swe = self.iteration_state['swe']
@@ -83,8 +81,8 @@ class FSM2(object):
                 'Ua' (float): wind speed (m/s)
                 'reference_height' (float): first canopy calculation node or forcing height [m]
                 'gs1' (float): Surface moisture conductance (m/s)
-                'Tsoil' (float): soil temperature (K)
-                'Tsoil_surf' (float): # Surface temperature [K]
+                'Tsoil' (float): Soil temperature (K)
+                'Tbt' (float): # Organic layer temperature [K]
                 'ksoil' (float): Thermal conductivity of first soil layer (W/m/K)
                 'kbt' (float):  Thermal conductivity of organic layer (W/m/K)
                 'Dzsoil' (float): Soil layer thickness (m)
@@ -128,7 +126,7 @@ class FSM2(object):
         reference_height = forcing['reference_height'] 
         gs1 = forcing['gs1']
         Tsoil = forcing['Tsoil']
-        Tsoil_surf = forcing['Tsoil_surf']
+        Tbt = forcing['Tbt']
         ksoil = forcing['ksoil']
         kbt = forcing['kbt']
         Dzsoil = forcing['Dzsoil']
@@ -137,13 +135,16 @@ class FSM2(object):
         z0sf = forcing['z0sf']
 
         # initial states
-        snow_states = {'Sice': self.snow.Sice,
-                       'Sliq': self.snow.Sliq,
-                       'Nsnow': self.snow.Nsnow,
-                       'Dsnw': self.snow.Dsnw,
-                       'Tsnow': self.snow.Tsnow}
+        snow_states = {'Sice': self.snow.Sice.copy(),
+                       'Sliq': self.snow.Sliq.copy(),
+                       'Nsnow': int(self.snow.Nsnow),
+                       'Dsnw': self.snow.Dsnw.copy(),
+                       'Tsnow': self.snow.Tsnow.copy()}
 
         ebal_states = {'Tsrf': self.ebal.Tsrf}
+
+        if sum(self.snow.Dsnw) == 0.: # no existing snowpack -> surface temperature from organiclayer.py
+            ebal_states = {'Tsrf': Tbt}
 
         # initialize fluxes and states
         fluxes = {'potential_infiltration': Rf,
@@ -158,8 +159,7 @@ class FSM2(object):
                 }
         
         states = {'snow_water_equivalent': 0.,
-                #'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                'snow_surface_temperature': ebal_states['Tsrf'],
                 'snow_depth': 0.,
                 'snow_albedo': 0.,
                 'snow_fraction': 0.,
@@ -171,15 +171,11 @@ class FSM2(object):
                 'snow_layers': snow_states['Nsnow']
                 }
         
-        self.iteration_state = {'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                                'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+        self.iteration_state = {'snow_surface_temperature': ebal_states['Tsrf'],
                                 'swe': 0.,
                                 'ice': 0.,
                                 'liq': 0.,
                                 }
-
-        if sum(self.snow.Dsnw) == 0.: # no existing snowpack -> surface temperature from organiclayer.py
-            ebal_states = {'Tsrf': Tsoil_surf}
 
         if Sf > 0 or sum(self.snow.Dsnw) > 0: # solving new or existing snowpack -> surface temperature from fsm
 
@@ -247,8 +243,7 @@ class FSM2(object):
             snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
 
             # store iteration state
-            self.iteration_state = {#'snow_surface_temperature': ebal_states['Tsrf'],
-                                    'temperature': ebal_states['Tsrf'],
+            self.iteration_state = {'snow_surface_temperature': ebal_states['Tsrf'],
                                     'swe': snow_states['swe'],
                                     'ice': snow_states['Sice'],
                                     'liq': snow_states['Sliq'],
@@ -272,12 +267,11 @@ class FSM2(object):
                     }
 
             states = {'snow_water_equivalent': snow_states['swe'],
-                    #'snow_surface_temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
-                    'temperature': ebal_states['Tsrf'] - DEG_TO_KELVIN,
+                    'snow_surface_temperature': ebal_states['Tsrf'],
                     'snow_depth': snow_states['hs'],
                     'snow_albedo': swrad_states['snow_albedo'],
                     'snow_fraction': swrad_states['fsnow'],
-                    'snow_temperature': snow_states['Tsnow'] - DEG_TO_KELVIN,
+                    'snow_temperature': snow_states['Tsnow'],
                     'snow_layer_depth': snow_states['Dsnw'],
                     'snow_liquid_storage': snow_states['Sliq'],
                     'snow_ice_storage': snow_states['Sice'],
