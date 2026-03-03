@@ -34,7 +34,6 @@ from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
 from scipy.linalg import solve_banded
 
-from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
 logger = logging.getLogger(__name__)
 
