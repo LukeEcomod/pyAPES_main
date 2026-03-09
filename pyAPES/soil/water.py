@@ -693,12 +693,15 @@ def waterFlow1D(t_final: float, grid: np.ndarray, forcing: Dict, initial_state: 
 
         # calculate q_sur and q_bot in case of head boundaries
         if ubc_flag == 'head':
-            q_sur = -KLh[0] * (h_sur - h[0]) / dzu[0] - KLh[0]  # should be calculated inside iteration not to cause mass balance error
+            if h[0] >= h_sur:
+                q_sur = 0.0
+            else:
+                q_sur = -KLh[0] * (h_sur - h[0]) / dzu[0] - KLh[0]  # should be calculated inside iteration not to cause mass balance error
         if lbc['type'] == 'head':
             q_bot = -KLh[-1] * (h[-1] - h_bot) / dzl[-1] - KLh[-1] * cosalfa
 
         """ cumulative fluxes and h_pond """
-        if q_sur < 0.0 or h_pond >= h_pond_max:  # infiltration dominates, evaporation at potential rate
+        if q_sur <= 0.0: #or h_pond >= h_pond_max:  # infiltration dominates, evaporation at potential rate
             h_pond = h_pond - (-Prec + Evap - q_sur) * dt
             rr = max(0, h_pond - h_pond_max)  # surface runoff if h_pond > maxpond
             h_pond = h_pond - rr

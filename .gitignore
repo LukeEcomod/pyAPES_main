@@ -132,3 +132,12 @@ Examples/results/*.*
 
 # Profiling results
 *.prof
+
+# Line profiling results
+*.lprof
+
+#text files
+*.txt
+
+# opened files
+*~*
