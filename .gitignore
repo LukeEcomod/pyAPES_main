@@ -130,14 +130,14 @@ Examples/results/*.*
 *.gif
 *.svg
 
-# profiling results
+# Profiling results
 *.prof
 
-# text files
-*.txt
-
-#line profiler results
+# Line profiling results
 *.lprof
 
-#opened files
+#text files
+*.txt
+
+# opened files
 *~*
