@@ -394,7 +394,7 @@ class ForestFloor(object):
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
 
         if self.snow_model == 'degreeday':
-            fluxes_snow['snow_heat_flux'] = 0
+            fluxes_snow['snow_heat_flux'] = 0.
             snow_bottom_temperature = 0.
         else:
             snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN
