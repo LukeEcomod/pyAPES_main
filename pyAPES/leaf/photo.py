@@ -22,10 +22,8 @@ from typing import List, Dict, Tuple
 from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
-    GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O
+    GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O, H2O_CO2_RATIO, TN_GAS_CONSTANT, TN
 
-H2O_CO2_RATIO = 1.6  # H2O to CO2 diffusivity ratio [-]
-TN = 25.0 + DEG_TO_KELVIN  # reference temperature, 283.15 [K]
 
 logger = logging.getLogger(__name__)
 
@@ -472,7 +470,6 @@ def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray
 
     return An, Rd, fe, gs_opt, ci, cs
 
-
 def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
                              ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
     """
@@ -514,12 +511,14 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
     g0 = photop['g0']  # [mol m-2 (leaf) s-1], for CO2
     beta = photop['beta']
 
+    TN_GAS_CONSTANT_Tk = TN * GAS_CONSTANT * Tk
+    Tk_minus_TN = Tk - TN
     # --- CO2 compensation point -------
-    Tau_c = 42.75 * np.exp(37830*(Tk - TN) / (TN * GAS_CONSTANT * Tk))
+    Tau_c = 42.75 * np.exp(37830*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
 
     # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
-    Kc = 404.9 * np.exp(79430.0*(Tk - TN) / (TN * GAS_CONSTANT * Tk))
-    Ko = 2.784e5 * np.exp(36380.0*(Tk - TN) / (TN * GAS_CONSTANT * Tk))
+    Kc = 404.9 * np.exp(79430.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+    Ko = 2.784e5 * np.exp(36380.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
 
     if 'tresp' in photop:  # adjust parameters for temperature
         tresp = photop['tresp']
@@ -557,24 +556,25 @@ def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: n
         # print An1
         # stomatal conductance
         gs_opt = g0 + (1.0 + g1 / (VPD**0.5)) * An1 / cs
-        gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
+        #gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
+        gs_opt[gs_opt<g0] = g0
         # print gs_opt
         # CO2 supply
         cs = np.maximum(ca - An1 / gb_c, 0.5*ca)  # through boundary layer
         ci0 = ci
         ci = np.maximum(cs - An1 / gs_opt, 0.1*ca)  # through stomata
 
-        err = max(abs(ci0 - ci))
+        err = max((ci0 - ci)*(ci0-ci))
         cnt += 1
 
     # when Rd > photo, assume stomata closed and ci == ca
     ix = np.where(An < 0)
-    if type(ca) is float:
-        ci[ix] = ca
-        cs[ix] = ca
-    else:
-        ci[ix] = ca[ix]
-        cs[ix] = ca[ix]
+    # if type(ca) is float:
+    #     ci[ix] = ca
+    #     cs[ix] = ca
+    # else:
+    ci[ix] = ca[ix]
+    cs[ix] = ca[ix]
     gs_opt[ix] = g0
     gs_v = H2O_CO2_RATIO*gs_opt
 
@@ -767,7 +767,6 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
-
 def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
                                Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
     """
@@ -800,39 +799,38 @@ def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.nd
         et al. 2001. Plant Cell Environ., 24, 253-260.
     """
 
+    TN_GAS_CONSTANT_T = TN_GAS_CONSTANT * T
+    T_GAS_CONSTANT = T*GAS_CONSTANT
+    T_minus_TN = T - TN
+
     # --- CO2 compensation point -------
-    Gamma_star = 42.75 * np.exp(37830*(T - TN) / (TN * GAS_CONSTANT * T))
+    Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
     # ------  Vcmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Ha = 1e3*Vcmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3*Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
 
-    NOM = np.exp(Ha * (T - TN) / (GAS_CONSTANT*TN*T)) * \
-        (1.0 + np.exp((TN*Sd - Hd) / (TN*GAS_CONSTANT)))
-    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T*GAS_CONSTANT)))
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
     Vcmax = Vcmax0 * NOM / DENOM
 
-    del Ha, Hd, Sd, DENOM, NOM
-
     # ----  Jmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3 * Jmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Ha = 1e3*Jmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3*Jmax_T[1]  # J mol-1, deactivation energy Vcmax
     Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
 
-    NOM = np.exp(Ha * (T - TN) / (GAS_CONSTANT*TN*T)) * \
-        (1.0 + np.exp((TN*Sd - Hd) / (TN*GAS_CONSTANT)))
-    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T*GAS_CONSTANT)))
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
     Jmax = Jmax0*NOM / DENOM
 
-    del Ha, Hd, Sd, DENOM, NOM
-
     # --- Rd (umol m-2(leaf)s-1) -------
-    Ha = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
-    Rd = Rd0 * np.exp(Ha*(T - TN) / (TN * GAS_CONSTANT * T))
+    Ha = 1e3*Rd_T[0]  # J mol-1, activation energy dark respiration
+    Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
 
     return Vcmax, Jmax, Rd, Gamma_star
-
 
 def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     """

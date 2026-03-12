@@ -60,18 +60,18 @@ def leaf_boundary_layer_conductance(u: np.ndarray, d: float, Ta: np.ndarray,
     rho_air = 44.6*(P / 101300.0)*(273.15 / (Ta + 273.13))  # [mol/m3]
 
     # ----- Compute the leaf-level dimensionless groups
-    Re = u*d / va  # Reynolds number
-    Sc_v = va / Da_v  # Schmid numbers for water
-    Sc_c = va / Da_c  # Schmid numbers for CO2
+    Re_sq = np.sqrt(u*d / va)  # Reynolds number
+    Sc_v_cb = np.cbrt(va / Da_v)  # Schmid numbers for water
+    Sc_c_cb = np.cbrt(va / Da_c)  # Schmid numbers for CO2
     Pr = va / Da_T  # Prandtl number
     Gr = GRAVITY*(d**3)*abs(dT) / (Ta + 273.15) / (va**2)  # Grashoff number
 
     #r = Gr / (Re**2)  # ratio of free/forced convection
     
     # ----- aerodynamic conductance for "forced convection"
-    gb_T = (0.664*rho_air*Da_T*Re**0.5*(Pr)**0.33) / d  # [mol/m2/s]
-    gb_c=(0.664*rho_air*Da_c*Re**0.5*(Sc_c)**0.33) / d  # [mol/m2/s]
-    gb_v=(0.664*rho_air*Da_v*Re**0.5*(Sc_v)**0.33) / d  # [mol/m2/s]
+    gb_T = (0.664*rho_air*Da_T*Re_sq*(Pr)**0.33) / d  # [mol/m2/s]
+    gb_c=(0.664*rho_air*Da_c*Re_sq*Sc_c_cb) / d  # [mol/m2/s]
+    gb_v=(0.664*rho_air*Da_v*Re_sq*Sc_v_cb) / d  # [mol/m2/s]
 
     # ----- Compute the aerodynamic conductance for "free convection"
     gbf_T = (0.54*rho_air*Da_T*(Gr*Pr)**0.25) / d  # [mol/m2/s]
