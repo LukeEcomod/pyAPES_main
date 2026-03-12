@@ -85,7 +85,7 @@ z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
 pt1 = {
     'name': 'sedges',
     'LAImax': 0.6, # maximum annual LAI m2m-2
-    'lad': lad_constant(z, LAI=1.0, h=0.0),  # leaf-area density m2m-3
+    'lad': lad_constant(z, LAI=1.0, h=0.5),  # leaf-area density m2m-3
     # cycle of photosynthetic activity
     'phenop': {
         'Xo': 0.0,
@@ -136,7 +136,62 @@ pt1 = {
     }
 }
 
-pt2 = { 'name': 'pine',
+pt2 = { 'name': 'shrubs',
+        'LAImax': 0.5, # maximum annual LAI m2m-2
+        'lad': lad_constant(z, LAI=1.0, h=0.5, hb=0.0),  # leaf-area density [m2 m-3]
+        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
+        'phenop': {
+            'Xo': 0.0, # initial delayed temperature [degC]
+            'fmin': 0.1, # minimum relative photosynthetic capacity
+            'Tbase': -4.7,  # base temperature [degC]
+            'tau': 8.33,  # time constant [d]
+            'smax': 15.0  # threshold for full acclimation [degC]
+            },
+        # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
+        'laip': {
+            'lai_min': 0.1, # minimum LAI, fraction of annual maximum [-]
+            'lai_ini': None, # initial LAI, if None lai_ini = Lai_min * LAImax
+            'DDsum0': 0.0, # initial degree-day sum [degC]
+            'Tbase': 5.0, # base temperature for degree-day sy
+            'ddo': 45.0, # degree-days at bud burst [days]
+            'ddmat': 250.0, #degreedays at full maturation [days]
+            'sdl': 12.0, # day length [h] for starting autumn senecence
+            'sdur': 30.0 # duration [d] of senescence
+            },
+        # A-gs model: pyAPES.leaf.photo
+        'photop': {
+            'Vcmax': 40.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 76.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC
+            'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'tresp': { # temperature response (Kattge and Knorr, 2007)
+                'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
+                                 #             entropy factor [kJ mol-1]]
+                'Jmax': [56., 200., 646.],
+                'Rd': [33.0]
+                },
+            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'theta': 0.7,   # curvature parameter [-]
+            'beta': 0.95,   # co-limitation parameter [-]
+            'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
+            'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
+            'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
+            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            },
+        'leafp': {
+            'lt': 0.02,     # leaf length scale [m]
+            },
+
+        # root zone: pyAPES.planttype.rootzone.RootUptake
+        'rootp': {
+            'root_depth': 0.5, # rooting depth [m]
+            'beta': 0.943, # root distribution shape parameter [-]
+            'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
+            'root_radius': 2.0e-3, # [m]
+            'root_conductance': 5.0e8, # [s]
+            }
+        }
+
+pt3 = { 'name': 'pine',
         'LAImax': 2.1, # maximum annual LAI m2m-2
         'lad': lad_weibul(z, LAI=1.0, h=15.0, hb=3.0, species='pine'),  # leaf-area density m2m-3
         # cycle of photosynthetic activity
@@ -420,7 +475,7 @@ cpara = {'loc': loc,
          'radiation': radiation,
          'micromet': micromet,
          'interception': interception,
-         'planttypes': {'sedges': pt1, 'pine': pt2},
+         'planttypes': {'sedges': pt1, 'pine': pt3},
          'forestfloor': forestfloor
          }
 
