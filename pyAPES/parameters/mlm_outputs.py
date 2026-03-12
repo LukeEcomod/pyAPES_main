@@ -180,6 +180,11 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['ffloor_nir_albedo', 'NIR albedo (forest floor) [-]', ('date', 'simulation')],
       ['ffloor_groundtypes', 'forestfloor groundtype names', ('groundtype')],
 
+      # forest floor fsm2 state
+      ['ffloor_snow_depth', 'snow depth (forest floor) [m]', ('date', 'simulation')],
+      ['ffloor_snow_heat_flux', 'snow heat flux', ('date', 'simulation')],
+      ['ffloor_snow_surface_temperature', 'snow surface temperature', ('date', 'simulation')],
+
       # ground-type specific outputs
       # energy
       ['gt_net_radiation', 'net radiation [W m-2]', ('date', 'simulation', 'groundtype')],

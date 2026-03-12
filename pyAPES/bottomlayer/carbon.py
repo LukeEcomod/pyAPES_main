@@ -579,7 +579,6 @@ class SoilRespiration(object):
         respiration = x * f
 
         respiration = sum(self.weights * respiration[0:self.Nlayers])
-
         return respiration
     
 # class SoilRespiration(object):

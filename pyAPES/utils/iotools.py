@@ -117,7 +117,8 @@ def write_ncf(nsim=None, results=None, ncf=None):
 def read_forcing(forcing_file: str, start_time: str, end_time: str,
                  dt: float=1800.0, na_values: str='NaN', sep: str=';') -> pd.DataFrame:
     """
-    Reads model forcing data from csv-file to pd.DataFrame
+    Reads model forcing data from csv-file to pd.DataFrame.
+    Converts cumulated precipitation [kg m-2 dt-1] to precipitation intensity [kg m-2 s-1].
 
     Args:
         forc_fp (str): forcing file path
@@ -148,7 +149,7 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
     dat['H2O'] = 1e-3 * dat['H2O']
     dat['Prec'] = dat['Prec'] / dt
 
-    cols = ['doy', 'Prec', 'P', 'Tair', 'Tdaily', 'U', 'Ustar', 'H2O', 'CO2', 'Zen',
+    cols = ['doy', 'Prec', 'P', 'Tair', 'Tdaily', 'U', 'Ustar', 'H2O', 'RH', 'CO2', 'Zen',
             'LWin', 'diffPar', 'dirPar', 'diffNir', 'dirNir']
     
     # these needed for phenology model initialization

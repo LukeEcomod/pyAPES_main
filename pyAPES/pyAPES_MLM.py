@@ -279,6 +279,7 @@ class MLM_model(object):
                 'lw_in': self.forcing['LWin'].iloc[k],              # [W m-2]
                 'air_pressure': self.forcing['P'].iloc[k],          # [Pa]
                 'zenith_angle': self.forcing['Zen'].iloc[k],        # [rad]
+                'relative_humidity': self.forcing['RH'].iloc[k],
 
                 # from soil model
                 'soil_temperature': self.soil.heat.T,         # [deg C]
