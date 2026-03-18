@@ -51,6 +51,10 @@ MOLECULAR_DIFFUSIVITY_CO2 = 15.7e-6
 MOLECULAR_DIFFUSIVITY_H2O = 24.0e-6
 #: [J mol-1 K-1], universal gas constant
 GAS_CONSTANT = 8.314
+#: [K] reference temperature for photosynthetic parameters, 283.15 [K]
+TN = 25.0 + DEG_TO_KELVIN  
+#: [J mol-1] universal gas constant times 25C reference temperature in Kelvin
+TN_GAS_CONSTANT = TN*GAS_CONSTANT
 #: [kg m2 s-1], standard gravity
 GRAVITY = 9.81
 #: [kg m-3], water density
@@ -61,6 +65,8 @@ PAR_TO_UMOL = 4.56
 DEG_TO_RAD = 3.14159 / 180.0
 #: [umol m-3], molar O2 concentration in air
 O2_IN_AIR = 2.10e5
+#: [-] H2O to CO2 diffusivity ratio
+H2O_CO2_RATIO = 1.6  
 
 #%% for pyAPES.soil
 
