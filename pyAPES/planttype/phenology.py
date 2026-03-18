@@ -19,7 +19,7 @@ class Photo_cycle(object):
     References:
         Kolari et al. 2007 Tellus.
     """
-    def __init__(self, p: Dict):
+    def __init__(self, p: Dict, X: float=0.0):
         r""" Initializes photo cycle model.
 
         Args:
@@ -29,6 +29,7 @@ class Photo_cycle(object):
                 'Tbase': base temperature [degC]
                 'tau': time constant [days]
                 'smax': threshold for full acclimation [degC]
+            X (float): delayed temperature [degC] at onset of simulations
         Returns:
             self (object)
         """
@@ -67,7 +68,7 @@ class LAI_cycle(object):
     Reference:
         Launiainen et al. 2015 Ecol. Mod
     """
-    def __init__(self, p: Dict, loc: Dict):
+    def __init__(self, p: Dict, loc: Dict, DDsum0: float=0.0):
         r""" Initializes LAI cycle model.
 
         Args:
@@ -80,6 +81,11 @@ class LAI_cycle(object):
                 'ddur': duration of recovery period [days]
                 'sdl':  daylength for senescence start [h]
                 'sdur': duration of decreasing period [days]
+            'loc' (dict): 
+                'lat': latitude [decimal degrees]
+                'lon': longitude [decimal degrees]
+            'DDsum0' (float): degree-day sum at onset of simulations [degC]
+            
         Returns:
             self (object)
         """
@@ -102,7 +108,7 @@ class LAI_cycle(object):
 
         # degree-day model
         self.Tbase = p['Tbase']  # [degC]
-        self.DDsum = p['DDsum0']  # [degC]
+        self.DDsum = DDsum0 # [degC]
 
     def run(self, doy: int, T: float, out: bool=False):
         r"""
@@ -116,7 +122,7 @@ class LAI_cycle(object):
         """
         # update DDsum
         if doy == 1:  # reset in the beginning of the year
-            self.DDsum = 0.
+            self.DDsum = 0.0
         else:
             self.DDsum += np.maximum(0.0, T - self.Tbase)
       

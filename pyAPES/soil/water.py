@@ -230,7 +230,7 @@ class Water_1D(object):
             else:
                 self.Wtot = np.array(state['volumetric_water_content'])
             self.Wtot = np.minimum(self.Wtot, self.pF['ThetaS'])
-            self.h = wrc(self.pF, self.Wtot, var='Th')
+            self.h = wrc(self.pF, theta=self.Wtot)
             self.gwl = get_gwl(self.h, self.grid['z'])
         else:
             raise ValueError("Problem in water.update_state()")
@@ -1230,7 +1230,7 @@ def get_gwl(head, x):
         # gwl above profile bottom
         if len(sid) > 0:  # gwl below first node
             # finding head from bottom to top to avoid returning perched gwl
-            gwl = x[sid[-1]+1] + head[sid[-1]+1]
+            gwl = x[sid[-1]] + head[sid[-1]]
         else:  # gwl in or above first node
             gwl = x[0] + head[0]
     else:
@@ -1328,7 +1328,7 @@ def wrc(pF: Dict, theta: np.ndarray=None, psi: np.ndarray=None, draw_pF: bool=Fa
         plt.semilogx(1, fc, 'ro', 150, wp, 'ro')  # fc, wp
         plt.text(1, 1.1*fc, 'FC'), plt.text(150, 1.2*wp, 'WP')
         plt.ylabel(r'$\theta$  $(m^3m^{-3})$', fontsize=14)
-        plt.xlabel('$\psi$ $(m)$', fontsize=14)
+        plt.xlabel(r'$\psi$ $(m)$', fontsize=14)
         plt.ylim(0.8*Tr, min(1, 1.1*Ts))
 
         del xx, yy

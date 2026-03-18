@@ -304,6 +304,7 @@ class Interception(object):
         Trfall_rain = fW * Trfall 
         Trfall_snow = (1 - fW) * Trfall
 
+
         # H20 source/sink per ground area due to evaporation and condensation [mol m-2 s-1]
         dqsource = (Evap + Cond) / dt / MOLAR_MASS_H2O
 
@@ -336,7 +337,7 @@ class Interception(object):
                               'latent_heat': dqsource * L},
                   'evaporation_ml': (Evap + Cond * (1 - wf)) / dt,
                   'throughfall_ml': Tr / dt,
-                  'condensation_drip_ml': (Cond * wf) / dt
+                  'condensation_drip_ml': (Cond * wf) / dt,
                   }
         return fluxes
 
