@@ -106,6 +106,7 @@ docs/.DS_Store
 figures/
 results/
 data/
+old_obsolete/
 
 # Example demos
 Examples/results/*.*
