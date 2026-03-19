@@ -141,3 +141,6 @@ Examples/results/*.*
 
 # opened files
 *~*
+
+# data folder
+data/
