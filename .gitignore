@@ -105,15 +105,13 @@ docs/.DS_Store
 
 figures/
 results/
+data/
 
 # Example demos
 Examples/results/*.*
 
 # datasets --> put in separate storage
-/data/*.*
-
-# forcing files --> put later in separate storage
-/forcing/*.*
+data/*.*
 
 # logs
 *.log
@@ -139,8 +137,5 @@ Examples/results/*.*
 #text files
 *.txt
 
-# opened files
+# UNIX opened files
 *~*
-
-# data folder
-data/
