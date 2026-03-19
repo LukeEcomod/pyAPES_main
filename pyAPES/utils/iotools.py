@@ -39,9 +39,13 @@ def initialize_netcdf(variables,
     """
     from netCDF4 import Dataset, date2num
     from datetime import datetime
+    from dotenv import load_dotenv
+    load_dotenv()
+    pyapes_main_folder = os.getenv('pyAPES_main_folder')
 
-    pyAPES_folder = os.getcwd()
-    filepath = os.path.join(pyAPES_folder, filepath)
+    if not pyapes_main_folder:
+        pyapes_main_folder = os.getcwd()
+    filepath = os.path.join(pyapes_main_folder, filepath)
 
     if not os.path.exists(filepath):
         os.makedirs(filepath)

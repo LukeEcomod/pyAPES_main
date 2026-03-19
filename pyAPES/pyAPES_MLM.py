@@ -66,6 +66,15 @@ def driver(parameters,
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
     from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
     from logging.config import dictConfig
+    
+    # --- dotenv for loading pyAPES folder path ---
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    pyapes_main_folder = os.getenv('pyAPES_main_folder')
+
+    if not pyapes_main_folder:
+        pyapes_main_folder = os.getcwd()
 
     # --- Config logger
     logging.config.dictConfig(logging_configuration)
@@ -129,8 +138,7 @@ def driver(parameters,
             write_ncf(nsim=task.Nsim, results=results, ncf=ncf)
 
             del results
-
-        output_file = gpara['results_directory'] + filename
+        output_file = pyapes_main_folder + '/' + gpara['results_directory'] + filename
         logger.info('Ready! Results are in: ' + output_file)
 
         ncf.close()
