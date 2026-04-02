@@ -247,11 +247,9 @@ class MLM_model(object):
         logger.info('Running simulation {}'.format(self.Nsim))
         time0 = time.time()
 
-        #print('RUNNING')
         k_steps=np.arange(0, self.Nsteps, int(self.Nsteps/10))
 
         for k in range(0, self.Nsteps):
-            #print(k)
             # --- print progress on screen
             if k in k_steps[:-1]:
                 s = str(np.where(k_steps==k)[0][0]*10) + '%'
