@@ -342,8 +342,10 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
                          IbSky: float, IdSky:float, LeafAlbedo: float, SoilAlbedo: float
                          , PlotFigs: bool=False) -> Tuple:
     """
-    Computes short-wave (SW) radiation transfer inside horizontally homogeneous multi-layer canopy. Includes
-    multiple reflections between foliage layers and soil surface.
+    Computes short-wave (SW) radiation transfer inside horizontally homogeneous multi-layer 
+    canopy using two-stream approach. Includes multiple reflections between foliage layers and soil surface.
+    Incident radiation is given per ground area to be in line with A-gs measurements at leaf and shoot scale, i.e.
+    Vcmax and Jmax reported in literature.
 
     Reference:
         Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
@@ -353,11 +355,14 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     Note: 
         To get sunlit fraction below all vegetation: f_sl[0] / Clump.
 
-        At least for conifers NIR LeafAlbedo has to be decreased from leaf-scale  values to correctly 
-        model canopy albedo of clumped canopies. Adjustment from ~0.7 to 0.55 seems to be sufficient.
-        This corresponds roughlty to a=a_needle*[4*STAR / (1- a_needle*(1-4*STAR))], where a_needle is needle albedo
-        and STAR silhouette to total area ratio of a conifer shoot. STAR ~0.09-0.21 (mean 0.14)
-        for Scots pine (Smolander, Stenberg et al. -papers)
+        Within-clump shading is accounted for by conceptualizing three leaf pools:
+          1. Truly sunlit (outer clump surface): fraction f_sl = Clump * exp(-Kb * Clump * LAI_cum) of physical LAI.
+             These leaves receive full direct beam + diffuse.
+          2. Within-clump self-shaded: fraction (1-Clump) * exp(-Kb * Clump * LAI_cum) of physical LAI.
+             These leaves are in a sunlit clump but shielded inside it; receive diffuse only.
+          3. Canopy-shaded: fraction 1 - exp(-Kb * Clump * LAI_cum) of physical LAI.
+             Receive diffuse only.
+        Pools 2 and 3 are merged into a single shaded pool with f_sh = 1 - Clump * exp(-Kb * Clump * LAI_cum).
 
     Args:
         LAIz (array): [m2 m-2 (ground)], layewise one-sided leaf-area index
@@ -375,12 +380,14 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
             SWbo (array): [W m-2 (ground)], direct radiation; 
             SWdo (array): [W m-2 (ground)], downwelling diffuse radiation; 
             SWuo (array): [W m-2 (ground)], upwelling diffuse; 
-            Q_sl (array): [W m-2 (leaf)] incident SW radiation normal to sunlit leaves; 
-            Q_sh: (array): [W m-2 (leaf)] incident SW radiation normal to shaded leaves; 
-            q_sl: (array): [W m-2 (leaf)], absorbed SW by sunlit leaves; 
-            q_sh: (array): [W m-2 (leaf)], absorbed SW by shaded leaves; 
+            Q_sl (array): [W m-2 (ground)] incident SW for truly sunlit un-clumped (physical) leaf area; 
+            Q_sh: (array): [W m-2 (ground)] incident SW for shaded un-clumped (physical) leaf area; 
+            q_sl: (array): [W m-2 (leaf)], absorbed SW per unit truly sunlit un-clumped (physical) leaf area; 
+            q_sh: (array): [W m-2 (leaf)], absorbed SW per unit shaded un-clumped (physical) leaf area; 
             q_soil (float): [W m-2 (ground)], absorbed SW by ground; 
-            f_sl: (array): [-] sunlit fraction of leaves; 
+            f_sl: (array): [-] truly sunlit fraction of physical leaf area = Clump * exp(-Kb*Clump*LAI_cum);
+                           = outer clump surface fraction; within-clump self-shaded leaves are in shaded pool;
+                           multiply by LAIz for truly sunlit physical leaf area per layer;
             alb (array): [-] ecosystem SW albedo; 
     
     """
@@ -504,8 +511,7 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
         X = SWd0[k+1] / (1 - rd[k]*rd[k+1]*(1-aL[k])*(1 - taud[k])*(1 - aL[k+1])*(1 - taud[k+1]))
         Y = SWu0[k]*rd[k+1]*(1 - aL[k+1])*(1 - taud[k+1]) / (1 - rd[k]*rd[k+1]*(1 - aL[k])*(1 - taud[k])*(1 - aL[k+1])*(1 - taud[k+1]))
         SWd[k+1] = X + Y
-    SWd[0] = SWd[1] # SWd0[0]
-    # print SWd
+    SWd[0] = SWd[1]
 
     # upwelling diffuse after multiple scattering, eq. 25
     SWu = np.zeros([M+1])
@@ -522,8 +528,15 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     aL = aL[0:M+1]
 
     # --- NOW return values back to the original grid
+    # Between-clump sunlit fraction of ground area (= exp(-Kb * Clump * cumsum(LAIz))).
+    # Used only to derive SWbo; NOT returned as f_sl.
     f_slo = np.exp(-Kb*(Lcumo))
-    SWbo = f_slo*IbSky  # Beam radiation
+    SWbo = f_slo*IbSky                # Beam radiation at each level [W m-2 ground]
+
+    # Truly sunlit fraction of physical leaf area = Clump * f_slo.
+    # Physical interpretation: only the outer clump surface (fraction Clump of physical LAI)
+    # is exposed to direct beam; the inner (1-Clump) fraction is always within-clump self-shaded.
+    f_slo_true = Clump * f_slo
 
     # interpolate diffuse fluxes
     X = np.flipud(Lcumo)
@@ -531,85 +544,147 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     SWdo = np.flipud(np.interp(X, xi, np.flipud(SWd)))
     SWuo = np.flipud(np.interp(X, xi, np.flipud(SWu)))
 
-    # incident radiation on sunlit and shaded leaves Wm-2
-    # Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
-    # Q_sl = Kb*IbSky + Q_sh  # normal to sunlit leaves is direct and diffuse
-    # SUGGESTED CHANGE: clumped leaves are shaded so "divide" diffuse radiation only for shaded leaves based on clumping (incident PAR of sunlit increases)
-    Q_sh = Clump*(1-f_slo)/(1-Clump*f_slo) * Kd*(SWdo + SWuo)
-    Q_sl = Kb*IbSky + Kd*(SWdo + SWuo)
-
-    # absorbed components
-    aLo = np.ones(len(Lo))*(1 - LeafAlbedo)
-    aDiffo = aLo*Kd*(SWdo + SWuo)
-    aDiro = aLo*Kb*IbSky
-
     # stand albedo
     alb = SWuo[-1] / (IbSky + IdSky + EPS)
-    # print alb
     # soil absorption (Wm-2 (ground))
     q_soil = (1 - SoilAlbedo)*(SWdo[0] + SWbo[0])
 
-    # correction to match absorption-based and flux-based albedo, relative error <3% may occur
-    # in daytime conditions, at nighttime relative error can be larger but fluxes are near zero
-    aa = (sum(aDiffo*Lo + aDiro*f_slo*Lo) + q_soil) / (IbSky + IdSky + EPS)
-    F = (1. - alb) / aa
-    # print('F', F)
-    if F <= 0 or np.isfinite(F) is False:
-        F = 1.
+    #--- absorbed components per layer (per unit un-clumped / physical leaf area) ---
+    # Exact flux-divergence formulation.
+    # Arrays SWbo/SWdo/SWuo[k] are at the BOTTOM of layer k (index 0 = canopy bottom).
+    # Top-of-layer k = bottom-of-layer k+1, except for the topmost layer where
+    # canopy-top upwelling is approximated as SWuo[-1] (exact for all other layers).
+    aLo = np.ones(len(Lo))*(1 - LeafAlbedo)
 
-    aDiro = F*aDiro
-    aDiffo = F*aDiffo
-    q_soil = F*q_soil
+    SWdo_top = np.append(SWdo[1:], IdSky)
+    SWuo_top = np.append(SWuo[1:], SWuo[-1])  # approx for top layer only
+    SWbo_top = np.append(SWbo[1:], IbSky)
 
-    # sunlit fraction in clumped foliage; clumping means elements shade each other
-    f_slo = Clump*f_slo
+    # Total absorbed per layer [W m-2 ground] = divergence of net downward flux
+    total_abs = (SWbo_top + SWdo_top - SWuo_top) - (SWbo + SWdo - SWuo)
 
-    # Following adjustment is required for energy conservation, i.e. total absorbed radiation
-    # in a layer must equal difference between total radiation(SWup, SWdn) entering and leaving the layer.
-    # Note that this requirement is not always fullfilled in canopy rad. models.
-    # now sum(q_sl*f_slo* + q_sh*(1-f_slo)*Lo = (1-alb)*(IbSky + IdSky)
-    q_sh = aDiffo*Clump  # shaded leaves only diffuse
-    q_sl = q_sh + aDiro  # sunlit leaves diffuse + direct
+    # Beam absorbed per layer [W m-2 ground]
+    abs_beam = aLo * (SWbo_top - SWbo)
 
-    # SAME CHANGE HERE TOO: note f_slo now unclumped
-    q_sh = Clump*(1-f_slo/Clump)/(1-f_slo) * aDiffo
-    q_sl = aDiffo + aDiro  # sunlit leaves diffuse + direct
+    # Absorbed per unit physical leaf area [W m-2 physical leaf].
+    # Dividing abs_beam by (f_slo_true * LAIz) = (Clump * f_slo * LAIz) gives the full
+    # direct beam per truly sunlit leaf: aDiro ≈ aL * Kb * IbSky  (sun-angle-projected beam).
+    # The (1-Clump)*f_slo within-clump self-shaded leaves and the (1-f_slo) canopy-shaded
+    # leaves are all merged into the shaded pool and receive only diffuse (aDiffo).
+    aDiffo = (total_abs - abs_beam) / np.maximum(LAIz, EPS)        # diffuse; per unit LAIz
+    aDiro  = abs_beam / np.maximum(f_slo_true * LAIz, EPS)         # beam; per unit truly sunlit LAIz
 
+    # --- Sunlit / shaded split, energy-conserving ---
+    # f_slo_true = Clump * exp(-Kb * Clump * LAI_cum) is the truly sunlit fraction.
+    # Shaded pool = within-clump self-shaded [(1-Clump)*f_slo] + canopy-shaded [1-f_slo].
+    #
+    # Conservation check:
+    #   q_sl * f_slo_true * LAIz + q_sh * (1 - f_slo_true) * LAIz
+    #   = (aDiffo + aDiro) * f_slo_true * LAIz + aDiffo * (1 - f_slo_true) * LAIz
+    #   = aDiffo * LAIz + aDiro * f_slo_true * LAIz
+    #   = (total_abs - abs_beam) + abs_beam = total_abs  [exact]
+    q_sh = aDiffo  # [W m-2 physical leaf], shaded (incl. within-clump self-shaded)
+    q_sl = aDiffo + aDiro  # [W m-2 physical leaf], truly sunlit
+
+    # Incident radiation is given per ground area. 
+    # Sunlit leaves receive direct (IbSky) + diffuse (SWdo + SWuo), shaded leaves receive diffuse only (SWdo + SWuo).
+    Q_sl = IbSky + SWdo + SWuo  # [W m-2 ground], incident on truly sunlit un-clumped (physical) leaf area
+    Q_sh = SWdo + SWuo  # [W m-2 ground], incident on shaded un-clumped (physical) leaf area
+
+    # old approach
+    # Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
+    # Q_sl = Kb*IbSky + Q_sh  # normal to sunlit leaves is direct and diffuse
+
+    # --- for diagonstics ---
     if PlotFigs:
-        fig, ax = plt.subplots(2,2, figsize=(6,8))
+        depth = -Lcumo / Clump   # y-axis: 0 near top, -LAI/Clump at bottom
 
-        # add input parameter values to fig
-        ax[0,0].text(0.05, 0.65, r'$LAI$ = %1.1f m2 m-2' % (LAI))
-        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.3f ' % (Zen / DEG_TO_RAD))
-        ax[0,0].text(0.70, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
-        ax[0,0].text(1.0, 0.65, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
+        # --- conservation quantities ---
+        SWbo_int = np.append(SWbo, IbSky)
+        SWdo_int = np.append(SWdo, IdSky)
+        SWuo_int = np.append(SWuo, alb * (IbSky + IdSky))
+        net_down  = SWbo_int + SWdo_int - SWuo_int
+        abs_flux  = np.diff(net_down)
+        abs_leaf  = q_sl * f_slo_true * LAIz + q_sh * (1 - f_slo_true) * LAIz
 
-        ax[0,0].set_title("Source: radiation.canopy_sw_ZhaoQualls")
+        fig, axes = plt.subplots(2, 3, figsize=(15, 9))
+        fig.suptitle(
+            f"canopy_sw_ZhaoQualls_unclumped  LAI={sum(LAIz):.1f} m2 m-2,  Zen={Zen/DEG_TO_RAD:.0f} deg,"
+            f"  Clump={Clump},  aL={LeafAlbedo},  as={SoilAlbedo}",
+            fontsize=11)
 
-        ax[0,0].plot(f_slo, -Lcumo/Clump, 'r-', (1 - f_slo), -Lcumo/Clump, 'b-')
-        ax[0,0].set_ylabel("-Lcum eff.")
-        ax[0,0].set_xlabel("sunlit & shaded fractions (-)")
-        ax[0,0].legend(('f$_{sl}$, total = %.2f' % np.sum(f_slo*LAIz), 'f$_{sh}$, total = %.2f' % np.sum((1 - f_slo)*LAIz)), loc='best')
+        # SW flux profiles
+        ax = axes[0, 0]
+        ax.plot(SWbo, depth, 'r-o', ms=4, label='Direct beam SWbo')
+        ax.plot(SWdo, depth, 'b-o', ms=4, label='Diffuse down SWdo')
+        ax.plot(SWuo, depth, 'g-o', ms=4, label='Diffuse up SWuo')
+        ax.set_xlabel('Flux [W m-2 ground]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('SW flux profiles')
+        ax.legend(fontsize=8)
+        ax.grid(alpha=0.3)
 
-        ax[0,1].plot(Q_sl, -Lcumo/Clump, 'ro-', Q_sh, -Lcumo/Clump, 'bo-')
-        ax[0,1].plot(q_sl/(1-LeafAlbedo), -Lcumo/Clump, 'k-', q_sh/(1-LeafAlbedo), -Lcumo/Clump, 'k-')
-        ax[0,1].set_ylabel("-Lcum eff.")
-        ax[0,1].set_xlabel("Incident radiation (Wm-2 (leaf))")
-        ax[0,1].legend(('sunlit', 'shaded'), loc='best')
+        # Three-pool fractions
+        ax = axes[0, 1]
+        ax.plot(f_slo_true, depth, 'r-o', ms=4,
+                label=r'f$_{sl}$ truly sunlit = $\Omega \cdot e^{-K_b \Omega L}$')
+        ax.plot((1 - Clump) * f_slo, depth, 'm--o', ms=4,
+                label=r'within-clump self-shaded = $(1-\Omega) \cdot e^{-K_b \Omega L}$')
+        ax.plot(1 - f_slo, depth, 'b-o', ms=4,
+                label=r'canopy-shaded = $1 - e^{-K_b \Omega L}$')
+        ax.plot(1 - f_slo_true, depth, 'k--o', ms=4,
+                label=r'total shaded = $1 - \Omega \cdot e^{-K_b \Omega L}$')
+        ax.set_xlabel('Fraction [-]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('Three-pool leaf fractions')
+        ax.legend(fontsize=7)
+        ax.grid(alpha=0.3)
+        ax.set_xlim(0, 1)
 
-        ax[1,0].plot(SWd, -Lcum/Clump, 'bo', SWdo, -Lcumo/Clump, 'b-', Ib, -Lcum/Clump, 'ro',
-                 SWbo, -Lcumo/Clump, 'r-', SWu, -Lcum/Clump, 'go', SWuo, -Lcumo/Clump, 'g-')
-        ax[1,0].legend(('SWd', 'Swdo', 'SWb', 'SWbo', 'SWu', 'SWuo'), loc='best')
-        ax[1,0].set_ylabel("-Lcum eff.")
-        ax[1,0].set_xlabel("Incident SW (Wm-2 )")
+        # Incident per physical leaf area
+        ax = axes[0, 2]
+        ax.plot(Q_sl, depth, 'r-o', ms=4, label='Q_sl truly sunlit')
+        ax.plot(Q_sh, depth, 'b-o', ms=4, label='Q_sh shaded')
+        ax.set_xlabel('Incident [W m-2 physical leaf]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('Incident radiation per physical leaf area')
+        ax.legend(fontsize=8)
+        ax.grid(alpha=0.3)
 
-        ax[1,1].plot(q_sl, -Lcumo/Clump, 'ro-', q_sh, -Lcumo/Clump, 'bo-')
-        ax[1,1].plot((1-np.exp(-Kd*Lo))*(SWdo + SWuo)/(LAIz+EPS),-Lcumo/Clump,'-k')
-        ax[1,1].set_ylabel("-Lcum eff.")
-        ax[1,1].set_xlabel("Absorbed radiation (Wm-2 (leaf))")
-        ax[1,1].legend(('sunlit', 'shaded'), loc='best')
+        # Absorbed per physical leaf area
+        ax = axes[1, 0]
+        ax.plot(q_sl, depth, 'r-o', ms=4, label='q_sl truly sunlit')
+        ax.plot(q_sh, depth, 'b-o', ms=4, label='q_sh shaded')
+        ax.set_xlabel('Absorbed [W m-2 physical leaf]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('Absorbed radiation per physical leaf area')
+        ax.legend(fontsize=8)
+        ax.grid(alpha=0.3)
 
-    return SWbo, SWdo, SWuo, Q_sl, Q_sh, q_sl, q_sh, q_soil, f_slo, alb
+        # Per-layer conservation comparison
+        ax = axes[1, 1]
+        ax.plot(abs_leaf, depth, 'k-o', ms=4,
+                label=r'Leaf-based: $q_{sl} f_{sl} LAI_z + q_{sh}(1-f_{sl})LAI_z$')
+        ax.plot(abs_flux, depth, 'r--s', ms=4, label='Flux divergence (net_down diff)')
+        ax.set_xlabel('Layer absorbed [W m-2 ground]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('Per-layer absorption: leaf vs flux')
+        ax.legend(fontsize=7)
+        ax.grid(alpha=0.3)
+
+        # Residual
+        ax = axes[1, 2]
+        ax.plot(abs_leaf - abs_flux, depth, 'k-o', ms=4)
+        ax.axvline(0, color='r', linestyle='--', linewidth=1)
+        ax.set_xlabel('Residual: leaf - flux divergence [W m-2 ground]')
+        ax.set_ylabel('-Lcum / Clump')
+        ax.set_title('Layer conservation residual\n(non-zero only for top layer: SWuo_top approx.)')
+        ax.grid(alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+    return SWbo, SWdo, SWuo, Q_sl, Q_sh, q_sl, q_sh, q_soil, f_slo_true, alb
 
 def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
                        IbSky: float, IdSky: float, LeafAlbedo: float, SoilAlbedo: float,
