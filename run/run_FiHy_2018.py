@@ -28,8 +28,6 @@ params = {
     'soil': spara,
     'forcing': forcing}
 
-print(forcing.head())
-
 resultfile, _ = driver(parameters=params,
                        create_ncf=True,
                        result_file='FiHy_2017_2018.nc')
