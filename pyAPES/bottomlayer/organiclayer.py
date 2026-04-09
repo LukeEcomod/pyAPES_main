@@ -357,7 +357,7 @@ class OrganicLayer(object):
 
         Ta = forcing['air_temperature']
         
-        sub_dt = 600.  # 1800. does not show energy closure error but differs from results with smaller sub_dt
+        sub_dt = 180.  # 1800. does not show energy closure error but differs from results with smaller sub_dt
 
         # [J m-2 s-1] or [W m-2]
         SWabs = (1.0 - self.albedo['PAR']) * forcing['par'] + \

@@ -258,6 +258,7 @@ class MLM_model(object):
             # --- CanopyModel ---
             # run daily loop: updates LAI, phenology and moisture stress ---
             if self.forcing['doy'].iloc[k] != self.forcing['doy'].iloc[k-1] or k == 0:
+                print(self.forcing['doy'].iloc[k])
 
                 if 'Rew' in self.forcing:
                     # Rew from forcing

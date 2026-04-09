@@ -13,6 +13,7 @@ import xarray as xr
 import numpy as np
 import json
 from typing import Dict, Tuple, List
+from pathlib import Path
 
 def initialize_netcdf(variables,
                       sim,
@@ -45,12 +46,12 @@ def initialize_netcdf(variables,
 
     if not pyapes_main_folder:
         pyapes_main_folder = os.getcwd()
-    filepath = os.path.join(pyapes_main_folder, filepath)
+    filepath = Path(f"{pyapes_main_folder}/{filepath}")
 
     if not os.path.exists(filepath):
         os.makedirs(filepath)
 
-    ff = os.path.join(filepath, filename)
+    ff = Path(f"{filepath}/{filename}")
 
     # create dataset and dimensions
     ncf = Dataset(ff, 'w')
