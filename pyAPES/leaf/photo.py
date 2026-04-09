@@ -1360,4 +1360,45 @@ def Sd_to_Topt(Ha, Hd, Sd):
     Topt = Hd*1e3 / (Sd + GAS_CONSTANT * np.log(Ha / (Hd - Ha)))
     return Topt - DEG_TO_KELVIN
 
+def Vcmax_from_Nleaf(N, pft):
+    """
+    Linear scaling between Vcmax and leaf nitrogen.
+    Reference:  Kattge et al. 2009. Quantifying photosynthetic capacity and its relationship 
+    to leaf nitrogen content for global‐scale terrestrial biosphere models. 
+    Global Change Biology, 15(4), pp.976-991.; Their Table 2.
+
+    Args:
+        N (float or array) - leaf N content (g m-2)
+        pft (str) - pft name
+    Returns:
+        Vcmax25 (float or array) - maximum carboxylation velocity (umol m-2(leaf) s-1)
+    """
+
+    pft_params = {
+   
+        "Tropical (oxisols)": {"iV": 1.99, "SD_iV": 5.14, "sV": 10.71, "SD_sV": 1.90, "corr": -0.93},
+        "Tropical (nonoxisols)": {"iV": 6.35, "SD_iV": 5.52, "sV": 25.88, "SD_sV": 5.16, "corr": -0.93},
+        "Temperate broadleaf": {"iV": 5.40, "SD_iV": 1.74, "sV": 30.38, "SD_sV": 1.34, "corr": -0.90},
+        "Coniferous": {"iV": 34.05, "SD_iV": 5.90, "sV": 9.71, "SD_sV": 2.26, "corr": -0.91},
+        "Shrubs": {"iV": 4.61, "SD_iV": 8.22, "sV": 30.20, "SD_sV": 4.77, "corr": -0.93},
+        "C3 herbaceous": {"iV": 23.74, "SD_iV": 6.87, "sV": 28.17, "SD_sV": 4.67, "corr": -0.96},
+        "C3 crops": {"iV": 22.22, "SD_iV": 16.74, "sV": 41.27, "SD_sV": 12.53, "corr": -0.96},
+    }
+
+    a0 = pft_params[pft]['iV']
+    a1 = pft_params[pft]['sV']
+    
+    vmax25 = a0 + a1 * N
+    return vmax25
+
+        # if 'kn' in self.photop0:
+        #     kn = self.photop0['kn']
+        #     Lc = np.flipud(np.cumsum(np.flipud(self.lad*self.dz)))
+        #     Lc = Lc / np.maximum(Lc[0], EPS)
+        #     f = np.exp(-kn*Lc)
+def canopygradient(kn, Lc):
+    Lc = Lc / np.maximum(Lc[-1], 0.0001)
+    print(Lc)
+    f = np.exp(-kn*Lc)
+    return f
 # EOF

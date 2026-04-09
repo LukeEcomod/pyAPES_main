@@ -19,7 +19,7 @@ import numpy as np
 from typing import List, Dict, Tuple
 
 from pyAPES.utils.constants import MOLAR_MASS_H2O, EPS, STEFAN_BOLTZMANN, DEG_TO_KELVIN, WATER_DENSITY
-from pyAPES.microclimate.radiation import Radiation
+from pyAPES.microclimate.radiation_old import Radiation
 from pyAPES.microclimate.micromet import Micromet
 from pyAPES.planttype.planttype import PlantType
 
@@ -149,7 +149,7 @@ class CanopyModel(object):
         self.interception = Interception(
             cpara['interception'], self.lad * self.dz)
 
-        # forestfloor. Now soil respiration profile is as root_distr
+        # forestfloor. Now soil respiration profile weights are set equal to relative root_distr
         # self.forestfloor = ForestFloor(cpara['forestfloor'],
         #                                respiration_profile=self.root_distr)
 
@@ -167,7 +167,7 @@ class CanopyModel(object):
             doy (float): day of year [days]
             Ta (float): mean daily air temperature [degC]
             PsiL (float): leaf water potential [MPa] --- CHECK??
-            Rew (float): relatively extractable water (-)
+            Rew (float or array): relatively extractable water in rootzone or at each soil layer (-)
 
         Returns
             (none)
@@ -177,8 +177,22 @@ class CanopyModel(object):
         for pt in self.planttypes:
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
+
+                # effective REW: relative root area density weighted average over root zone layers
+                if not isinstance(Rew, float):
+                    # "uncompensated water uptake": Rew is weighted sum of all root zone layers
+                    #rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)  # [-] normalized root distribution
+                    #rew_pt = float(np.clip(np.sum(rel_rad * Rew[pt.Roots.ix]), 0.0, 1.0))
+
+                    # "bulk root zone properties": Rew is arithmetic mean over root zone layers
+                    rew_pt = np.mean(Rew[pt.Roots.ix])
+                    #print(pt.name, rew_pt)
+                else:
+                    rew_pt = Rew
+                    
+                    
                 # updates pt properties
-                pt.update_daily(doy, Ta, PsiL=PsiL, Rew=Rew)
+                pt.update_daily(doy, Ta, PsiL=PsiL, Rew=rew_pt)
 
         # canopy leaf area index [m2 m-2]
         self.LAI = sum([pt.LAI for pt in self.planttypes])
@@ -276,8 +290,7 @@ class CanopyModel(object):
 
             # absorbed radiation by leafs [W m-2(leaf)]
             radiation_profiles['sw_absorbed'] = (
-                radiation_profiles['par']['sunlit']['absorbed'] *
-                sunlit_fraction
+                radiation_profiles['par']['sunlit']['absorbed'] * sunlit_fraction
                 + radiation_profiles['nir']['sunlit']['absorbed'] * sunlit_fraction
                 + radiation_profiles['par']['shaded']['absorbed'] *
                 (1. - sunlit_fraction)

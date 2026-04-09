@@ -10,6 +10,7 @@
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import Dict, Tuple, List
 
 from pyAPES.utils.constants import EPS
@@ -538,7 +539,11 @@ class SoilRespiration(object):
             dz[0:-1] = z_soil[1:] - z_soil[0:-1]
             dz[-1] = dz[-2]
             weights = np.exp(para['beta'] * z_soil)
+            
+            #ensure all respiration is from top 1m of the profile
+            weights[z_soil <-1.0] = 0.0
             self.weights = weights * dz / sum(weights * dz) 
+
         else:
             self.weights = np.ones(len(z_soil))
 
@@ -574,7 +579,7 @@ class SoilRespiration(object):
 
         f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
         f = np.minimum(f, 1.0)
-
+    
         # --- testing without soil water limitation
         respiration = x * f
 

@@ -85,6 +85,10 @@ class Water_1D(object):
         self.Kvsat = profile_propeties['saturated_conductivity_vertical'][self.ix]
         self.Khsat = profile_propeties['saturated_conductivity_horizontal'][self.ix]
 
+        # field capacity (pF 2.0, psi = -1.0 m) and wilting point (pF 4.2, psi = -150.0 m) per layer
+        self.theta_fc = wrc(self.pF, psi=-1.0)
+        self.theta_wp = wrc(self.pF, psi=-150.0)
+
         # initialize state
         self.update_state(model_specs['initial_condition'])
 
@@ -239,6 +243,12 @@ class Water_1D(object):
             self.h_pond = state['pond_storage']
         self.Kv = hydraulic_conductivity(self.pF, x=self.h, Ksat=self.Kvsat)
         self.Kh = hydraulic_conductivity(self.pF, x=self.h, Ksat=self.Khsat)
+
+        # relative extractable water per layer [-], 0 = wilting point, 1 = field capacity
+        denom = self.theta_fc - self.theta_wp
+        self.Rew = np.where(denom > EPS,
+                            np.clip((self.Wtot - self.theta_wp) / denom, 0.0, 1.0),
+                            0.0)
 
 #%%% SAMULI ADDING BUCKET MODEL HERE
         

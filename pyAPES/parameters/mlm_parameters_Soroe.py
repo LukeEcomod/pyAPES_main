@@ -12,11 +12,13 @@ Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 
 import numpy as np
 from pyAPES.utils.utilities import lad_weibul, lad_constant
+from pyAPES.soil.heat import sinusoidal_soil_temperature
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2019-06-15",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2019-06-30",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2019-06-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2019-06-05",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 90, # start doy (for computing initial thermal profile)
          'forc_filename' : 'forcing/Soroe/DK-Sor_forcing_2015-2020.dat', # forcing data file
          'results_directory':'results/'
          }
@@ -53,7 +55,7 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             }
 
 # --- Short- and long-wave radiation: pyAPES.microclimate.radiation.Radiation
-radiation = {'SWmodel': 'TWOSTREAM', #'ZHAOQUALLS', 
+radiation = {'SWmodel': 'ZHAOQUALLS', #'TWOSTREAM', #'ZHAOQUALLS', 
              'LWmodel': 'ZHAOQUALLS',
              'clump': 0.8,  # clumping index [-]
              'leaf_angle': 1.0,  # leaf-angle distribution [-]
@@ -81,7 +83,7 @@ pt1 = {'name': 'Beech',
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
             'pheno_cycle': False  # account for phenological cycle
             },
-        'LAImax': 6.0, # maximum annual LAI m2m-2
+        'LAImax': 5.0, # maximum annual LAI m2m-2
         'lad': lad_weibul(z, LAI=1.0, h=27.0, hb=3.0, species='generic_deciduous'),  # leaf-area density m2m-3
 
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
@@ -112,8 +114,8 @@ pt1 = {'name': 'Beech',
         # A-gs model: pyAPES.leaf.photo
         # Vcmax, Jmax: Kattge et al. 2009 leaf N scaling
         'photop': {
-            'Vcmax': 1.2*70.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC. 
-            'Jmax': 1.2*130.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
+            'Vcmax': 70.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC. 
+            'Jmax': 133.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC 1.9*Vcmax (Kattge and Knorr, 2007)
             'Rd': 2.0, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
@@ -130,6 +132,7 @@ pt1 = {'name': 'Beech',
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
             'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
             },
+            
         'leafp': {
             'lt': 0.05,     # leaf length scale [m]
             },
@@ -174,7 +177,7 @@ pt2 = { 'name': 'conifers',
         # A-gs model: pyAPES.leaf.photo
         'photop': {
             'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 1.9*50., #76.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
+            'Jmax': 95.0, # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
             'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
@@ -204,65 +207,65 @@ pt2 = { 'name': 'conifers',
             }
         }
 
-pt3 = { 'name': 'understory',
-       'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': False  # account for phenological cycle
-            },
-        'LAImax': 0.6, # maximum annual LAI m2m-2
-        'lad': lad_constant(z, LAI=1.0, h=2.0, hb=0.5),  # leaf-area density [m2 m-3]
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-        #'phenop': {
-        #    'Xo': 0.0, # initial delayed temperature [degC]
-        #    'fmin': 0.1, # minimum relative photosynthetic capacity
-        #    'Tbase': -4.7,  # base temperature [degC]
-        #    'tau': 8.33,  # time constant [d]
-        #    'smax': 15.0  # threshold for full acclimation [degC]
-         #   },
-        # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
-        #'laip': {
-        #    'lai_min': 0.1, # minimum LAI, fraction of annual maximum [-]
-        #    'lai_ini': None, # initial LAI, if None lai_ini = Lai_min * LAImax
-        #    'DDsum0': 0.0, # initial degree-day sum [degC]
-        #    'Tbase': 5.0, # base temperature for degree-day sy
-        #    'ddo': 45.0, # degree-days at bud burst [days]
-        #    'ddmat': 250.0, #degreedays at full maturation [days]
-        #    'sdl': 12.0, # day length [h] for starting autumn senecence
-        #    'sdur': 30.0 # duration [d] of senescence
-        #    },
-        # A-gs model: pyAPES.leaf.photo
-        'photop': {
-            'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 1.9*50., #76.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
-            'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
-            'tresp': { # temperature response (Kattge and Knorr, 2007)
-                'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
-                                 #             entropy factor [kJ mol-1]]
-                'Jmax': [56., 200., 646.],
-                'Rd': [33.0]
-                },
-            'alpha': 0.3,   # quantum efficiency parameter [-]
-            'theta': 0.9,   # curvature parameter [-]
-            'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
-            'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
-            },
-        'leafp': {
-            'lt': 0.02,     # leaf length scale [m]
-            },
+# pt3 = { 'name': 'understory',
+#        'ctr': {
+#             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
+#             'seasonal_LAI': False,  # account for seasonal LAI dynamics
+#             'pheno_cycle': False  # account for phenological cycle
+#             },
+#         'LAImax': 0.5, # maximum annual LAI m2m-2
+#         'lad': lad_constant(z, LAI=1.0, h=2.0, hb=0.3),  # leaf-area density [m2 m-3]
+#         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
+#         #'phenop': {
+#         #    'Xo': 0.0, # initial delayed temperature [degC]
+#         #    'fmin': 0.1, # minimum relative photosynthetic capacity
+#         #    'Tbase': -4.7,  # base temperature [degC]
+#         #    'tau': 8.33,  # time constant [d]
+#         #    'smax': 15.0  # threshold for full acclimation [degC]
+#          #   },
+#         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
+#         #'laip': {
+#         #    'lai_min': 0.1, # minimum LAI, fraction of annual maximum [-]
+#         #    'lai_ini': None, # initial LAI, if None lai_ini = Lai_min * LAImax
+#         #    'DDsum0': 0.0, # initial degree-day sum [degC]
+#         #    'Tbase': 5.0, # base temperature for degree-day sy
+#         #    'ddo': 45.0, # degree-days at bud burst [days]
+#         #    'ddmat': 250.0, #degreedays at full maturation [days]
+#         #    'sdl': 12.0, # day length [h] for starting autumn senecence
+#         #    'sdur': 30.0 # duration [d] of senescence
+#         #    },
+#         # A-gs model: pyAPES.leaf.photo
+#         'photop': {
+#             'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
+#             'Jmax': 80.0, # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
+#             'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+#             'tresp': { # temperature response (Kattge and Knorr, 2007)
+#                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
+#                                  #             entropy factor [kJ mol-1]]
+#                 'Jmax': [56., 200., 646.],
+#                 'Rd': [33.0]
+#                 },
+#             'alpha': 0.2,   # quantum efficiency parameter [-]
+#             'theta': 0.7,   # curvature parameter [-]
+#             'beta': 0.95,   # co-limitation parameter [-]
+#             'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
+#             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
+#             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
+#             'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+#             },
+#         'leafp': {
+#             'lt': 0.05,     # leaf length scale [m]
+#             },
 
-        # root zone: pyAPES.planttype.rootzone.RootUptake
-        'rootp': {
-            'root_depth': 0.5, # rooting depth [m]
-            'beta': 0.943, # root distribution shape parameter [-]
-            'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
-            'root_radius': 2.0e-3, # [m]
-            'root_conductance': 5.0e8, # [s]
-            }
-        }
+#         # root zone: pyAPES.planttype.rootzone.RootUptake
+#         'rootp': {
+#             'root_depth': 0.5, # rooting depth [m]
+#             'beta': 0.943, # root distribution shape parameter [-]
+#             'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
+#             'root_radius': 2.0e-3, # [m]
+#             'root_conductance': 5.0e8, # [s]
+#             }
+#         }
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
@@ -282,10 +285,10 @@ snowpack = {
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
 soil_respiration = {
-        'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
+        'r10': 4.0, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
         'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
-        'beta': 0.943, # root distribution shape parameter [-]
+        'beta': 0.943, # for weighting Tsoil profile to compute effective temperature for soil respiration  [-]
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
@@ -379,7 +382,7 @@ Litter = {
     'name': 'Litter',
     'layer_type': 'litter',
     'coverage': 0.9,  # [-], Note - now no litter!
-    'height': 0.03,  # [m]
+    'height': 0.05,  # [m]
     'roughness_height': 0.01,  # [m]
     'bulk_density': 45.0,  # [kg m-3]
     'max_water_content': 4.0, # [g g-1 DM]
@@ -390,8 +393,8 @@ Litter = {
 
     # -- pyAPES.bottomlayer.organiclayer.carbon.OrganicRespiration
     'respiration': {
-        'q10': 1.6,  # base heterotrophic respiration rate at 10 degC [umol m-2(ground) s-1]
-        'r10': 2.0,  # temperature sensitivity [-]
+        'r10': 2.0,  # base heterotrophic respiration rate at 10 degC [umol m-2(ground) s-1]
+        'q10': 2.0,  # temperature sensitivity [-]
         #'moisture_coeff': [add here]
     },
     'optical_properties': {
@@ -431,39 +434,53 @@ cpara = {'loc': loc,
          'radiation': radiation,
          'micromet': micromet,
          'interception': interception,
-         'planttypes': {'Beech': pt1, 'Conifers': pt2, 'Understory': pt3},
+         'planttypes': {'Beech': pt1, 'Conifers': pt2},
          'forestfloor': forestfloor
          }
 
 # --- Soil water & heat: pyAPES.soil.Soil
 
-# grid and soil properties: pF and conductivity values from Launiainen et al. (2015), Hyytiala
+# grid and soil properties
+# Soil is Alfisol / Mollisol; i.e. sandy loam to loam. Use "Textbook organic loam" parameters.
+# Assume thermal diffusivity on average 3e-7 m2s-1, giving thermal damping depth ~1.7m. Assume annual temperature is constant
+# at z=-5m.
+# Estimate initial T profile using analytic temperature wave propagation
 
 soil_grid = {#thickness of computational layers [m]
-            'dz': [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
-                   0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
-                   0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-                   0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+            'dz': [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, # 0-10cm
+                   0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, # 10-30cm
+                   0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, # 30-100cm
+                   0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, # 100-300cm
+                   0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], # 300-500cm
+            
             # bottom depth of layers with different characteristics [m]
-            'zh': [-0.05, -0.11, -0.35, -10.0]
+            'zh': [-10.0]
+         
             }
 
-soil_properties = {'pF': {  # vanGenuchten water retention parameters
-                        'ThetaS': [0.80, 0.50, 0.50, 0.41],
-                        'ThetaR': [0.01, 0.08, 0.08, 0.03],
-                        'alpha': [0.70, 0.06, 0.06, 0.05],
-                        'n': [1.25, 1.35, 1.35, 1.21]
+soil_properties = {
+                    # 'pF': {  # vanGenuchten water retention parameters
+                    #     'ThetaS': [0.80, 0.50, 0.50, 0.41],
+                    #     'ThetaR': [0.01, 0.08, 0.08, 0.03],
+                    #     'alpha': [0.70, 0.06, 0.06, 0.05],
+                    #     'n': [1.25, 1.35, 1.35, 1.21]
+                    #     },
+                    'pF': {  # vanGenuchten water retention parameter
+                        'ThetaS': [0.55],
+                        'ThetaR': [0.10],
+                        'alpha': [0.01],
+                        'n': [1.35]
                         },
-                  'saturated_conductivity_vertical': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated vertical hydraulic conductivity [m s-1]
-                  'saturated_conductivity_horizontal': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated horizontal hydraulic conductivity [m s-1]
+                  'saturated_conductivity_vertical': [1E-6],  # saturated vertical hydraulic conductivity [m s-1]
+                  'saturated_conductivity_horizontal': [1E-6],  # saturated horizontal hydraulic conductivity [m s-1]
                   'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
                   'solid_composition': {
-                         'organic': [0.1611, 0.0714, 0.1091, 0.028],
-                         'sand': [0.4743, 0.525, 0.5037, 0.5495],
-                         'silt': [0.3429, 0.3796, 0.3641, 0.3973],
-                         'clay': [0.0217, 0.0241, 0.0231, 0.0252]
+                         'organic': [0.1],
+                         'sand': [0.36],
+                         'silt': [0.36],
+                         'clay': [0.18]
                          },
-                  'freezing_curve': [0.2, 0.5, 0.5, 0.5],  # freezing curve parameter
+                  'freezing_curve': [0.5],  # freezing curve parameter
                   'bedrock': {
                               'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
                               'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -476,7 +493,7 @@ water_model = {'solve': True,
                'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
                'pond_storage_max': 0.05,  #  maximum pond depth [m]
                'initial_condition': {
-                       'ground_water_level': -2.0,  # groundwater depth [m], <=0
+                       'ground_water_level': -10.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
                        'pond_storage': 0.0  # pond depth at surface [m]
                        },
                'lower_boundary': {
@@ -496,13 +513,29 @@ water_model = {'solve': True,
                 }
 
 # --- heat model: pyAPES.soil.heat.Heat
+
+# initial temperature profile
+doy0 = gpara['start_doy'] + 30 # to correct cold bias in simulation starting Mar 1st
+zz = -np.cumsum(soil_grid['dz'])
+T_ini = sinusoidal_soil_temperature(z=zz, doy=doy0, 
+                                              T_mean=8.0, T_amplitude=10.0, 
+                                              thermal_diffusivity=3e-7
+                                    )
+# # Exponential correction for wintertime cold bias near surface:
+# # dT decays from dT_surface at z=0 to ~1% of dT_surface at z=-1m, zero below.
+# dT_surface = 2.0  # [degC] temperature correction at soil surface
+# dT = dT_surface * np.exp(5.0*zz)  # exp decay: dT(z=-1m) = 0.01 * dT_surface
+# dT[zz < -1.0] = 0.0
+# T_ini = T_ini + dT
+# print(T_ini)
+
 heat_model = {'solve': True,
               'initial_condition': {
-                      'temperature': 4.0,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
+                      'temperature': T_ini,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',
-                      'value': 4.0
+                      'value': 6.0
                       },
               }
 

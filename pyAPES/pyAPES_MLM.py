@@ -260,12 +260,17 @@ class MLM_model(object):
             # --- CanopyModel ---
             # run daily loop: updates LAI, phenology and moisture stress ---
             if self.forcing['doy'].iloc[k] != self.forcing['doy'].iloc[k-1] or k == 0:
-
+                
+                # Note! USING PRESCRIBED REW FROM FORCING FILE SHOULD BE OPTION (flag) GIVEN IN PARAMETERS
                 if 'Rew' in self.forcing:
-                    # Rew from forcing
+                    # Rew from forcing (float)
                     Rew = self.forcing['Rew'].iloc[k]
+                    
                 else:
-                    Rew = 1.0  # should be calculated in soil
+                    # extract layerwise Rew from soil.Water (array)
+                    # this is multiplied in self.canopy_model.run_daily with each PlantType's root distribution
+                    self.soil.water.Rew[:]=1.0
+                    Rew = self.soil.water.Rew 
 
                 self.canopy_model.run_daily(
                         self.forcing['doy'].iloc[k],
