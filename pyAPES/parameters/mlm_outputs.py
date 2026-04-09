@@ -246,37 +246,37 @@ logging_configuration = {
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'canopy':{
+                'pyAPES.canopy':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'microclimate':{
+                'pyAPES.microclimate':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },                          
-                'planttype':{
+                'pyAPES.planttype':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'leaf':{
+                'pyAPES.leaf':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'snow':{
+                'pyAPES.snow':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'bottomlayer':{
+                'pyAPES.bottomlayer':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'soil':{
+                'pyAPES.soil':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
@@ -322,15 +322,15 @@ parallel_logging_configuration = {
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'canopy':{
+                'pyAPES.canopy':{
                         #'handlers': ['file'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagete': True,
+                        'propagate': True,
                         },
-                'soil':{
+                'pyAPES.soil':{
                         #'handlers': ['file'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagete': True,
+                        'propagate': True,
                 },
         },
         'root': {
