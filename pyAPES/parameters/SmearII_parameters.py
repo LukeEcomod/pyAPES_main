@@ -106,19 +106,19 @@ pt1 = { 'name': 'pine',
             },
         # A-gs model: pyAPES.leaf.photo
         'photop': {
-            'Vcmax': 80, # 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 160, # 98.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
-            'Rd': 0.9, # 1.2, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 98.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
+            'Rd': 1.2, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [53., 200.0, 640.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
                                  #             entropy factor [kJ mol-1]]
                 'Jmax': [38., 200.0, 656.],
-                'Rd': [36.0], ##[33.0]
+                'Rd': [33.0]
                 },
             'alpha': 0.1,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.0, # 2.8,      # USO-model stomatal slope kPa^(0.5)
+            'g1': 2.0, #2.8,      # USO-model stomatal slope kPa^(0.5)
             'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
             'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
@@ -161,19 +161,19 @@ pt2 = { 'name': 'spruce',
             },
         # A-gs model: pyAPES.leaf.photo
         'photop': {
-            'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 98.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
-            'Rd': 1.2, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'Vcmax': 45.0, #50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 89.0, #98.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
+            'Rd': 1.1, #1.2, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [53., 200.0, 640.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
                                  #             entropy factor [kJ mol-1]]
                 'Jmax': [38., 200.0, 656.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.1,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.8,      # USO-model stomatal slope kPa^(0.5)
+            'g1': 3.0, #2.8,      # USO-model stomatal slope kPa^(0.5)
             'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
             'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
@@ -225,7 +225,7 @@ pt3 = { 'name': 'decid',
                 'Jmax': [38., 200.0, 656.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.1,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
             'g1': 5.2,      # USO-model stomatal slope kPa^(0.5)
@@ -280,7 +280,7 @@ pt4 = { 'name': 'shrubs',
                 'Jmax': [38., 200.0, 656.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.1,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
             'g1': 5.2,      # USO-model stomatal slope kPa^(0.5)
@@ -322,7 +322,8 @@ snowpack = {
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'beta': 0.943, # root distribution shape parameter [-]
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
@@ -476,29 +477,31 @@ cpara = {'loc': loc,
 
 # grid and soil properties: pF and conductivity values from Launiainen et al. (2015), Hyytiala
 
-# single soil layer
 soil_grid = {#thickness of computational layers [m]
-            'dz': [0.10],
+            'dz': [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+                   0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02,
+                   0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
+                   0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             # bottom depth of layers with different characteristics [m]
-            'zh': [-0.10]
+            'zh': [-0.05, -0.11, -0.35, -10.0]
             }
 
 soil_properties = {'pF': {  # vanGenuchten water retention parameters
-                        'ThetaS': [0.50],
-                        'ThetaR': [0.08],
-                        'alpha': [0.06],
-                        'n': [1.35]
+                        'ThetaS': [0.80, 0.50, 0.50, 0.41],
+                        'ThetaR': [0.01, 0.08, 0.08, 0.03],
+                        'alpha': [0.70, 0.06, 0.06, 0.05],
+                        'n': [1.25, 1.35, 1.35, 1.21]
                         },
-                  'saturated_conductivity_vertical': [2.1E-06],  # saturated vertical hydraulic conductivity [m s-1]
-                  'saturated_conductivity_horizontal': [2.1E-06],  # saturated horizontal hydraulic conductivity [m s-1]
+                  'saturated_conductivity_vertical': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated vertical hydraulic conductivity [m s-1]
+                  'saturated_conductivity_horizontal': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated horizontal hydraulic conductivity [m s-1]
                   'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
                   'solid_composition': {
-                          'organic': [0.1611],
-                          'sand': [0.4743],
-                          'silt': [0.3429],
-                          'clay': [0.0217]
-                          },
-                  'freezing_curve': [0.2],  # freezing curve parameter
+                         'organic': [0.1611, 0.0714, 0.1091, 0.028],
+                         'sand': [0.4743, 0.525, 0.5037, 0.5495],
+                         'silt': [0.3429, 0.3796, 0.3641, 0.3973],
+                         'clay': [0.0217, 0.0241, 0.0231, 0.0252]
+                         },
+                  'freezing_curve': [0.2, 0.5, 0.5, 0.5],  # freezing curve parameter
                   'bedrock': {
                               'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
                               'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -507,7 +510,7 @@ soil_properties = {'pF': {  # vanGenuchten water retention parameters
 
 # --- water model: pyAPES.soil.water.Water
 
-water_model = {'solve': False,
+water_model = {'solve': True,
                'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
                'pond_storage_max': 0.05,  #  maximum pond depth [m]
                'initial_condition': {
@@ -531,7 +534,7 @@ water_model = {'solve': False,
                 }
 
 # --- heat model: pyAPES.soil.heat.Heat
-heat_model = {'solve': False,
+heat_model = {'solve': True,
               'initial_condition': {
                       'temperature': 4.0,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
                       },
