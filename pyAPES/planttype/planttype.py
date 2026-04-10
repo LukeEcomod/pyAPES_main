@@ -181,8 +181,6 @@ class PlantType(object):
         # current leaf-area density [m2 m-3]
         self.lad = self.LAI * self.lad_normed
 
-        logger.debug(f'total LAI: {self.LAI}')
-
         # root properties
         self.Roots = RootUptake(p['rootp'], dz_soil, self.LAImax)
 
@@ -313,7 +311,6 @@ class PlantType(object):
         Dleaf = esat / forcing['air_pressure'] - forcing['h2o']
 
         # sunlit & shaded separately
-        breakpoint()
         self.photo_forcing = set_photo_forcing(self.photo_forcing,
                                                forcing['par']['sunlit']['incident'] *
                                                PAR_TO_UMOL,

@@ -219,7 +219,9 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
 
 }
 
-# --- logger configuration. Note! add option to define logger output file name?
+# --- logger configuration. 
+# Note! logger filename, path and can be edited in general parameters
+# by adding logging dict configuration
 logging_configuration = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -245,43 +247,43 @@ logging_configuration = {
                 '': { # root logger from pyAPES_mlm
                         'handlers': ['file', 'console'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'canopy':{
+                'pyAPES.canopy':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'microclimate':{
+                'pyAPES.microclimate':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
-                        },                          
-                'planttype':{
-                        'handlers': ['file', 'console'],
-                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'leaf':{
+                'pyAPES.planttype':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'snow':{
+                'pyAPES.leaf':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'bottomlayer':{
+                'pyAPES.snow':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
-                'soil':{
+                'pyAPES.bottomlayer':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
-                        },                        
+                        'propagate': False,
+                        },
+                'pyAPES.soil':{
+                        'handlers': ['file', 'console'],
+                        'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
+                        'propagate': False,
+                        },
                 },
         }
 
@@ -323,15 +325,15 @@ parallel_logging_configuration = {
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
                         'propagate': True,
                         },
-                'canopy':{
+                'pyAPES.canopy':{
                         #'handlers': ['file'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagete': True,
+                        'propagate': True,
                         },
-                'soil':{
+                'pyAPES.soil':{
                         #'handlers': ['file'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagete': True,
+                        'propagate': True,
                 },
         },
         'root': {

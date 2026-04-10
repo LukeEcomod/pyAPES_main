@@ -11,6 +11,7 @@ Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 """
 
 import numpy as np
+from setuptools import logging
 from pyAPES.utils.utilities import lad_weibul, lad_constant
 
 
@@ -18,7 +19,11 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2018-06-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2018-06-07",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
-         'results_directory':'results/'
+         'results_directory':'results/',
+         'logging': {
+             'directory':'logs/',# This is also given similar to results_directory
+             'filename': 'FiHy_2018.log',
+         }
          }
 
 # --- Model control flags

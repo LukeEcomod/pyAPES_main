@@ -140,3 +140,6 @@ data/*.*
 
 # UNIX opened files
 *~*
+
+# Logs
+logs/

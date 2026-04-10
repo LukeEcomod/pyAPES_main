@@ -26,10 +26,15 @@ lad_file = pathlib.Path(f'{pyAPES_main_folder}/forcing/US-Prr/BlackSpruce_relati
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2011-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2011-06-15",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2012-06-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2012-06-07",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : forcing_file, # forcing data file
-         'results_directory': 'results/' # This is given relative to pyAPES main folder or if not in .env then current working directory 
+         'results_directory': 'results/', # This is given relative to pyAPES main folder or if not in .env then current working directory 
+         'logging': {
+             'directory': 'logs/', # This is also given similar to results_directory
+             'filename': 'USPrr_2012.log'
+         }
+
          }
 
 # --- Model control flags
