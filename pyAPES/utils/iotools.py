@@ -8,11 +8,40 @@
 
 import sys
 import os
+from pathlib import Path
 import pandas as pd
 import xarray as xr
 import numpy as np
 import json
 from typing import Dict, Tuple, List
+
+def update_logging_configuration(logging_configuration, general_parameters, handler='file'):
+    """
+    Updates the log file path in logging_configuration based on gpara['logging'].
+
+    Args:
+        logging_configuration (dict): logging configuration dict
+        general_parameters (dict): gpara dict from simulation parameters
+        handler (str): name of the file handler to update (default 'file');
+            use 'parallelAPES_file' for parallel runs
+    Returns:
+        logging_configuration (dict): updated configuration
+    """
+    if 'logging' in general_parameters:
+        log_config = general_parameters['logging']
+
+        log_dir_str = log_config.get('directory', '')
+        log_dir = Path(log_dir_str) if log_dir_str else Path()
+
+        if log_dir_str:
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+        logfile = log_dir / log_config['filename']
+
+        logging_configuration['handlers'][handler]['filename'] = str(logfile)
+
+    return logging_configuration
+
 
 def initialize_netcdf(variables,
                       sim,
@@ -89,7 +118,7 @@ def initialize_netcdf(variables,
 
     return ncf, ff
 
-def write_ncf(nsim=None, results=None, ncf=None):
+def write_ncf(nsim=None, results=None, ncf=None, t_start=0):
     r"""
     Writes pyAPES_MLM results into NetCDF4-file
 
@@ -97,25 +126,50 @@ def write_ncf(nsim=None, results=None, ncf=None):
         nsim (int): simulation index
         results (dict): calculation results from group
         ncf (object): netCDF4-file handle
+        t_start (int): starting time index for writing; enables partial/chunked
+            writes. Default 0 writes from the beginning (full-simulation write).
     """
+
+    # Variables without a time dimension written only once
+    static_keys = {'soil_z', 'canopy_z', 'canopy_planttypes', 'ffloor_groundtypes'}
 
     keys = results.keys()
     variables = ncf.variables.keys()
 
+    # Determine chunk length from the first time-varying result array.
+    # Needed to compute the write slice [t_start : t_start + chunk_len].
+    # For a full-simulation write chunk_len == Nsteps; for periodic writes
+    # it equals the number of timesteps in the current interval.
+    chunk_len = None
     for key in keys:
+        if key in variables and key != 'date' and key not in static_keys:
+            arr = np.asarray(results[key])
+            if arr.ndim >= 1:
+                chunk_len = arr.shape[0]
+                break
 
-        if key in variables and key != 'time':
-            length = np.asarray(results[key]).ndim
-            # if key == 'canopy_planttypes':
-            #     print(key, length, type(results[key]), results[key], np.shape(ncf[key]))
-            if length > 1:
-                ncf[key][:, nsim, :] = results[key]
-            elif key == 'soil_z' or key == 'canopy_z' or \
-                 key == 'canopy_planttypes' or key == 'ffloor_groundtypes':
-                if nsim == 0:
-                    ncf[key][:] = results[key]
+    for key in keys:
+        if key in variables and key != 'date':
+            arr = np.asarray(results[key])
+
+            if key in static_keys:
+                # Static grid/metadata arrays have no time dimension.
+                # Write only once: first simulation, first chunk.
+                if nsim == 0 and t_start == 0:
+                    ncf[key][:] = arr
+
+            elif arr.ndim > 1:
+                # Time-varying arrays with spatial/type dimensions:
+                #   (date, simulation, canopy/soil/planttype/groundtype)   ndim=2
+                #   (date, simulation, planttype, canopy)                  ndim=3
+                # nsim selects the simulation column; trailing ':' covers
+                # all remaining spatial/type dimensions regardless of count.
+                ncf[key][t_start:t_start + chunk_len, nsim, :] = arr
+
             else:
-                ncf[key][:, nsim] = results[key]
+                # Time-varying scalars stored as (date, simulation) in NCF
+                # but as 1-D [Nsteps] arrays in results.
+                ncf[key][t_start:t_start + chunk_len, nsim] = arr
 
 
 def read_forcing(forcing_file: str, start_time: str, end_time: str,
