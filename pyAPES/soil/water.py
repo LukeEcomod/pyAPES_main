@@ -86,6 +86,7 @@ class Water_1D(object):
         self.Khsat = profile_propeties['saturated_conductivity_horizontal'][self.ix]
 
         # field capacity (pF 2.0, psi = -1.0 m) and wilting point (pF 4.2, psi = -150.0 m) per layer
+        self.theta_s = self.pF['ThetaS']
         self.theta_fc = wrc(self.pF, psi=-1.0)
         self.theta_wp = wrc(self.pF, psi=-150.0)
 

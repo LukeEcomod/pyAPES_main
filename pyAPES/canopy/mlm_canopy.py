@@ -19,7 +19,7 @@ import numpy as np
 from typing import List, Dict, Tuple
 
 from pyAPES.utils.constants import MOLAR_MASS_H2O, EPS, STEFAN_BOLTZMANN, DEG_TO_KELVIN, WATER_DENSITY
-from pyAPES.microclimate.radiation_old import Radiation
+from pyAPES.microclimate.radiation import Radiation
 from pyAPES.microclimate.micromet import Micromet
 from pyAPES.planttype.planttype import PlantType
 
@@ -177,19 +177,19 @@ class CanopyModel(object):
         for pt in self.planttypes:
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
-
+                
+                """This could go to rootzone?"""
                 # effective REW: relative root area density weighted average over root zone layers
                 if not isinstance(Rew, float):
                     # "uncompensated water uptake": Rew is weighted sum of all root zone layers
-                    #rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)  # [-] normalized root distribution
-                    #rew_pt = float(np.clip(np.sum(rel_rad * Rew[pt.Roots.ix]), 0.0, 1.0))
+                    rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)  # [-] normalized root distribution
+                    rew_pt = float(np.clip(np.sum(rel_rad * Rew[pt.Roots.ix]), 0.0, 1.0))
 
                     # "bulk root zone properties": Rew is arithmetic mean over root zone layers
-                    rew_pt = np.mean(Rew[pt.Roots.ix])
+                    #rew_pt = np.mean(Rew[pt.Roots.ix])
                     #print(pt.name, rew_pt)
                 else:
                     rew_pt = Rew
-                    
                     
                 # updates pt properties
                 pt.update_daily(doy, Ta, PsiL=PsiL, Rew=rew_pt)

@@ -16,8 +16,8 @@ from pyAPES.soil.heat import sinusoidal_soil_temperature
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2019-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2019-06-05",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2019-04-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2019-06-30",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 90, # start doy (for computing initial thermal profile)
          'forc_filename' : 'forcing/Soroe/DK-Sor_forcing_2015-2020.dat', # forcing data file
          'results_directory':'results/'
@@ -81,22 +81,23 @@ pt1 = {'name': 'Beech',
        'ctr': {
             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
-            'pheno_cycle': False  # account for phenological cycle
+            'pheno_cycle': 'decid',  # account for seasonal Vcmax25, Jmax25 dynamics
             },
         'LAImax': 5.0, # maximum annual LAI m2m-2
         'lad': lad_weibul(z, LAI=1.0, h=27.0, hb=3.0, species='generic_deciduous'),  # leaf-area density m2m-3
 
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-        # For deciduous, LAI-cycle is more central and this has not been tested. 
-        # Run with pheno_cycle = False
-
-        # 'phenop': {
-        #     'Xo': 0.0, # initial delayed temperature [degC]
-        #     'fmin': 0.1, # minimum relative photosynthetic capacity
-        #     'Tbase': -4.7,  # base temperature [degC]
-        #     'tau': 8.33,  # time constant [d]
-        #     'smax': 15.0  # threshold for full acclimation [degC]
-        #     },
+        # seasonal cycle of photosynthetic capacity: pyAPES.planttype.phenology.Photo_cycle_decid
+        # Three-phase exponential model following Wilson et al. (2001) PCE Fig. 4.
+        # Parameters shared with laip where applicable.
+        'phenop': {
+            'Tbase': 5.0,   # base temperature for DDsum [degC]  (= laip Tbase)
+            'ddo': 95.0,    # DDsum at bud burst [degC d]         (= laip ddo)
+            'ddmat': 162.0, # DDsum at full maturity [degC d]     (= laip ddmat)
+            'sdl': 10.5,    # daylength at senescence onset [h]   (= laip sdl)
+            'sdur': 34.0,   # senescence duration [days]          (= laip sdur)
+            'f_sso': 0.7,   # relative Vcmax at senescence onset [-]
+            'fmin': 0.1,   # minimum relative capacity (winter) [-]
+            },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle.
         # Source: Pilegard & Ibrom, 2020. Tellus.  LAI_cycle model parameterized agaist their Fig. 1.
 
@@ -111,11 +112,13 @@ pt1 = {'name': 'Beech',
             'sdur': 34.0 # duration [d] of senescence
             },
 
+
+
         # A-gs model: pyAPES.leaf.photo
         # Vcmax, Jmax: Kattge et al. 2009 leaf N scaling
         'photop': {
-            'Vcmax': 70.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC. 
-            'Jmax': 133.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC 1.9*Vcmax (Kattge and Knorr, 2007)
+            'Vcmax': 80.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC. 
+            'Jmax': 128.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC 1.9*Vcmax (Kattge and Knorr, 2007)
             'Rd': 2.0, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
@@ -139,7 +142,7 @@ pt1 = {'name': 'Beech',
 
         # root zone: pyAPES.planttype.rootzone.RootUptake
         'rootp': {
-            'root_depth': 0.5, # rooting depth [m]
+            'root_depth': 0.7, # rooting depth [m]
             'beta': 0.943, # root distribution shape parameter [-]
             'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
             'root_radius': 2.0e-3, # [m]
@@ -151,18 +154,19 @@ pt2 = { 'name': 'conifers',
        'ctr': {
             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
             'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': False  # account for phenological cycle
+            'pheno_cycle': None # 'decid', 'conifer', None account for seasonal Vcmax25, Jmax25 dynamics
             },
         'LAImax': 1.0, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=20.0, hb=1.0),  # leaf-area density [m2 m-3]
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-        #'phenop': {
-        #    'Xo': 0.0, # initial delayed temperature [degC]
-        #    'fmin': 0.1, # minimum relative photosynthetic capacity
-        #    'Tbase': -4.7,  # base temperature [degC]
-        #    'tau': 8.33,  # time constant [d]
-        #    'smax': 15.0  # threshold for full acclimation [degC]
-         #   },
+
+        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle_conif
+        'phenop': {
+           'Xo': 0.0, # initial delayed temperature [degC]
+           'fmin': 0.1, # minimum relative photosynthetic capacity
+           'Tbase': -4.7,  # base temperature [degC]
+           'tau': 8.33,  # time constant [d]
+           'smax': 15.0  # threshold for full acclimation [degC]
+           },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         #'laip': {
         #    'lai_min': 0.1, # minimum LAI, fraction of annual maximum [-]
@@ -177,7 +181,7 @@ pt2 = { 'name': 'conifers',
         # A-gs model: pyAPES.leaf.photo
         'photop': {
             'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 95.0, # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
+            'Jmax': 80.0, # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
             'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
@@ -206,66 +210,6 @@ pt2 = { 'name': 'conifers',
             'root_conductance': 5.0e8, # [s]
             }
         }
-
-# pt3 = { 'name': 'understory',
-#        'ctr': {
-#             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-#             'seasonal_LAI': False,  # account for seasonal LAI dynamics
-#             'pheno_cycle': False  # account for phenological cycle
-#             },
-#         'LAImax': 0.5, # maximum annual LAI m2m-2
-#         'lad': lad_constant(z, LAI=1.0, h=2.0, hb=0.3),  # leaf-area density [m2 m-3]
-#         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-#         #'phenop': {
-#         #    'Xo': 0.0, # initial delayed temperature [degC]
-#         #    'fmin': 0.1, # minimum relative photosynthetic capacity
-#         #    'Tbase': -4.7,  # base temperature [degC]
-#         #    'tau': 8.33,  # time constant [d]
-#         #    'smax': 15.0  # threshold for full acclimation [degC]
-#          #   },
-#         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
-#         #'laip': {
-#         #    'lai_min': 0.1, # minimum LAI, fraction of annual maximum [-]
-#         #    'lai_ini': None, # initial LAI, if None lai_ini = Lai_min * LAImax
-#         #    'DDsum0': 0.0, # initial degree-day sum [degC]
-#         #    'Tbase': 5.0, # base temperature for degree-day sy
-#         #    'ddo': 45.0, # degree-days at bud burst [days]
-#         #    'ddmat': 250.0, #degreedays at full maturation [days]
-#         #    'sdl': 12.0, # day length [h] for starting autumn senecence
-#         #    'sdur': 30.0 # duration [d] of senescence
-#         #    },
-#         # A-gs model: pyAPES.leaf.photo
-#         'photop': {
-#             'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-#             'Jmax': 80.0, # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC*50
-#             'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
-#             'tresp': { # temperature response (Kattge and Knorr, 2007)
-#                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
-#                                  #             entropy factor [kJ mol-1]]
-#                 'Jmax': [56., 200., 646.],
-#                 'Rd': [33.0]
-#                 },
-#             'alpha': 0.2,   # quantum efficiency parameter [-]
-#             'theta': 0.7,   # curvature parameter [-]
-#             'beta': 0.95,   # co-limitation parameter [-]
-#             'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
-#             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
-#             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-#             'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
-#             },
-#         'leafp': {
-#             'lt': 0.05,     # leaf length scale [m]
-#             },
-
-#         # root zone: pyAPES.planttype.rootzone.RootUptake
-#         'rootp': {
-#             'root_depth': 0.5, # rooting depth [m]
-#             'beta': 0.943, # root distribution shape parameter [-]
-#             'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
-#             'root_radius': 2.0e-3, # [m]
-#             'root_conductance': 5.0e8, # [s]
-#             }
-#         }
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
@@ -468,7 +412,7 @@ soil_properties = {
                     'pF': {  # vanGenuchten water retention parameter
                         'ThetaS': [0.55],
                         'ThetaR': [0.10],
-                        'alpha': [0.01],
+                        'alpha': [0.02],
                         'n': [1.35]
                         },
                   'saturated_conductivity_vertical': [1E-6],  # saturated vertical hydraulic conductivity [m s-1]

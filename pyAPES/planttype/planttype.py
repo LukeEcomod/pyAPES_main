@@ -50,7 +50,7 @@ from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS, H2O_CO2_RATIO
 
-from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle
+from pyAPES.planttype.phenology import LAI_cycle, Photo_cycle_conifer, Photo_cycle_decid
 from pyAPES.planttype.rootzone import RootUptake
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class PlantType(object):
                 'ctr' (dict): switches and specifications for computation
                     'WaterStress' (str): account for water stress using 'Rew', 'PsiL' or 'None'
                     'seasonal_LAI' (bool): account for seasonal LAI dynamics
-                    'pheno_cycle' (bool): account for phenological cycle
+                    'pheno_cycle' (str): account for seasonal Vcmax, Jmax, Rd dynamics
                 
                 'LAImax' (float): maximum leaf area index [m2m-2]
                 'lad' (array): normalized leaf area density profile [m2m-3]
@@ -161,15 +161,19 @@ class PlantType(object):
 
         self.name = p['name']
 
-        # seasonal phenology model
-        if self.Switch_pheno:
-            self.Pheno_Model = Photo_cycle(
-                p['phenop'], X)  # phenology model instance
+        # seasonal phenology model to scale Vcmax25
+        if self.Switch_pheno == 'conifer':
+            self.Pheno_Model = Photo_cycle_conifer(p['phenop'])  # phenology model instance
             self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
+        
+        elif self.Switch_pheno == 'decid':
+            self.Pheno_Model = Photo_cycle_decid(p['phenop'], loc)  # phenology model instance
+            self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
+        
         else:
             self.pheno_state = 1.0
 
-        # dynamic LAI model
+        # dynamic LAI
         if self.Switch_lai:
             # seasonality of leaf area
             self.LAI_Model = LAI_cycle(p['laip'], loc, DDsum)  # LAI model instance
@@ -204,7 +208,10 @@ class PlantType(object):
 
         # leaf properties
         self.leafp = p['leafp']  # leaf properties (dict)
-
+        
+        # leaf water potential and rootzone relatively extractable water (set in update daily)
+        self.PsiL = None
+        self.Rew = None
         # print(self.name, self.mask)
 
     def update_daily(self, doy, T, PsiL=0.0, Rew=1.0) -> None:
@@ -221,7 +228,7 @@ class PlantType(object):
         """
 
         if self.Switch_pheno:
-            self.pheno_state = self.Pheno_Model.run(T, out=True)
+            self.pheno_state = self.Pheno_Model.run(doy, T, out=True)
 
         if self.Switch_lai:
             self.relative_LAI = self.LAI_Model.run(doy, T, out=True)
@@ -244,7 +251,9 @@ class PlantType(object):
 
         # water stress responses: move into own sub-models?
         if self.Switch_WaterStress == 'Rew':
+            self.Rew = Rew
             # drought responses from Hyde scots pine shoot chambers, 2006; for 'Medlyn - model' only
+            # Rew is relatively extractable water in the bulk root zone
             b = self.photop['drp']
             fm = np.minimum(1.0, (Rew / b[0])**b[1])
             self.photop['g1'] = fm * self.photop0['g1']
@@ -256,6 +265,7 @@ class PlantType(object):
             self.photop['Rd'] *= fv
 
         if self.Switch_WaterStress == 'PsiL':
+            self.PsiL = PsiL
             PsiL = np.minimum(-1e-5, PsiL)
             b = self.photop0['drp']
 

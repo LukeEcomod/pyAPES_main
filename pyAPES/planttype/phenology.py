@@ -5,22 +5,22 @@
 .. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
 Describes seasonal cycle of photosynthetic capacity and leaf-area development in a PlantType.
-
+For seasonal scaling of Vcmax25, Jmax25, Rd25 different functions for conifers and deciduous
 """
 
 import numpy as np
 from typing import Dict, List, Tuple
 from pyAPES.utils.constants import DEG_TO_RAD
 
-class Photo_cycle(object):
+class Photo_cycle_conifer(object):
     r"""
-    Seasonal cycle of photosynthetic machinery.
+    Seasonal cycle of photosynthetic machinery in conifers.
 
     References:
         Kolari et al. 2007 Tellus.
     """
-    def __init__(self, p: Dict, X: float=0.0):
-        r""" Initializes photo cycle model.
+    def __init__(self, p: Dict):
+        r""" Initializes photo cycle model for conifers.
 
         Args:
             p (dict):
@@ -42,9 +42,9 @@ class Photo_cycle(object):
         self.X = p['Xo']  # initial delayed temperature (degC)
         self.f = 1.0  # relative photocapacity
 
-    def run(self, T: float, out: bool=False):
+    def run(self, doy: float, T: float, out: bool=False):
         r"""
-        Computes & updates stage of temperature acclimation and relative photosynthetic capacity.
+        Calculate modifier once per pday
 
         Args:
             T (float): mean daily air temperature [degC]
@@ -52,15 +52,118 @@ class Photo_cycle(object):
 
         NOTE: Call once per day
         """
-        self.X = self.X + 1.0 / self.tau * (T - self.X)  # degC
+        if doy == 0:
+            self.X = 0.0
+            self.f = self.fmin
+        else:
 
-        S = np.maximum(self.X - self.Tbase, 0.0)
-        self.f = np.maximum(self.fmin,
+            self.X = self.X + 1.0 / self.tau * (T - self.X)  # degC
+
+            S = np.maximum(self.X - self.Tbase, 0.0)
+            self.f = np.maximum(self.fmin,
                             np.minimum(S / (self.Smax - self.Tbase), 1.0))
 
         if out:
             return self.f
+        
+class Photo_cycle_decid(object):
+    """
+    DDsum + daylength three-phase seasonal acclimation of photosynthetic capacity.
+    Modifier scalar for Vcmax25, Jmax25, Rd25.
 
+    Reference: Following three-stage Vcmax-pattern inspired by
+    Wilson, K.B., Baldocchi, D.D. and Hanson, P.J. (2001): Leaf age affects the seasonal
+    pattern of photosynthetic capacity and net ecosystem exchange of carbon in a deciduous 
+    forest. Plant, Cell & Environment, 24: 571-583. https://doi.org/10.1046/j.0016-8025.2001.00706.x
+
+    """
+
+    def __init__(self, p: Dict, loc: Dict):
+        """
+        Args:
+
+        Parameters (p dict)
+        -------------------
+        Tbase : base temperature for DDsum accumulation [degC]
+        ddo   : DDsum at bud burst [degC d]
+        ddmat : DDsum at full Vcmax maturity [degC d]
+        sdl   : daylength threshold for senescence onset [h]
+        sdur  : senescence duration [days]
+        f_sso : relative Vcmax at senescence onset [-]
+        fmin  : winter minimum [-]
+
+        loc dict must contain 'lat' and 'lon' [decimal degrees].
+        """
+        self.Tbase = p['Tbase']
+        self.ddo   = p['ddo']
+        self.ddmat = p['ddmat']
+        self.sdl   = p['sdl']
+        self.sdur  = p['sdur']
+        self.f_sso = p['f_sso']
+        self.fmin  = p['fmin']
+
+        # precompute sso: last post-solstice DOY where daylength >= sdl
+        doys     = np.arange(1, 366)
+        dl_arr   = daylength(lat=loc['lat'], lon=loc['lon'], doy=doys)
+        post_sol = doys > 172
+        mask     = (dl_arr >= self.sdl) & post_sol
+        self.sso = int(doys[mask][-1]) if mask.any() else 258
+
+        self.DDsum   = 0.0
+        self.mat_doy = None   # first DOY ddmat was exceeded
+        self.f       = self.fmin
+
+    def run(self, doy: float, T: float, out: bool=False):
+        """
+        Call once per day.
+
+        Parameters
+        ----------
+        doy (int): day of year (1–365)
+        T (float): mean daily air temperature [degC]
+        out (bool): True returns modifier value
+
+        Returns:
+            f (float):  relative Vcmax modifier [-]
+        """
+        fmin  = self.fmin
+        f_sso = self.f_sso
+        sso   = self.sso
+
+        # reset DDsum at start of each year
+        if doy == 1:
+            self.DDsum   = 0.0
+            self.mat_doy = None
+
+        self.DDsum += np.maximum(0.0, T - self.Tbase)
+
+        # phase 1: exponential spring recovery (fmin → 1.0)
+        if self.DDsum <= self.ddo:
+            f = fmin
+        elif self.DDsum < self.ddmat:
+            t = (self.DDsum - self.ddo) / (self.ddmat - self.ddo)
+            f = fmin * (1.0 / fmin) ** t
+        else:
+            f = 1.0
+
+        # phase 2: exponential summer decline (1.0 → f_sso)
+        if self.DDsum >= self.ddmat and doy <= sso:
+            if self.mat_doy is None:
+                self.mat_doy = doy
+            span = max(1, sso - self.mat_doy)
+            t = min(1.0, max(0.0, (doy - self.mat_doy) / span))
+            f = f_sso ** t
+
+        # phase 3: exponential senescence (f_sso → fmin)
+        if doy > sso:
+            t = min(1.0, (doy - sso) / self.sdur)
+            f = max(fmin, f_sso * (fmin / f_sso) ** t)
+
+        self.f = f
+
+        if out:
+            return self.f
+    
 class LAI_cycle(object):
     r"""
     Describes seasonal cycle of leaf-area index (LAI)

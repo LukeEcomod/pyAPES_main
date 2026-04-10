@@ -293,6 +293,7 @@ def kbeam(zen: float, x: float=1.0) -> float:
     """
 
     zen = np.array(zen)
+    zen[zen > 90.0 * DEG_TO_RAD] = 90.0 * DEG_TO_RAD
     x = np.array(x)
 
     XN1 = (np.sqrt(x*x + np.tan(zen)**2))
@@ -540,9 +541,6 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     # Physical interpretation: only the outer clump surface (fraction Clump of physical LAI)
     # is exposed to direct beam; the inner (1-Clump) fraction is always within-clump self-shaded.
     f_slo_true = Clump * f_slo
-    
-    if Zen <= 0:
-        f_slo_true[:]= EPS
 
     # interpolate diffuse fluxes
     X = np.flipud(Lcumo)
