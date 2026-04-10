@@ -9,6 +9,7 @@ Main module for soil water and heat budget.
 
 import numpy as np
 import pandas as pd
+import logging
 from datetime import datetime
 from matplotlib import pyplot as plt
 from typing import Dict, List, Tuple
@@ -21,6 +22,7 @@ from pyAPES.soil.heat import Heat_1D
 #from .water import Water
 #from .heat import Heat
 
+logger = logging.getLogger(__name__)
 class Soil_1D(object):
 
     def __init__(self, p: Dict):
