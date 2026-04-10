@@ -15,8 +15,8 @@ from pyAPES.pyAPES_MLM import driver
 from pyAPES.parameters.mlm_parameters_US_Prr import gpara, cpara, spara
 
 # Edit the start and end time of the simulation
-gpara['start_time'] = '2013-06-01'
-gpara['end_time'] = '2013-07-31'
+gpara['start_time'] = '2012-06-01'
+gpara['end_time'] = '2012-07-31'
 
 forcing = read_forcing(
     forcing_file=gpara['forc_filename'],
@@ -36,5 +36,5 @@ params = {
 
 resultfile, Model = driver(parameters=params,
                            create_ncf=True,
-                           result_file= 'USPrr_2013.nc'
+                           result_file= 'USPrr_2012.nc'
                           )

@@ -247,43 +247,43 @@ logging_configuration = {
                 '': { # root logger from pyAPES_mlm
                         'handlers': ['file', 'console'],
                         'level': 'INFO',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.canopy':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.microclimate':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
-                        },                          
+                        'propagate': False,
+                        },
                 'pyAPES.planttype':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.leaf':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.snow':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.bottomlayer':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
+                        'propagate': False,
                         },
                 'pyAPES.soil':{
                         'handlers': ['file', 'console'],
                         'level': 'DEBUG',  # CRITICAL, ERROR, WARNING, INFO, DEBUG
-                        'propagate': True,
-                        },                        
+                        'propagate': False,
+                        },
                 },
         }
 

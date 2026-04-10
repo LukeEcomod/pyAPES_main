@@ -84,7 +84,6 @@ def driver(parameters,
         logging_configuration, parameters['general'])
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
-    logger.info(f'Logging configured. {logging_configuration}')
 
     # --- Check parameters
 
