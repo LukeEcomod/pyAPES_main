@@ -84,6 +84,7 @@ def driver(parameters,
         logging_configuration, parameters['general'])
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
+    logger.info(f'Logging configured. {logging_configuration}')
 
     # --- Check parameters
 
@@ -498,7 +499,7 @@ def _update_logging_configuration(logging_configuration: dict, general_parameter
         log_config = general_parameters['logging']
 
         #Get logging folder if specified, otherwise empty string
-        log_dir_str = log_config.get('path', '')
+        log_dir_str = log_config.get('directory', '')
         log_dir = Path(log_dir_str) if log_dir_str else Path()
 
         # Create logging directory if not exists
