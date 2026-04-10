@@ -160,6 +160,7 @@ class Soil_1D(object):
                 'hydraulic_conductivity' [m s-1]
                 'thermal_conductivity [W m-1 s-1]
         """
+        logger.info('Hello from soil run')
         fluxes = {}
 
         if self.solve_water:

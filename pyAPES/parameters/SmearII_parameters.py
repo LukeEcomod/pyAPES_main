@@ -21,10 +21,8 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
          'results_directory':'results/',
          'logging': {
-             'log_directory':'logs/',
-             'log_filename': 'FiHy_2018.log',
-             'log_level': logging.INFO
-
+             'directory':'logs/',
+             'filename': 'FiHy_2018.log',
          }
          }
 

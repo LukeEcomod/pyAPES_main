@@ -219,7 +219,9 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
 
 }
 
-# --- logger configuration. Note! add option to define logger output file name?
+# --- logger configuration. 
+# Note! logger filename, path and can be edited in general parameters
+# by adding logging dict configuration
 logging_configuration = {
         'version': 1,
         'disable_existing_loggers': False,

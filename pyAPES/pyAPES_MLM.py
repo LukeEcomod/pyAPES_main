@@ -35,6 +35,8 @@ Todo:
       now see tools.iotools.read_forcing for documentation!
 
 """
+from pathlib import Path
+
 import numpy as np
 import time
 import logging
@@ -47,12 +49,13 @@ from pyAPES.soil.soil import Soil_1D
 
 from pyAPES.utils.constants import WATER_DENSITY
 
+
 def driver(parameters,
-           create_ncf=False, 
+           create_ncf=False,
            result_file=None):
     """
     Driver for pyAPES_MLM multi-layer model. Gets parameters and forcing as argument, prepares output files, runs model.
-    
+
     Args:
         parameters (dict/list): either single parameter dictionary or list of parameter dictionaries
 
@@ -66,7 +69,7 @@ def driver(parameters,
     # --- CONFIGURATION PARAMETERS of LOGGING and NetCDF -outputs read
     from pyAPES.parameters.mlm_outputs import output_variables, logging_configuration
     from logging.config import dictConfig
-    
+
     # --- dotenv for loading pyAPES folder path ---
     import os
     from dotenv import load_dotenv
@@ -77,20 +80,23 @@ def driver(parameters,
         pyapes_main_folder = os.getcwd()
 
     # --- Config logger
+    logging_configuration = _update_logging_configuration(
+        logging_configuration, parameters['general'])
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
     # --- Check parameters
 
     if isinstance(parameters, dict):
-        Nsim = 1 # number of simulations
+        Nsim = 1  # number of simulations
         parameters = [parameters]
     elif isinstance(parameters, list):
         Nsim = len(parameters)
     else:
         raise TypeError('Parameters should be either dict or list.')
 
-    logger.info('pyAPES_MLM simulation started. Number of simulations: {}'.format(Nsim))
+    logger.info(
+        'pyAPES_MLM simulation started. Number of simulations: {}'.format(Nsim))
 
     # --- Run simulations
 
@@ -98,7 +104,7 @@ def driver(parameters,
 
     for k in range(Nsim):
         tasks.append(
-                MLM_model(
+            MLM_model(
                 parameters[k]['general']['dt'],
                 parameters[k]['canopy'],
                 parameters[k]['soil'],
@@ -108,8 +114,8 @@ def driver(parameters,
             )
         )
 
-    if create_ncf: # outputs to NetCDF-file, returns filename
-        gpara = parameters[0]['general'] # same for all tasks
+    if create_ncf:  # outputs to NetCDF-file, returns filename
+        gpara = parameters[0]['general']  # same for all tasks
         timestr = time.strftime('%Y%m%d%H%M')
         if result_file:
             filename = result_file
@@ -119,39 +125,41 @@ def driver(parameters,
         time_index = parameters[0]['forcing'].index
 
         ncf, _ = initialize_netcdf(
-                output_variables['variables'],
-                Nsim,
-                tasks[k].Nsoil_nodes,
-                tasks[k].Ncanopy_nodes,
-                tasks[k].Nplant_types,
-                tasks[k].Nground_types,
-                time_index=time_index,
-                filepath=gpara['results_directory'],
-                filename=filename)
+            output_variables['variables'],
+            Nsim,
+            tasks[k].Nsoil_nodes,
+            tasks[k].Ncanopy_nodes,
+            tasks[k].Nplant_types,
+            tasks[k].Nground_types,
+            time_index=time_index,
+            filepath=gpara['results_directory'],
+            filename=filename)
 
         for task in tasks:
             logger.info('Running simulation number (start time %s): %s' % (
                         time.strftime('%Y-%m-%d %H:%M'), task.Nsim))
             running_time = time.time()
             results = task.run()
-            logger.info('Running time %.2f seconds' % (time.time() - running_time))
+            logger.info('Running time %.2f seconds' %
+                        (time.time() - running_time))
             write_ncf(nsim=task.Nsim, results=results, ncf=ncf)
 
             del results
-        output_file = pyapes_main_folder + '/' + gpara['results_directory'] + filename
+        output_file = pyapes_main_folder + '/' + \
+            gpara['results_directory'] + filename
         logger.info('Ready! Results are in: ' + output_file)
 
         ncf.close()
 
         return output_file, tasks[0]
 
-    else: # returns dictionary of outputs
+    else:  # returns dictionary of outputs
         running_time = time.time()
         results = {task.Nsim: task.run() for task in tasks}
 
         logger.info('Running time %.2f seconds' % (time.time() - running_time))
 
-        return results, tasks[0] # this would return also 1st Model instance
+        return results, tasks[0]  # this would return also 1st Model instance
 
 
 class MLM_model(object):
@@ -162,14 +170,15 @@ class MLM_model(object):
     between these components and writing results.
 
     """
-    def __init__(self, 
+
+    def __init__(self,
                  dt: float,
                  canopy_para: Dict,
                  soil_para: Dict,
-                 forcing: Dict, # or pd.DataFrame
+                 forcing: Dict,  # or pd.DataFrame
                  outputs: Dict,
-                 nsim: int=0
-                ):
+                 nsim: int = 0
+                 ):
 
         self.dt = dt
 
@@ -194,28 +203,31 @@ class MLM_model(object):
         self.soil = Soil_1D(soil_para)
 
         # create canopy model instance
-        
+
         # initial delayed temperature and degreedaysum for pheno & LAI-models
         if canopy_para['ctr']['pheno_cycle'] and 'X' in forcing:
             for pt in list(canopy_para['planttypes'].keys()):
-                canopy_para['planttypes'][pt]['phenop'].update({'Xo': forcing['X'].iloc[0]})
-        
+                canopy_para['planttypes'][pt]['phenop'].update(
+                    {'Xo': forcing['X'].iloc[0]})
+
         if canopy_para['ctr']['seasonal_LAI'] and 'DDsum' in forcing:
             for pt in list(canopy_para['planttypes'].keys()):
-                canopy_para['planttypes'][pt]['laip'].update({'DDsum0': forcing['DDsum'].iloc[0]})
+                canopy_para['planttypes'][pt]['laip'].update(
+                    {'DDsum0': forcing['DDsum'].iloc[0]})
 
         self.canopy_model = CanopyModel(canopy_para, self.soil.grid['dz'])
 
         self.Nplant_types = len(self.canopy_model.planttypes)
-        self.Nground_types = len(self.canopy_model.forestfloor.bottomlayer_types)
+        self.Nground_types = len(
+            self.canopy_model.forestfloor.bottomlayer_types)
 
         # initialize temorary structure to save results
         self.results = _initialize_results(outputs,
-                                       self.Nsteps,
-                                       self.Nsoil_nodes,
-                                       self.Ncanopy_nodes,
-                                       self.Nplant_types,
-                                       self.Nground_types)
+                                           self.Nsteps,
+                                           self.Nsoil_nodes,
+                                           self.Ncanopy_nodes,
+                                           self.Nplant_types,
+                                           self.Nground_types)
 
     def run(self):
         """
@@ -235,10 +247,10 @@ class MLM_model(object):
             dirPar: Direct PAR [W m-2]
             diffNir: Diffuse NIR [W m- 2]
             dirNir: Direct NIR [W m-2]
-        
+
         Args:
             self (object)
-        
+
         Returns:
             self.results (dict)
         """
@@ -247,14 +259,14 @@ class MLM_model(object):
         logger.info('Running simulation {}'.format(self.Nsim))
         time0 = time.time()
 
-        #print('RUNNING')
-        k_steps=np.arange(0, self.Nsteps, int(self.Nsteps/10))
+        # print('RUNNING')
+        k_steps = np.arange(0, self.Nsteps, int(self.Nsteps/10))
 
         for k in range(0, self.Nsteps):
-            #print(k)
+            # print(k)
             # --- print progress on screen
             if k in k_steps[:-1]:
-                s = str(np.where(k_steps==k)[0][0]*10) + '%'
+                s = str(np.where(k_steps == k)[0][0]*10) + '%'
                 print('{0}..'.format(s), end=' ')
 
             # --- CanopyModel ---
@@ -268,17 +280,19 @@ class MLM_model(object):
                     Rew = 1.0  # should be calculated in soil
 
                 self.canopy_model.run_daily(
-                        self.forcing['doy'].iloc[k],
-                        self.forcing['Tdaily'].iloc[k],
-                        Rew=Rew)
+                    self.forcing['doy'].iloc[k],
+                    self.forcing['Tdaily'].iloc[k],
+                    Rew=Rew)
 
             # compile forcing dict for canopy model: soil_ refers to state of soil model
             canopy_forcing = {
                 'wind_speed': self.forcing['U'].iloc[k],            # [m s-1]
-                'friction_velocity': self.forcing['Ustar'].iloc[k], # [m s-1]
+                'friction_velocity': self.forcing['Ustar'].iloc[k],  # [m s-1]
                 'air_temperature': self.forcing['Tair'].iloc[k],    # [deg C]
-                'precipitation': self.forcing['Prec'].iloc[k],      # [kg m-2 s-1]
-                'h2o': self.forcing['H2O'].iloc[k],                 # [mol mol-1]
+                # [kg m-2 s-1]
+                'precipitation': self.forcing['Prec'].iloc[k],
+                # [mol mol-1]
+                'h2o': self.forcing['H2O'].iloc[k],
                 'co2': self.forcing['CO2'].iloc[k],                 # [ppm]
                 'PAR': {'direct': self.forcing['dirPar'].iloc[k],   # [W m-2]
                         'diffuse': self.forcing['diffPar'].iloc[k]},
@@ -291,11 +305,12 @@ class MLM_model(object):
                 # from soil model
                 'soil_temperature': self.soil.heat.T,         # [deg C]
                 'soil_water_potential': self.soil.water.h,    # [m]
-                'soil_volumetric_water': self.soil.heat.Wliq, # total water content [m3 m-3]
+                # total water content [m3 m-3]
+                'soil_volumetric_water': self.soil.heat.Wliq,
                 'soil_volumetric_ice': self.soil.heat.Wice,
                 'soil_volumetric_air': self.soil.heat.Wair,   # [m3 m-3]
-                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,      
-                  
+                'soil_pond_storage': self.soil.water.h_pond * WATER_DENSITY,
+
                 # 'soil_temperature': self.soil.heat.T[self.canopy_model.ix_roots],         # [deg C]
                 # 'soil_water_potential': self.soil.water.h[self.canopy_model.ix_roots],    # [m]
                 # 'soil_volumetric_water': self.soil.heat.Wliq[self.canopy_model.ix_roots], # total water content [m3 m-3]
@@ -306,10 +321,11 @@ class MLM_model(object):
 
             canopy_parameters = {
                 'soil_depth': self.soil.grid['z'][0],   # [m]
-                'soil_porosity': self.soil.heat.porosity, #[m3 m-3]
-                'soil_hydraulic_conductivity': self.soil.water.Kv, # [m s-1]
-                #'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
-                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],        # [W m-1 K-1]
+                'soil_porosity': self.soil.heat.porosity,  # [m3 m-3]
+                'soil_hydraulic_conductivity': self.soil.water.Kv,  # [m s-1]
+                # 'soil_hydraulic_conductivity': self.soil.water.Kv[self.canopy_model.ix_roots], # [m s-1]
+                # [W m-1 K-1]
+                'soil_thermal_conductivity': self.soil.heat.thermal_conductivity[0],
                 # SINGLE SOIL LAYER
                 # 'state_water':{'volumetric_water_content': self.forcing['Wliq'].iloc[k]},
                 #                'state_heat':{'temperature': self.forcing['Tsoil'].iloc[k]}
@@ -331,46 +347,52 @@ class MLM_model(object):
                 'potential_evaporation': ((out_ffloor['soil_evaporation'] +
                                            out_ffloor['capillary_rise']) / WATER_DENSITY),
                 'pond_recharge': out_ffloor['pond_recharge'] / WATER_DENSITY,
-                'atmospheric_pressure_head': -1.0E6,  # set to large value, because potential_evaporation already account for h_soil
+                # set to large value, because potential_evaporation already account for h_soil
+                'atmospheric_pressure_head': -1.0E6,
                 'ground_heat_flux': -out_ffloor['ground_heat'],
                 'date': self.forcing.index[k]}
-            
+
             # if soil not solved check for soil state in forcing
             if 'Wa' in self.forcing and self.soil.solve_water is False:
                 soil_forcing.update({
-                    'state_water':{'volumetric_water_content': self.forcing['Wa'].iloc[k]}})
+                    'state_water': {'volumetric_water_content': self.forcing['Wa'].iloc[k]}})
             if 'Tsa' in self.forcing and self.soil.solve_heat is False:
                 soil_forcing.update({
-                    'state_heat':{'temperature': self.forcing['Tsa'].iloc[k]}})
+                    'state_heat': {'temperature': self.forcing['Tsa'].iloc[k]}})
 
             # call self.soil to solve below-ground water and heat flow
             soil_flux, soil_state = self.soil.run(
-                    dt=self.dt,
-                    forcing=soil_forcing,
-                    water_sink=out_canopy['root_sink'])
+                dt=self.dt,
+                forcing=soil_forcing,
+                water_sink=out_canopy['root_sink'])
 
             # --- append results and copy of forcing to self.results
             forcing_output = {
-                    'wind_speed': self.forcing['U'].iloc[k],
-                    'friction_velocity': self.forcing['Ustar'].iloc[k],
-                    'air_temperature': self.forcing['Tair'].iloc[k],
-                    'precipitation': self.forcing['Prec'].iloc[k],
-                    'h2o': self.forcing['H2O'].iloc[k],
-                    'co2': self.forcing['CO2'].iloc[k],
-                    'pressure': self.forcing['P'].iloc[k],
-                    'par':  self.forcing['dirPar'].iloc[k] + self.forcing['diffPar'].iloc[k],
-                    'nir':  self.forcing['dirNir'].iloc[k] + self.forcing['diffNir'].iloc[k],
-                    'lw_in': self.forcing['LWin'].iloc[k]
-                    }
+                'wind_speed': self.forcing['U'].iloc[k],
+                'friction_velocity': self.forcing['Ustar'].iloc[k],
+                'air_temperature': self.forcing['Tair'].iloc[k],
+                'precipitation': self.forcing['Prec'].iloc[k],
+                'h2o': self.forcing['H2O'].iloc[k],
+                'co2': self.forcing['CO2'].iloc[k],
+                'pressure': self.forcing['P'].iloc[k],
+                'par':  self.forcing['dirPar'].iloc[k] + self.forcing['diffPar'].iloc[k],
+                'nir':  self.forcing['dirNir'].iloc[k] + self.forcing['diffNir'].iloc[k],
+                'lw_in': self.forcing['LWin'].iloc[k]
+            }
 
             soil_state.update(soil_flux)
 
-            self.results = _append_results('forcing', k, forcing_output, self.results)
-            self.results = _append_results('canopy', k, out_canopy, self.results)
-            self.results = _append_results('ffloor', k, out_ffloor, self.results)
+            self.results = _append_results(
+                'forcing', k, forcing_output, self.results)
+            self.results = _append_results(
+                'canopy', k, out_canopy, self.results)
+            self.results = _append_results(
+                'ffloor', k, out_ffloor, self.results)
             self.results = _append_results('soil', k, soil_state, self.results)
-            self.results = _append_results('pt', k, out_planttype, self.results)
-            self.results = _append_results('gt', k, out_groundtype, self.results)
+            self.results = _append_results(
+                'pt', k, out_planttype, self.results)
+            self.results = _append_results(
+                'gt', k, out_groundtype, self.results)
         print('100%')
 
         # append plantype, groundtype and grid information
@@ -379,21 +401,25 @@ class MLM_model(object):
         self.results = _append_results('canopy', None, {'z': self.canopy_model.z,
                                                         'planttypes': np.array(ptnames)}, self.results)
 
-        gtnames = [gt.name for gt in self.canopy_model.forestfloor.bottomlayer_types]
+        gtnames = [
+            gt.name for gt in self.canopy_model.forestfloor.bottomlayer_types]
 
-        self.results = _append_results('ffloor', None, {'groundtypes': np.array(gtnames)}, self.results)
+        self.results = _append_results(
+            'ffloor', None, {'groundtypes': np.array(gtnames)}, self.results)
 
-        self.results = _append_results('soil', None, {'z': self.soil.grid['z']}, self.results)
+        self.results = _append_results(
+            'soil', None, {'z': self.soil.grid['z']}, self.results)
 
-        logger.info('Finished simulation %.0f, running time %.2f seconds' % (self.Nsim, time.time() - time0))
+        logger.info('Finished simulation %.0f, running time %.2f seconds' % (
+            self.Nsim, time.time() - time0))
 
         return self.results
 
 
-def _initialize_results(variables: Dict, 
-                        Nstep: int, 
-                        Nsoil_nodes: int, 
-                        Ncanopy_nodes: int, 
+def _initialize_results(variables: Dict,
+                        Nstep: int,
+                        Nsoil_nodes: int,
+                        Ncanopy_nodes: int,
                         Nplant_types: int,
                         Nground_types: int):
     """
@@ -441,7 +467,7 @@ def _initialize_results(variables: Dict,
 def _append_results(group: str, step: int, step_results: Dict, results: Dict):
     """
     Adds results from timestep to temporary dictionary
-    
+
     Args:
         group (str): group_id
         step (int): timestep index
@@ -461,16 +487,34 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
             if key == 'z' or key == 'planttypes' or key == 'groundtypes':
                 results[variable] = step_results[key]
             else:
-                #print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
+                # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
                 results[variable][step] = step_results[key]
 
     return results
+
+
+def _update_logging_configuration(logging_configuration: dict, general_parameters: dict):
+    if 'logging' in general_parameters:
+        log_config = general_parameters['logging']
+
+        #Get logging folder if specified, otherwise empty string
+        log_dir_str = log_config.get('path', '')
+        log_dir = Path(log_dir_str) if log_dir_str else Path()
+
+        # Create logging directory if not exists
+        if log_dir_str:
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+        logfile = log_dir / log_config['filename']
+
+        logging_configuration['handlers']['file']['filename'] = str(logfile)
+    return logging_configuration
+
 
 if __name__ == '__main__':
 
     # setting path
     import sys
-    #sys.path.append('c:\\Repositories\\pyAPES_main')
     import os
     from dotenv import load_dotenv
 
@@ -478,9 +522,9 @@ if __name__ == '__main__':
     pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 
     sys.path.append(pyAPES_main_folder)
-    #print(sys.path)
+    # print(sys.path)
 
-    #import argparse
+    # import argparse
     from pyAPES.parameters.mlm_outputs import output_variables
     from pyAPES.parameters.mlm_parameters import gpara, cpara, spara
     from pyAPES.utils.iotools import read_forcing
@@ -500,10 +544,10 @@ if __name__ == '__main__':
         'soil': spara,      # soil heat and water flow parameters
         'forcing': forcing  # forging data
     }
- 
+
     # run the model
     resultfile, Model = driver(parameters=params,
-                           create_ncf=True,
-                           result_file= 'testrun.nc'
-                          )
+                               create_ncf=True,
+                               result_file='testrun.nc'
+                               )
 # EOF
