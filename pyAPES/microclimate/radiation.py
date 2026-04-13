@@ -333,7 +333,7 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
     # integrate over hemisphere to get Kd, Campbell & Norman (1998, eq. 15.5)
     YY = np.exp(-Kb*LAI)*np.sin(ang)*np.cos(ang)
 
-    Taud = 2.0*np.trapz(YY*dang)
+    Taud = 2.0*np.trapezoid(YY*dang)
     Kd = -np.log(Taud) / (LAI + EPS)  # extinction coefficient for diffuse radiation
 
     return Kd
