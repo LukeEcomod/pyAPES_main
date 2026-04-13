@@ -82,7 +82,7 @@ def driver(parameters,
 
     # --- Config logger
     logging_configuration = _update_logging_configuration(
-        logging_configuration, parameters['general'])
+        logging_configuration, parameters['general'], result_file)
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
@@ -536,21 +536,20 @@ def _save_parameters_yaml(parameters: list, stem: str, directory: Path):
     logger.info('Parameters saved to: ' + str(yaml_path))
 
 
-def _update_logging_configuration(logging_configuration: dict, general_parameters: dict):
-    if 'logging' in general_parameters:
-        log_config = general_parameters['logging']
+def _update_logging_configuration(logging_configuration: dict, general_parameters: dict, result_file=None):
+    log_config = general_parameters.get('logging', {})
 
-        #Get logging folder if specified, otherwise empty string
-        log_dir_str = log_config.get('directory', '')
-        log_dir = Path(log_dir_str) if log_dir_str else Path()
+    log_dir = Path(log_config.get('directory', 'logs'))
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create logging directory if not exists
-        if log_dir_str:
-            log_dir.mkdir(parents=True, exist_ok=True)
+    if 'filename' in log_config:
+        log_filename = log_config['filename']
+    elif result_file:
+        log_filename = Path(result_file).stem + '.log'
+    else:
+        log_filename = time.strftime('%Y%m%d%H%M') + '_pyAPES.log'
 
-        logfile = log_dir / log_config['filename']
-
-        logging_configuration['handlers']['file']['filename'] = str(logfile)
+    logging_configuration['handlers']['file']['filename'] = str(log_dir / log_filename)
     return logging_configuration
 
 
