@@ -95,7 +95,7 @@ def diurnal_cycle(data, ap='hour'):
 
         if ap.lower() == 'minute':
             N = len(hour) * len(minu)
-            x = np.ones((N, 11))*np.NaN
+            x = np.ones((N, 11))*np.nan
 
             n = 0
             for t in hour:
@@ -140,7 +140,7 @@ def fill_gaps(df, res_col_name, description, fill_nan=None, plot=False):
             df[flag] = np.where(df[res_col_name].notnull(), i, len(col_names))
             info += "\n  flag %s (%.2f" % (i, df[res_col_name].notnull().sum()/NN * 100) + "%): " + col_name
         else:
-            df[flag][df[res_col_name].isnull() & df[col_name].notnull()] = i
+            df.loc[df[res_col_name].isnull() & df[col_name].notnull(), flag] = i
             df[res_col_name] = df[res_col_name].fillna(df[col_name])
             info += "\n  flag %s (%.2f" % (i, sum(df[flag]==i)/NN * 100) + "%): " + col_name
     if fill_nan == 'linear':
@@ -148,7 +148,7 @@ def fill_gaps(df, res_col_name, description, fill_nan=None, plot=False):
         message = "linearly interpolated"
         # fill nans in beginning and end
         if df[res_col_name].isnull().sum() > 0:
-            df[flag][df[res_col_name].isnull()] = len(col_names) + 1
+            df.loc[df[res_col_name].isnull(), flag] = len(col_names) + 1
             df = df.bfill()
             df = df.ffill()
             message += "\n  flag %s (%.2f" % (i, sum(df[flag]==len(col_names) + 1)/NN * 100) + "%): filled with nearest"
