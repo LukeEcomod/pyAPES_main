@@ -20,10 +20,11 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'end_time' : "2018-06-07",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
          'results_directory':'results/',
-         'logging': {
+         'logging': { # Logging related parameters
              'directory':'logs/',# This is also given similar to results_directory
              'filename': 'FiHy_2018.log',
-         }
+         },
+        'parameters_directory': 'inputs/'
          }
 
 # --- Model control flags
