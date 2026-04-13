@@ -50,7 +50,7 @@ def diurnal_cycle(data, ap='hour'):
                                           ]
     NOTE:
         seeks for unique hours and minutes in data, ensembles them and returns statistics.
-        Nodata == np.NaN are omited when statistics are computed.
+        Nodata == np.nan are omited when statistics are computed.
     Samuli Launiainen, Luke Jan 7th, 2018
     """
 
@@ -149,8 +149,8 @@ def fill_gaps(df, res_col_name, description, fill_nan=None, plot=False):
         # fill nans in beginning and end
         if df[res_col_name].isnull().sum() > 0:
             df[flag][df[res_col_name].isnull()] = len(col_names) + 1
-            df = df.fillna(method='bfill')
-            df = df.fillna(method='ffill')
+            df = df.bfill()
+            df = df.ffill()
             message += "\n  flag %s (%.2f" % (i, sum(df[flag]==len(col_names) + 1)/NN * 100) + "%): filled with nearest"
     elif type(fill_nan) == float:
         df = df.fillna(fill_nan)
