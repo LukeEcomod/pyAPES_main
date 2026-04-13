@@ -50,7 +50,7 @@ def diurnal_cycle(data, ap='hour'):
                                           ]
     NOTE:
         seeks for unique hours and minutes in data, ensembles them and returns statistics.
-        Nodata == np.NaN are omited when statistics are computed.
+        Nodata == np.nan are omited when statistics are computed.
     Samuli Launiainen, Luke Jan 7th, 2018
     """
 
@@ -95,7 +95,7 @@ def diurnal_cycle(data, ap='hour'):
 
         if ap.lower() == 'minute':
             N = len(hour) * len(minu)
-            x = np.ones((N, 11))*np.NaN
+            x = np.ones((N, 11))*np.nan
 
             n = 0
             for t in hour:
@@ -107,10 +107,10 @@ def diurnal_cycle(data, ap='hour'):
                     x[n, 0] = t
                     x[n, 1] = p
                     x[n, 2] = len(f)  # no of observations
-                    x[n, 3] = np.mean(y[f])
-                    x[n, 4] = np.std(y[f])
+                    x[n, 3] = np.mean(y.iloc[f])
+                    x[n, 4] = np.std(y.iloc[f])
                     x[n, 5] = x[n, 3] / x[n, 2]  # s.e.
-                    x[n, 6:] = np.percentile(y[f], [50.0, 5.0, 25.0, 75.0, 95.0])
+                    x[n, 6:] = np.percentile(y.iloc[f], [50.0, 5.0, 25.0, 75.0, 95.0])
                     n += 1
             res[cols[k]] =  pd.DataFrame(x, columns=['hour', 'minu', 'N', 'mean', 'std', 'se',
                                                      'median', '5th', '25th', '75th', '95th'])
@@ -140,7 +140,7 @@ def fill_gaps(df, res_col_name, description, fill_nan=None, plot=False):
             df[flag] = np.where(df[res_col_name].notnull(), i, len(col_names))
             info += "\n  flag %s (%.2f" % (i, df[res_col_name].notnull().sum()/NN * 100) + "%): " + col_name
         else:
-            df[flag][df[res_col_name].isnull() & df[col_name].notnull()] = i
+            df.loc[df[res_col_name].isnull() & df[col_name].notnull(), flag] = i
             df[res_col_name] = df[res_col_name].fillna(df[col_name])
             info += "\n  flag %s (%.2f" % (i, sum(df[flag]==i)/NN * 100) + "%): " + col_name
     if fill_nan == 'linear':
@@ -148,9 +148,9 @@ def fill_gaps(df, res_col_name, description, fill_nan=None, plot=False):
         message = "linearly interpolated"
         # fill nans in beginning and end
         if df[res_col_name].isnull().sum() > 0:
-            df[flag][df[res_col_name].isnull()] = len(col_names) + 1
-            df = df.fillna(method='bfill')
-            df = df.fillna(method='ffill')
+            df.loc[df[res_col_name].isnull(), flag] = len(col_names) + 1
+            df = df.bfill()
+            df = df.ffill()
             message += "\n  flag %s (%.2f" % (i, sum(df[flag]==len(col_names) + 1)/NN * 100) + "%): filled with nearest"
     elif type(fill_nan) == float:
         df = df.fillna(fill_nan)
