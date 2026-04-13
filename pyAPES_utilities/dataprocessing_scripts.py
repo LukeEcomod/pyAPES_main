@@ -127,9 +127,9 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
         dat['f_cloud'] = 1.0 - (tau_atm - 0.2) / (0.7 - 0.2)
         dat.loc[dat['Qclear'] < 10, 'f_cloud'] = np.nan
 
-        dat['Qclear_12h'] = dat['Qclear'].resample('12H').sum()
+        dat['Qclear_12h'] = dat['Qclear'].resample('12h').sum()
         dat['Qclear_12h'] = dat['Qclear_12h'].ffill()
-        dat['Rg_12h'] = dat['Rg'].resample('12H').sum()
+        dat['Rg_12h'] = dat['Rg'].resample('12h').sum()
         dat['Rg_12h'] = dat['Rg_12h'].ffill()
 
         tau_atm = dat['Rg_12h'] / (dat['Qclear_12h'] + EPS)
