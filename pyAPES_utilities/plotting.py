@@ -47,7 +47,7 @@ def plot_fluxes(results, Data,
 
     dryc = np.ones(len(dates))
     if norain:
-        ix = Data.loc[:, 'forcing_precipitation'].rolling(48, 1).sum()
+        ix = Data.loc[:, 'forcing_precipitation'].rolling(48, min_periods=1).sum()
         f = np.where(ix > EPS)[0]  # wet canopy indices
         dryc[f] = 0.0
 
@@ -253,7 +253,7 @@ def plot_columns(data, col_index=None, slope=None, plot_timeseries=True):
         data[col_names].plot(kind='line',marker='o',markersize=1)
         plt.legend()
     axes = pd.plotting.scatter_matrix(data[col_names], figsize=(10, 10), alpha=.2)
-    corr = data[col_names].corr().as_matrix()
+    corr = data[col_names].corr().to_numpy()
     lim = [data[col_names].min().min(), data[col_names].max().max()]
     for i in range(len(col_index)):
         for j in range(len(col_index)):

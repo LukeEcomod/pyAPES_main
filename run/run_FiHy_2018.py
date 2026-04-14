@@ -1,4 +1,3 @@
-# %%
 from pyAPES.utils.iotools import read_forcing
 from pyAPES.pyAPES_MLM import driver
 
@@ -11,8 +10,6 @@ load_dotenv()
 # set pyAPES to path
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 
-#gpara['start_time'] = '2017-01-01'
-#gpara['end_time'] = '2018-12-31'
 # Load forcing
 forcing = read_forcing(
     forcing_file=gpara['forc_filename'],
@@ -29,4 +26,4 @@ params = {
 
 resultfile, _ = driver(parameters=params,
                        create_ncf=True,
-                       result_file='FiHy_2017_2018.nc')
+                       result_file='FiHy_2018.nc')

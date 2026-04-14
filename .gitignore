@@ -135,11 +135,18 @@ data/*.*
 # Line profiling results
 *.lprof
 
-#text files
+# Text files
 *.txt
+
+# Allow requirements
+!requirements.txt
 
 # UNIX opened files
 *~*
 
 # Logs
 logs/
+
+#Input parameters
+input_parameters/
+inputs/

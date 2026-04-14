@@ -123,7 +123,7 @@ def conductance(para: Dict, w: float) -> float:
         - w [g g-1] gravimetric water content
 
     Returns:
-        -- g [mol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] conductance for CO2
+        -- g [mol m-2 (ground) s-1] conductance for CO2
     """
  
     gref = para['gref']
