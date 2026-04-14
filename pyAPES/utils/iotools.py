@@ -15,30 +15,64 @@ import numpy as np
 import json
 from typing import Dict, Tuple, List
 
-def update_logging_configuration(logging_configuration, general_parameters, handler='file'):
+def get_interval_slices(forcing_index, dt: float, write_interval: str) -> list:
     """
-    Updates the log file path in logging_configuration based on gpara['logging'].
+    Computes (t_start, t_end) integer index pairs for chunked NetCDF writes.
+
+    Args:
+        forcing_index: pandas DatetimeIndex of the simulation forcing
+        dt (float): model timestep in seconds
+        write_interval (str): pandas offset string (e.g. '1D', '1M', '1Y')
+    Returns:
+        list of (t_start, t_end) pairs; always at least one entry covering
+        the whole simulation when write_interval >= simulation length.
+    """
+    idx = forcing_index
+    dt_td = pd.Timedelta(seconds=dt)
+    boundaries = pd.date_range(start=idx[0], end=idx[-1] + dt_td, freq=write_interval)
+
+    slices = []
+    t_start = 0
+    for boundary in boundaries[1:]:
+        t_end = int((idx < boundary).sum())
+        if t_end > t_start:
+            slices.append((t_start, t_end))
+            t_start = t_end
+
+    if t_start < len(idx):
+        slices.append((t_start, len(idx)))
+
+    return slices
+
+
+def update_logging_configuration(logging_configuration, general_parameters, ncf_filename, handler='file'):
+    """
+    Updates the log file path in logging_configuration.
+
+    The log filename is derived from ncf_filename by replacing the .nc
+    extension with .log.  The directory is read from
+    general_parameters['logging_directory'] (optional; defaults to the
+    same directory as the NCF file when omitted).
 
     Args:
         logging_configuration (dict): logging configuration dict
         general_parameters (dict): gpara dict from simulation parameters
+        ncf_filename (str): NetCDF4 output filename (basename, e.g. '20240101_run.nc')
         handler (str): name of the file handler to update (default 'file');
             use 'parallelAPES_file' for parallel runs
     Returns:
         logging_configuration (dict): updated configuration
     """
-    if 'logging' in general_parameters:
-        log_config = general_parameters['logging']
+    log_dir_str = general_parameters.get('logging_directory', '')
+    log_dir = Path(log_dir_str) if log_dir_str else Path()
 
-        log_dir_str = log_config.get('directory', '')
-        log_dir = Path(log_dir_str) if log_dir_str else Path()
+    if log_dir_str:
+        log_dir.mkdir(parents=True, exist_ok=True)
 
-        if log_dir_str:
-            log_dir.mkdir(parents=True, exist_ok=True)
+    log_basename = Path(ncf_filename).stem + '.log'
+    logfile = log_dir / log_basename
 
-        logfile = log_dir / log_config['filename']
-
-        logging_configuration['handlers'][handler]['filename'] = str(logfile)
+    logging_configuration['handlers'][handler]['filename'] = str(logfile)
 
     return logging_configuration
 
@@ -151,11 +185,13 @@ def write_ncf(nsim=None, results=None, ncf=None, t_start=0):
     for key in keys:
         if key in variables and key != 'date':
             arr = np.asarray(results[key])
-
             if key in static_keys:
                 # Static grid/metadata arrays have no time dimension.
-                # Write only once: first simulation, first chunk.
-                if nsim == 0 and t_start == 0:
+                # Write only once, from simulation 0's results.
+                # Static keys appear only in the last
+                # chunk of a chunked run (or the single full-sim results dict),
+                # so there is no risk of writing them more than once.
+                if nsim == 0:
                     ncf[key][:] = arr
 
             elif arr.ndim > 1:

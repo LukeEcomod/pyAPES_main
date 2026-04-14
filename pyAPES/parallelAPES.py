@@ -16,7 +16,7 @@ from multiprocessing import Process, Queue, Pool  # , cpu_count
 #from psutil import cpu_count
 from copy import deepcopy
 
-from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices
 from pyAPES.pyAPES_MLM import MLM_model
 
 import time
@@ -113,6 +113,16 @@ def _worker(task_queue, writing_queue, logging_queue):
 
             write_interval = task['general'].get('write_interval', None)
 
+            # Use chunked writes only when write_interval produces more than
+            # one chunk; if it spans the whole simulation, fall back to a
+            # single full-simulation write (write_interval treated as None).
+            if write_interval is not None:
+                slices = get_interval_slices(
+                    task['forcing'].index, task['general']['dt'], write_interval)
+                if len(slices) <= 1:
+                    write_interval = None
+
+            
             if write_interval is None:
                 # Write the full simulation results at once
                 result = model.run()
@@ -130,7 +140,7 @@ def _worker(task_queue, writing_queue, logging_queue):
 
         except:
             message = 'FAILED: simulation {}'.format(task['nsim'])
-            root.info(message + '_' + sys.exc_info()[0])
+            # root.info(message + '_' + sys.exc_info()[0])
         # can return something if everything went right
 
 
@@ -191,7 +201,8 @@ def driver(tasks,
 
     # --- LOGGING ---
     logging_configuration = update_logging_configuration(
-        logging_configuration, tasks[0]['general'], handler='parallelAPES_file')
+        logging_configuration, tasks[0]['general'], ncf_params['filename'],
+        handler='parallelAPES_file')
     logging.config.dictConfig(logging_configuration)
 
     logging_thread = Thread(

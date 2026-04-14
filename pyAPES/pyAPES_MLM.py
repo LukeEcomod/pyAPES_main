@@ -38,10 +38,9 @@ Todo:
 import numpy as np
 import time
 import logging
-from pandas import date_range
 from typing import List, Tuple, Dict
 
-from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices
 from pyAPES.canopy.mlm_canopy import CanopyModel
 from pyAPES.soil.soil import Soil_1D
 
@@ -77,9 +76,13 @@ def driver(parameters,
     if not pyapes_main_folder:
         pyapes_main_folder = os.getcwd()
 
+    # Determine NCF filename early so logging and output share the same stem.
+    timestr = time.strftime('%Y%m%d%H%M')
+    ncf_filename = result_file if result_file else timestr + '_pyAPES_results.nc'
+
     # --- Config logger
     logging_configuration = update_logging_configuration(
-        logging_configuration, parameters['general'])
+        logging_configuration, parameters['general'], ncf_filename)
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
@@ -114,12 +117,6 @@ def driver(parameters,
 
     if create_ncf:  # outputs to NetCDF-file, returns filename
         gpara = parameters[0]['general']  # same for all tasks
-        timestr = time.strftime('%Y%m%d%H%M')
-        if result_file:
-            filename = result_file
-        else:
-            filename = timestr + '_pyAPES_results.nc'
-
         time_index = parameters[0]['forcing'].index
 
         ncf, _ = initialize_netcdf(
@@ -131,7 +128,7 @@ def driver(parameters,
             tasks[k].Nground_types,
             time_index=time_index,
             filepath=gpara['results_directory'],
-            filename=filename)
+            filename=ncf_filename)
 
         for task in tasks:
             logger.info('Running simulation number (start time %s): %s' % (
@@ -144,7 +141,7 @@ def driver(parameters,
 
             del results
         output_file = pyapes_main_folder + '/' + \
-            gpara['results_directory'] + filename
+            gpara['results_directory'] + ncf_filename
         logger.info('Ready! Results are in: ' + output_file)
 
         ncf.close()
@@ -261,10 +258,7 @@ class MLM_model(object):
             write_interval is None: self.results (dict)
             write_interval is set: generator yielding (t_start, chunk_results)
         """
-
         if write_interval is not None:
-            # Chunked path: hand off to the generator.
-            # Logging and timing happen inside _run_chunked during iteration.
             return self._run_chunked(write_interval)
 
         # --- Original full-simulation path ---
@@ -304,7 +298,7 @@ class MLM_model(object):
         # percentage printouts are correct even when called per-chunk.
         k_steps = np.arange(0, self.Nsteps, max(1, int(self.Nsteps / 10)))
 
-        for k in range(k_start, k_end):
+        for k in range(k_start, k_end-1):
             # print(k)
             # --- print progress on screen
             if k in k_steps[:-1]:
@@ -459,41 +453,6 @@ class MLM_model(object):
 
         return results
 
-    def _get_interval_slices(self, write_interval):
-        """
-        Computes (t_start, t_end) integer index pairs for the forcing time index.
-
-        Args:
-            write_interval (str): pandas offset string (e.g. '1D', '1M', '1Y')
-        Returns:
-            slices (list): list of (t_start, t_end) pairs where t_start is
-                inclusive and t_end is exclusive, matching Python range() convention.
-        """
-        import pandas as pd
-
-        idx = self.forcing.index
-        dt = pd.Timedelta(seconds=self.dt)
-
-        # Build interval boundary timestamps. End is extended by one timestep
-        # so that the final boundary falls strictly after the last forcing index,
-        # ensuring all timesteps are included in a slice.
-        boundaries = date_range(start=idx[0], end=idx[-1] + dt, freq=write_interval)
-
-        slices = []
-        t_start = 0
-        for boundary in boundaries[1:]:
-            t_end = int((idx < boundary).sum())
-            if t_end > t_start:
-                slices.append((t_start, t_end))
-                t_start = t_end
-
-        # Catch any remainder not covered by the last boundary
-        # (e.g. when simulation length is not a multiple of write_interval).
-        if t_start < self.Nsteps:
-            slices.append((t_start, self.Nsteps))
-
-        return slices
-
     def _run_chunked(self, write_interval):
         """
         Generator that runs the simulation in time chunks and yields results.
@@ -515,7 +474,7 @@ class MLM_model(object):
             self.Nsim, write_interval))
         time0 = time.time()
 
-        slices = self._get_interval_slices(write_interval)
+        slices = get_interval_slices(self.forcing.index, self.dt, write_interval)
         last_idx = len(slices) - 1
 
         for i, (t_start, t_end) in enumerate(slices):
@@ -565,6 +524,15 @@ def _initialize_results(variables: Dict,
         var_name = var[0]
         dimensions = var[2]
 
+        # Static variables have a bare string dimension (e.g. 'canopy', 'soil')
+        # because ('canopy') in Python is just the string 'canopy', not a tuple.
+        # Time-varying variables have proper tuples that include 'date'.
+        # Skip static variables here; _append_static_outputs adds them later
+        # with their correct 1-D arrays, avoiding shape/type mismatches in
+        # write_ncf when processing intermediate chunks.
+        if isinstance(dimensions, str):
+            continue
+
         if 'canopy' in dimensions:
             if 'planttype' in dimensions:
                 var_shape = [Nstep, Nplant_types, Ncanopy_nodes]
@@ -611,12 +579,12 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
 
     for key in step_results_keys:
         variable = group + '_' + key
-        if variable in results_keys:
-            if key == 'z' or key == 'planttypes' or key == 'groundtypes':
-                results[variable] = step_results[key]
-            else:
-                # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
-                results[variable][step] = step_results[key]
+        if key == 'z' or key == 'planttypes' or key == 'groundtypes':
+            # Static keys are not pre-allocated in results; assign directly.
+            results[variable] = step_results[key]
+        elif variable in results_keys:
+            # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
+            results[variable][step] = step_results[key]
 
     return results
 

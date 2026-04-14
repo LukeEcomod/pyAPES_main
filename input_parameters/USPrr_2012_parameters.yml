@@ -1,0 +1,665 @@
+canopy:
+  ctr:
+    Ebal: true
+    Eflow: true
+    WMA: false
+    WaterStress: Rew
+    pheno_cycle: true
+    seasonal_LAI: true
+  forestfloor:
+    bottom_layer_types:
+      Feather_moss:
+        bulk_density: 14.3
+        coverage: 0.6
+        height: 0.03
+        initial_conditions:
+          temperature: 10.0
+          water_content: 10.0
+        layer_type: bryophyte
+        max_water_content: 9.7
+        min_water_content: 0.1
+        name: Feather moss
+        optical_properties:
+          albedo:
+            NIR: 0.29
+            PAR: 0.11
+          emissivity: 0.98
+        photosynthesis:
+          CAP_desic:
+          - 0.44
+          - 7.0
+          Jmax: 17.0
+          Rd: 0.5
+          Vcmax: 10.0
+          a0: 0.7
+          a1: -0.263
+          alpha: 0.3
+          beta: 0.9
+          gref: 0.02
+          theta: 0.8
+          tresp:
+            Jmax:
+            - 56.0
+            - 200.0
+            - 646.0
+            Rd:
+            - 33.0
+            Vcmax:
+            - 78.0
+            - 200.0
+            - 649.0
+          wref: 7.0
+        porosity: 0.98
+        roughness_height: 0.01
+        water_content_ratio: 0.25
+        water_retention:
+          alpha: 0.17
+          n: 1.68
+          pore_connectivity: -2.3
+          saturated_conductivity: 1.17e-08
+          theta_r: 0.0346775
+          theta_s: 0.13871
+      Litter:
+        bulk_density: 45.0
+        coverage: 0.1
+        height: 0.02
+        initial_conditions:
+          temperature: 10.0
+          water_content: 4.0
+        layer_type: litter
+        max_water_content: 4.0
+        min_water_content: 0.1
+        name: Litter
+        optical_properties:
+          albedo:
+            NIR: 0.29
+            PAR: 0.11
+          emissivity: 0.98
+        porosity: 0.95
+        respiration:
+          q10: 1.6
+          r10: 2.0
+        roughness_height: 0.01
+        water_content_ratio: 0.25
+        water_retention:
+          alpha: 0.13
+          n: 2.17
+          pore_connectivity: -2.37
+          saturated_conductivity: 1.16e-08
+          theta_r: 0.045
+          theta_s: 0.18
+      Sphagnum:
+        bulk_density: 35.1
+        coverage: 0.3
+        height: 0.04
+        initial_conditions:
+          temperature: 10.0
+          water_content: 20.0
+        layer_type: bryophyte
+        max_water_content: 17.8
+        min_water_content: 0.1
+        name: Sphagnum
+        optical_properties:
+          albedo:
+            NIR: 0.27
+            PAR: 0.1
+          emissivity: 0.98
+        photosynthesis:
+          CAP_desic:
+          - 0.58
+          - 10.0
+          Jmax: 28.0
+          Rd: 0.75
+          Vcmax: 15.0
+          a0: 0.7
+          a1: -0.263
+          alpha: 0.3
+          beta: 0.9
+          gref: 0.04
+          theta: 0.8
+          tresp:
+            Jmax:
+            - 56.0
+            - 200.0
+            - 646.0
+            Rd:
+            - 33.0
+            Vcmax:
+            - 78.0
+            - 200.0
+            - 649.0
+          wref: 7.0
+        porosity: 0.98
+        roughness_height: 0.02
+        water_content_ratio: 0.43
+        water_retention:
+          alpha: 0.381
+          n: 1.781
+          pore_connectivity: -2.1
+          saturated_conductivity: 0.00034
+          theta_r: 0.26865540000000004
+          theta_s: 0.62478
+    snowpack:
+      Tmelt: 0.0
+      initial_conditions:
+        snow_water_equivalent: 0.0
+        temperature: 0.0
+      kfreeze: 5.79e-06
+      kmelt: 2.31e-05
+      optical_properties:
+        albedo:
+          NIR: 0.8
+          PAR: 0.8
+        emissivity: 0.97
+      retention: 0.2
+    soil_respiration:
+      beta: 6.0
+      moisture_coeff:
+      - 0.1
+      - -0.28
+      - 4.325
+      - -3.65
+      q10: 2.0
+      r10: 2.5
+  grid:
+    Nlayers: 50
+    zmax: 11.0
+  interception:
+    Tmax: 2.0
+    Tmin: 0.0
+    leaf_orientation: 0.5
+    w_ini: 0.0
+    wmax: 0.2
+    wmaxsnow: 0.8
+  loc:
+    lat: 65.12
+    lon: -147.49
+  micromet:
+    Cd: 0.15
+    Sc:
+      CO2: 2.0
+      H2O: 2.0
+      T: 2.0
+    Ubot: 0.01
+    Utop: 5.0
+    dPdx: 0.0
+    zos: 0.01
+  planttypes:
+    Spruce large:
+      LAImax: 0.4
+      lad:
+      - 0.0
+      - 0.0364688093072697
+      - 0.024450678967374004
+      - 0.006216274313739156
+      - 0.013531016964860188
+      - 0.03406083580809638
+      - 0.06439672700681355
+      - 0.10763534498905827
+      - 0.15436641758188957
+      - 0.21467925810477967
+      - 0.27499209862766993
+      - 0.2687553160079954
+      - 0.2609708677338426
+      - 0.2414598468291804
+      - 0.21803996838101505
+      - 0.24296290463195486
+      - 0.31202493256468644
+      - 0.37727091000149915
+      - 0.4334170747172744
+      - 0.4725945825556908
+      - 0.27986711307020057
+      - 0.08713964358470946
+      - 0.05495734642035747
+      - 0.053148460235680234
+      - 0.06892603073905997
+      - 0.09577655545343867
+      - 0.07330809064548469
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      laip:
+        DDsum0: 144.438
+        Tbase: 5.0
+        ddmat: 250.0
+        ddo: 45.0
+        lai_ini: null
+        lai_min: 0.8
+        sdl: 12.0
+        sdur: 30.0
+      leafp:
+        lt: 0.02
+      name: Spruce large
+      phenop:
+        Tbase: -4.7
+        Xo: 11.056
+        fmin: 0.1
+        smax: 15.0
+        tau: 8.33
+      photop:
+        Jmax: 60.0
+        Rd: 0.8
+        Vcmax: 35.0
+        alpha: 0.2
+        beta: 0.95
+        drp:
+        - 0.39
+        - 0.83
+        - 0.31
+        - 3.0
+        g0: 0.005
+        g1: 2.5
+        kn: 0.5
+        theta: 0.7
+        tresp:
+          Jmax:
+          - 56.0
+          - 200.0
+          - 646.0
+          Rd:
+          - 33.0
+          Vcmax:
+          - 78.0
+          - 200.0
+          - 649.0
+      rootp:
+        beta: 0.943
+        root_conductance: 500000000.0
+        root_depth: 0.5
+        root_radius: 0.002
+        root_to_leaf_ratio: 2.0
+    Spruce small:
+      LAImax: 0.8
+      lad:
+      - 0.0
+      - 0.3117065880152298
+      - 0.4275381723543969
+      - 0.5182575767350943
+      - 0.5077634609723377
+      - 0.44491752444572563
+      - 0.39876893131045815
+      - 0.3745905268480126
+      - 0.3489310432560639
+      - 0.3175118074938252
+      - 0.28609257173158653
+      - 0.20121469273157083
+      - 0.11509358947021141
+      - 0.07787049150249277
+      - 0.05694672863265446
+      - 0.0359390718849175
+      - 0.014854816379099214
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      laip:
+        DDsum0: 144.438
+        Tbase: 5.0
+        ddmat: 250.0
+        ddo: 45.0
+        lai_ini: null
+        lai_min: 0.8
+        sdl: 12.0
+        sdur: 30.0
+      leafp:
+        lt: 0.02
+      name: Spruce small
+      phenop:
+        Tbase: -4.7
+        Xo: 11.056
+        fmin: 0.1
+        smax: 15.0
+        tau: 8.33
+      photop:
+        Jmax: 60.0
+        Rd: 0.8
+        Vcmax: 35.0
+        alpha: 0.2
+        beta: 0.95
+        drp:
+        - 0.39
+        - 0.83
+        - 0.31
+        - 3.0
+        g0: 0.005
+        g1: 2.5
+        kn: 0.5
+        theta: 0.7
+        tresp:
+          Jmax:
+          - 56.0
+          - 200.0
+          - 646.0
+          Rd:
+          - 33.0
+          Vcmax:
+          - 78.0
+          - 200.0
+          - 649.0
+      rootp:
+        beta: 0.943
+        root_conductance: 500000000.0
+        root_depth: 0.3
+        root_radius: 0.002
+        root_to_leaf_ratio: 2.0
+    Understory:
+      LAImax: 0.8
+      lad:
+      - 0.0
+      - 2.227272727272727
+      - 2.227272727272727
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      laip:
+        DDsum0: 144.438
+        Tbase: 5.0
+        ddmat: 250.0
+        ddo: 45.0
+        lai_ini: null
+        lai_min: 0.1
+        sdl: 12.0
+        sdur: 30.0
+      leafp:
+        lt: 0.02
+      name: Understory
+      phenop:
+        Tbase: -4.7
+        Xo: 11.056
+        fmin: 0.1
+        smax: 15.0
+        tau: 8.33
+      photop:
+        Jmax: 85.0
+        Rd: 0.8
+        Vcmax: 50.0
+        alpha: 0.2
+        beta: 0.95
+        drp:
+        - 0.39
+        - 0.83
+        - 0.31
+        - 3.0
+        g0: 0.005
+        g1: 2.3
+        kn: 0.5
+        theta: 0.7
+        tresp:
+          Jmax:
+          - 56.0
+          - 200.0
+          - 646.0
+          Rd:
+          - 33.0
+          Vcmax:
+          - 78.0
+          - 200.0
+          - 649.0
+      rootp:
+        beta: 0.943
+        root_conductance: 500000000.0
+        root_depth: 0.3
+        root_radius: 0.002
+        root_to_leaf_ratio: 2.0
+  radiation:
+    Nir_alb: 0.55
+    Par_alb: 0.12
+    clump: 0.7
+    leaf_angle: 1.0
+    leaf_emi: 0.98
+general:
+  dt: 1800.0
+  end_time: '2012-07-31'
+  forc_filename: /Users/opa/pyAPES_main/forcing/US-Prr/US-Prr_forcing_2011_2015.dat
+  logging:
+    directory: logs/
+    filename: USPrr_2012.log
+  results_directory: results/
+  start_time: '2012-06-01'
+soil:
+  grid:
+    dz:
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.01
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.02
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+    zh:
+    - -0.05
+    - -0.1
+    - -0.35
+    - -10.0
+  heat_model:
+    initial_condition:
+      temperature: -2.0
+    lower_boundary:
+      type: temperature
+      value: -2.0
+    solve: true
+  soil_properties:
+    bedrock:
+      solid_heat_capacity: 2160000.0
+      thermal_conductivity: 3.0
+    freezing_curve:
+    - 0.2
+    - 0.2
+    - 0.2
+    - 0.4
+    pF:
+      ThetaR:
+      - 0.001
+      - 0.001
+      - 0.001
+      - 0.001
+      ThetaS:
+      - 0.9
+      - 0.8
+      - 0.75
+      - 0.6
+      alpha:
+      - 0.16
+      - 0.22
+      - 0.02
+      - 1.12
+      n:
+      - 1.25
+      - 1.21
+      - 1.28
+      - 4.45
+    saturated_conductivity_horizontal:
+    - 0.0001
+    - 1.0e-05
+    - 1.0e-06
+    - 1000000.0
+    saturated_conductivity_vertical:
+    - 0.0001
+    - 1.0e-05
+    - 1.0e-06
+    - 1000000.0
+    solid_composition:
+      clay:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.2
+      organic:
+      - 1.0
+      - 1.0
+      - 1.0
+      - 0.2
+      sand:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      silt:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.4
+    solid_heat_capacity:
+    - .nan
+    - .nan
+    - .nan
+    - .nan
+  water_model:
+    drainage_equation:
+      type: null
+    initial_condition:
+      ground_water_level: -0.05
+      pond_storage: 0.0
+    lower_boundary:
+      depth: -5.0
+      type: impermeable
+      value: null
+    pond_storage_max: 0.05
+    solve: true
+    type: Equilibrium
