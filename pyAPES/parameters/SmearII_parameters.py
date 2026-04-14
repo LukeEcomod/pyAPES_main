@@ -23,7 +23,8 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
          'results_directory':'results/',
          'logging_directory': 'logs/',
-         'write_interval': '1ME'
+         'parameters_directory': 'inputs/',
+         'write_interval': '1ME' # Only used in parallelAPES.py to limit memory usage
          }
 
 # --- Model control flags

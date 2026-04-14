@@ -11,12 +11,14 @@ TODO:
 
 import os
 import sys
+from pathlib import Path
 from threading import Thread
 from multiprocessing import Process, Queue, Pool  # , cpu_count
 #from psutil import cpu_count
 from copy import deepcopy
+from dotenv import load_dotenv
 
-from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices, save_parameters_yaml
 from pyAPES.pyAPES_MLM import MLM_model
 
 import time
@@ -191,6 +193,19 @@ def driver(tasks,
         time_index=ncf_params['time_index'],
         filepath=ncf_params['filepath'],
         filename=ncf_params['filename'])
+
+    # --- SAVE PARAMETERS ---
+    load_dotenv()
+    pyapes_main_folder = os.getenv('pyAPES_main_folder') or os.getcwd()
+    params_dir_str = tasks[0]['general'].get('parameters_directory', 'input_parameters/')
+    tasks_dict = {
+        'Nsim_{}'.format(t['nsim']): {k: v for k, v in t.items() if k != 'forcing'}
+        for t in tasks
+    }
+    save_parameters_yaml(
+        tasks_dict,
+        Path(ncf_params['filename']).stem,
+        Path(pyapes_main_folder) / params_dir_str)
 
     writing_thread = Thread(
         target=_result_writer,

@@ -38,11 +38,11 @@ Todo:
 import numpy as np
 import time
 import logging
-import yaml
 from pandas import date_range
 from typing import List, Tuple, Dict
+from pathlib import Path
 
-from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices, save_parameters_yaml
 from pyAPES.canopy.mlm_canopy import CanopyModel
 from pyAPES.soil.soil import Soil_1D
 
@@ -127,7 +127,7 @@ def driver(parameters,
 
         params_dir_str = parameters[0]['general'].get('parameters_directory', 'input_parameters/')
         params_dir = Path(pyapes_main_folder) / params_dir_str
-        _save_parameters_yaml(parameters, Path(filename).stem, params_dir)
+        save_parameters_yaml(parameters, Path(filename).stem, params_dir)
 
         time_index = parameters[0]['forcing'].index
 
@@ -600,43 +600,6 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
 
     return results
 
-
-def _sanitize_for_yaml(obj):
-    import pandas as pd
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_yaml(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_yaml(v) for v in obj]
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, (pd.DataFrame, pd.Series)):
-        return '<excluded>'
-    if isinstance(obj, Path):
-        return str(obj)
-    return obj
-
-
-def _save_parameters_yaml(parameters: list, stem: str, directory: Path):
-    logger = logging.getLogger(__name__)
-    directory.mkdir(parents=True, exist_ok=True)
-    yaml_path = directory / (stem + '_parameters.yml')
-
-    sanitized = []
-    for p in parameters:
-        entry = {k: _sanitize_for_yaml(v) for k, v in p.items() if k != 'forcing'}
-        sanitized.append(entry)
-
-    with open(yaml_path, 'w', encoding='utf-8') as f:
-        yaml.dump(sanitized if len(sanitized) > 1 else sanitized[0],
-                  f, default_flow_style=False, allow_unicode=True)
-
-    logger.info('Parameters saved to: ' + str(yaml_path))
 
 
 def _update_logging_configuration(logging_configuration: dict, general_parameters: dict, result_file=None):

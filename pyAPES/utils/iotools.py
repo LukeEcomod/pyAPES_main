@@ -13,6 +13,8 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 import json
+import yaml
+import logging
 from typing import Dict, Tuple, List
 
 def get_interval_slices(forcing_index, dt: float, write_interval: str) -> list:
@@ -329,6 +331,57 @@ def read_results(outputfiles):
         return results[0]
     else:
         return results
+
+
+def _sanitize_for_yaml(obj):
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_yaml(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_yaml(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, (pd.DataFrame, pd.Series)):
+        return '<excluded>'
+    if isinstance(obj, Path):
+        return str(obj)
+    return obj
+
+
+def save_parameters_yaml(parameters, stem: str, directory: Path):
+    """
+    Saves simulation parameters as a YAML file.
+
+    Args:
+        parameters (list | dict): list of parameter dicts, or a dict mapping
+            simulation keys to parameter dicts. Forcing keys are excluded.
+        stem (str): filename stem (without extension) shared with the NCF output
+        directory (Path): directory where the YAML file is written
+    """
+    logger = logging.getLogger(__name__)
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    yaml_path = directory / (stem + '.yml')
+
+    if isinstance(parameters, dict):
+        sanitized = {k: _sanitize_for_yaml(v) for k, v in parameters.items()}
+    else:
+        sanitized = []
+        for p in parameters:
+            entry = {k: _sanitize_for_yaml(v) for k, v in p.items() if k != 'forcing'}
+            sanitized.append(entry)
+        if len(sanitized) == 1:
+            sanitized = sanitized[0]
+
+    with open(yaml_path, 'w', encoding='utf-8') as f:
+        yaml.dump(sanitized, f, default_flow_style=False, allow_unicode=True)
+
+    logger.info('Parameters saved to: ' + str(yaml_path))
 
 
 class NumpyEncoder(json.JSONEncoder):
