@@ -1,0 +1,9 @@
+{
+  "canopy_GPP":          { "min": 2.246e-05,    "max": 24.82032204,  "median": 8.94726372  },
+  "canopy_NEE":          { "min": -19.73342323, "max": 4.96624899,   "median": -4.02980518 },
+  "canopy_Reco":         { "min": 4.13557768,   "max": 6.55872202,   "median": 5.19454098  },
+  "canopy_LE":           { "min": 1.35995877,   "max": 359.43704224, "median": 54.9829483  },
+  "canopy_SH":           { "min": -106.314888,  "max": 368.0765686,  "median": -8.21221733 },
+  "canopy_transpiration":{ "min": 0.0,          "max": 8e-08,        "median": 2e-08       },
+  "ffloor_net_co2":      { "min": 0.29125705,   "max": 2.14822173,   "median": 1.16423559  }
+}

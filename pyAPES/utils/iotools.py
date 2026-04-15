@@ -219,8 +219,8 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
         forc_fp (str): forcing file path
         start_time (str): starting time [yyyy-mm-dd], if None first date in
             file used
-        end_time (str): ending time [yyyy-mm-dd], if None last date
-            in file used
+        end_time (str): ending time [yyyy-mm-dd], exclusive — last timestep
+            included is the one before this date
         dt (float): time step [s], if given checks
             that dt in file is equal to this
         na_values (str|float): nan value representation in file
@@ -238,7 +238,7 @@ def read_forcing(forcing_file: str, start_time: str, end_time: str,
     tvec = pd.DatetimeIndex(tvec)
     dat.index = tvec
 
-    dat = dat[(dat.index >= start_time) & (dat.index <= end_time)]
+    dat = dat[(dat.index >= start_time) & (dat.index < end_time)]
 
     # convert: H2O mmol / mol --> mol / mol; Prec kg m-2 in dt --> kg m-2 s-1
     dat['H2O'] = 1e-3 * dat['H2O']

@@ -1,0 +1,32 @@
+name: Model smoke test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Create runtime directories
+        run: mkdir -p results inputs logs
+
+      - name: Run model
+        run: python tests/integration/run_FiHy_CI.py
+
+      - name: Check output
+        run: pytest tests/integration/test_model_output.py -v
