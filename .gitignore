@@ -147,6 +147,15 @@ data/*.*
 # Logs
 logs/
 
-#Input parameters
+# Input parameters
 input_parameters/
 inputs/
+*. yml
+
+# Allow conda environment
+!environment.yml
+
+# Markdown files
+*.md
+# Allow readme
+!README.md

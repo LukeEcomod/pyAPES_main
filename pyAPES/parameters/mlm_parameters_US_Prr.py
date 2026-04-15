@@ -30,10 +30,8 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'end_time' : "2012-06-07",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : forcing_file, # forcing data file
          'results_directory': 'results/', # This is given relative to pyAPES main folder or if not in .env then current working directory 
-         'logging': {
-             'directory': 'logs/', # This is also given similar to results_directory
-             'filename': 'USPrr_2012.log'
-         }
+         'logging_directory': 'logs/',  # This is also given similar to results_directory
+         'parameters_directory': 'inputs/'  # This is also given similar to results_directory
 
          }
 
