@@ -45,7 +45,7 @@ import numpy as np
 import logging
 from typing import List, Dict, Tuple
 
-from pyAPES.leaf.photosynthesis import Photosyntehsis_model, initialize_photo_forcing, set_photo_forcing
+from pyAPES.leaf.photo import PhotosynthesisModel, initialize_photo_forcing, set_photo_forcing
 from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS, H2O_CO2_RATIO
@@ -193,7 +193,7 @@ class PlantType(object):
         self.photop0 = p['photop']
         self.photop = self.photop0.copy()  # current A-gs parameters (dict)
 
-        self.Photo_model = Photosyntehsis_model(self.StomaModel) #p['photop']['photo_model'])
+        self.Photo_model = PhotosynthesisModel(self.StomaModel)
         self.photo_forcing = initialize_photo_forcing(self.lad.shape[0])
 
         # leaf properties
