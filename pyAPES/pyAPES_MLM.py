@@ -35,16 +35,14 @@ Todo:
       now see tools.iotools.read_forcing for documentation!
 
 """
-from pathlib import Path
-
 import numpy as np
 import time
 import logging
-import yaml
 from pandas import date_range
 from typing import List, Tuple, Dict
+from pathlib import Path
 
-from pyAPES.utils.iotools import initialize_netcdf,  write_ncf
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices, save_parameters_yaml
 from pyAPES.canopy.mlm_canopy import CanopyModel
 from pyAPES.soil.soil import Soil_1D
 
@@ -80,9 +78,13 @@ def driver(parameters,
     if not pyapes_main_folder:
         pyapes_main_folder = os.getcwd()
 
+    # Determine NCF filename early so logging and output share the same stem.
+    timestr = time.strftime('%Y%m%d%H%M')
+    ncf_filename = result_file if result_file else timestr + '_pyAPES_results.nc'
+
     # --- Config logger
-    logging_configuration = _update_logging_configuration(
-        logging_configuration, parameters['general'], result_file)
+    logging_configuration = update_logging_configuration(
+        logging_configuration, parameters['general'], ncf_filename)
     logging.config.dictConfig(logging_configuration)
     logger = logging.getLogger(__name__)
 
@@ -125,7 +127,7 @@ def driver(parameters,
 
         params_dir_str = parameters[0]['general'].get('parameters_directory', 'input_parameters/')
         params_dir = Path(pyapes_main_folder) / params_dir_str
-        _save_parameters_yaml(parameters, Path(filename).stem, params_dir)
+        save_parameters_yaml(parameters, Path(filename).stem, params_dir)
 
         time_index = parameters[0]['forcing'].index
 
@@ -138,7 +140,7 @@ def driver(parameters,
             tasks[k].Nground_types,
             time_index=time_index,
             filepath=gpara['results_directory'],
-            filename=filename)
+            filename=ncf_filename)
 
         for task in tasks:
             logger.info('Running simulation number (start time %s): %s' % (
@@ -151,7 +153,7 @@ def driver(parameters,
 
             del results
         output_file = pyapes_main_folder + '/' + \
-            gpara['results_directory'] + filename
+            gpara['results_directory'] + ncf_filename
         logger.info('Ready! Results are in: ' + output_file)
 
         ncf.close()
@@ -227,6 +229,9 @@ class MLM_model(object):
             self.canopy_model.forestfloor.bottomlayer_types)
 
         # initialize temorary structure to save results
+        # stored so that _run_chunked can allocate per-chunk result buffers
+        self.outputs = outputs
+
         self.results = _initialize_results(outputs,
                                            self.Nsteps,
                                            self.Nsoil_nodes,
@@ -234,7 +239,7 @@ class MLM_model(object):
                                            self.Nplant_types,
                                            self.Nground_types)
 
-    def run(self):
+    def run(self, write_interval=None):
         """
         Loops through self.forcing timesteps and appends to self.results.
 
@@ -254,24 +259,62 @@ class MLM_model(object):
             dirNir: Direct NIR [W m-2]
 
         Args:
-            self (object)
+            write_interval (str | None): pandas offset string ('1D', '1M', '1Y', etc.).
+                If None (default), runs the full simulation, accumulates all results
+                into self.results and returns them — original behavior.
+                If set, returns a generator that yields (t_start, chunk_results) at
+                each interval boundary for incremental NetCDF writes. Chunk results
+                are released from memory after each yield.
 
         Returns:
-            self.results (dict)
+            write_interval is None: self.results (dict)
+            write_interval is set: generator yielding (t_start, chunk_results)
         """
+        if write_interval is not None:
+            return self._run_chunked(write_interval)
 
+        # --- Original full-simulation path ---
         logger = logging.getLogger(__name__)
         logger.info('Running simulation {}'.format(self.Nsim))
         time0 = time.time()
 
         # print('RUNNING')
-        k_steps = np.arange(0, self.Nsteps, int(self.Nsteps/10))
+        self._run_steps(0, self.Nsteps, self.results, index_offset=0)
+        print('100%')
 
-        for k in range(0, self.Nsteps):
+        # Append static grid and metadata outputs (no time dimension)
+        self.results = self._append_static_outputs(self.results)
+
+        logger.info('Finished simulation %.0f, running time %.2f seconds' % (
+            self.Nsim, time.time() - time0))
+
+        return self.results
+
+    def _run_steps(self, k_start, k_end, results, index_offset):
+        """
+        Runs simulation steps [k_start, k_end) and writes into a results buffer.
+
+        Extracted from run() so that both the full-simulation path and the
+        chunked generator path share the same loop body without duplication.
+
+        Args:
+            k_start (int): first global forcing index (inclusive)
+            k_end (int): last global forcing index (exclusive)
+            results (dict): pre-allocated results buffer to write into
+            index_offset (int): subtracted from the global step index k to get
+                the local index in the results buffer. 0 for full-simulation
+                writes; t_start for a chunk starting at t_start.
+        """
+
+        # Progress milestones based on the full simulation length so that
+        # percentage printouts are correct even when called per-chunk.
+        k_steps = np.arange(0, self.Nsteps, max(1, int(self.Nsteps / 10)))
+
+        for k in range(k_start, k_end-1):
             # print(k)
             # --- print progress on screen
             if k in k_steps[:-1]:
-                s = str(np.where(k_steps == k)[0][0]*10) + '%'
+                s = str(np.where(k_steps == k)[0][0] * 10) + '%'
                 print('{0}..'.format(s), end=' ')
 
             # --- CanopyModel ---
@@ -371,7 +414,7 @@ class MLM_model(object):
                 forcing=soil_forcing,
                 water_sink=out_canopy['root_sink'])
 
-            # --- append results and copy of forcing to self.results
+            # --- append results and copy of forcing to results buffer ---
             forcing_output = {
                 'wind_speed': self.forcing['U'].iloc[k],
                 'friction_velocity': self.forcing['Ustar'].iloc[k],
@@ -387,38 +430,89 @@ class MLM_model(object):
 
             soil_state.update(soil_flux)
 
-            self.results = _append_results(
-                'forcing', k, forcing_output, self.results)
-            self.results = _append_results(
-                'canopy', k, out_canopy, self.results)
-            self.results = _append_results(
-                'ffloor', k, out_ffloor, self.results)
-            self.results = _append_results('soil', k, soil_state, self.results)
-            self.results = _append_results(
-                'pt', k, out_planttype, self.results)
-            self.results = _append_results(
-                'gt', k, out_groundtype, self.results)
-        print('100%')
+            # local_k is the index into the results buffer.
+            # For full-simulation writes index_offset == 0, so local_k == k.
+            # For a chunk starting at t_start, index_offset == t_start.
+            local_k = k - index_offset
 
-        # append plantype, groundtype and grid information
+            results = _append_results('forcing', local_k, forcing_output, results)
+            results = _append_results('canopy', local_k, out_canopy, results)
+            results = _append_results('ffloor', local_k, out_ffloor, results)
+            results = _append_results('soil', local_k, soil_state, results)
+            results = _append_results('pt', local_k, out_planttype, results)
+            results = _append_results('gt', local_k, out_groundtype, results)
+
+    def _append_static_outputs(self, results):
+        """
+        Appends static grid and metadata outputs (no time dimension) to results.
+
+        Called once at the end of a full-simulation run, or after the last
+        chunk in a chunked run. These keys use step=None in _append_results,
+        which assigns the array directly instead of indexing by timestep.
+        """
+
+        # append planttype, groundtype and grid information
         ptnames = [pt.name for pt in self.canopy_model.planttypes]
 
-        self.results = _append_results('canopy', None, {'z': self.canopy_model.z,
-                                                        'planttypes': np.array(ptnames)}, self.results)
+        results = _append_results('canopy', None, {'z': self.canopy_model.z,
+                                                   'planttypes': np.array(ptnames)}, results)
 
-        gtnames = [
-            gt.name for gt in self.canopy_model.forestfloor.bottomlayer_types]
+        gtnames = [gt.name for gt in self.canopy_model.forestfloor.bottomlayer_types]
 
-        self.results = _append_results(
-            'ffloor', None, {'groundtypes': np.array(gtnames)}, self.results)
+        results = _append_results('ffloor', None, {'groundtypes': np.array(gtnames)}, results)
 
-        self.results = _append_results(
-            'soil', None, {'z': self.soil.grid['z']}, self.results)
+        results = _append_results('soil', None, {'z': self.soil.grid['z']}, results)
+
+        return results
+
+    def _run_chunked(self, write_interval):
+        """
+        Generator that runs the simulation in time chunks and yields results.
+
+        Each yield frees the chunk buffer from memory after the caller processes
+        it, reducing peak RAM usage for long ensemble runs.
+
+        Args:
+            write_interval (str): pandas offset string (e.g. '1D', '1M', '1Y')
+        Yields:
+            tuple: (t_start, chunk_results) where t_start is the global starting
+                timestep index and chunk_results is the results dict for that
+                chunk. Static outputs (z, planttypes, groundtypes) are appended
+                only to the last chunk.
+        """
+
+        logger = logging.getLogger(__name__)
+        logger.info('Running simulation {} (chunked, write_interval={})'.format(
+            self.Nsim, write_interval))
+        time0 = time.time()
+
+        slices = get_interval_slices(self.forcing.index, self.dt, write_interval)
+        last_idx = len(slices) - 1
+
+        for i, (t_start, t_end) in enumerate(slices):
+            chunk_len = t_end - t_start
+
+            # Allocate a fresh results buffer sized to this chunk only
+            chunk_results = _initialize_results(
+                self.outputs, chunk_len,
+                self.Nsoil_nodes, self.Ncanopy_nodes,
+                self.Nplant_types, self.Nground_types)
+
+            # Run steps for this interval; local indices start at 0 in chunk_results
+            self._run_steps(t_start, t_end, chunk_results, index_offset=t_start)
+
+            # Static grid/metadata outputs have no time dimension.
+            # Append only on the last chunk so write_ncf writes them once.
+            if i == last_idx:
+                print('100%')
+                chunk_results = self._append_static_outputs(chunk_results)
+
+            yield t_start, t_end, chunk_results
+            # chunk_results goes out of scope after the caller's next() call,
+            # allowing Python's GC to free the memory before the next chunk.
 
         logger.info('Finished simulation %.0f, running time %.2f seconds' % (
             self.Nsim, time.time() - time0))
-
-        return self.results
 
 
 def _initialize_results(variables: Dict,
@@ -441,6 +535,15 @@ def _initialize_results(variables: Dict,
 
         var_name = var[0]
         dimensions = var[2]
+
+        # Static variables have a bare string dimension (e.g. 'canopy', 'soil')
+        # because ('canopy') in Python is just the string 'canopy', not a tuple.
+        # Time-varying variables have proper tuples that include 'date'.
+        # Skip static variables here; _append_static_outputs adds them later
+        # with their correct 1-D arrays, avoiding shape/type mismatches in
+        # write_ncf when processing intermediate chunks.
+        if isinstance(dimensions, str):
+            continue
 
         if 'canopy' in dimensions:
             if 'planttype' in dimensions:
@@ -488,52 +591,15 @@ def _append_results(group: str, step: int, step_results: Dict, results: Dict):
 
     for key in step_results_keys:
         variable = group + '_' + key
-        if variable in results_keys:
-            if key == 'z' or key == 'planttypes' or key == 'groundtypes':
-                results[variable] = step_results[key]
-            else:
-                # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
-                results[variable][step] = step_results[key]
+        if key == 'z' or key == 'planttypes' or key == 'groundtypes':
+            # Static keys are not pre-allocated in results; assign directly.
+            results[variable] = step_results[key]
+        elif variable in results_keys:
+            # print(variable, key, np.shape(results[variable][step]), np.shape(step_results[key]))
+            results[variable][step] = step_results[key]
 
     return results
 
-
-def _sanitize_for_yaml(obj):
-    import pandas as pd
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_yaml(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_sanitize_for_yaml(v) for v in obj]
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, (pd.DataFrame, pd.Series)):
-        return '<excluded>'
-    if isinstance(obj, Path):
-        return str(obj)
-    return obj
-
-
-def _save_parameters_yaml(parameters: list, stem: str, directory: Path):
-    logger = logging.getLogger(__name__)
-    directory.mkdir(parents=True, exist_ok=True)
-    yaml_path = directory / (stem + '_parameters.yml')
-
-    sanitized = []
-    for p in parameters:
-        entry = {k: _sanitize_for_yaml(v) for k, v in p.items() if k != 'forcing'}
-        sanitized.append(entry)
-
-    with open(yaml_path, 'w', encoding='utf-8') as f:
-        yaml.dump(sanitized if len(sanitized) > 1 else sanitized[0],
-                  f, default_flow_style=False, allow_unicode=True)
-
-    logger.info('Parameters saved to: ' + str(yaml_path))
 
 
 def _update_logging_configuration(logging_configuration: dict, general_parameters: dict, result_file=None):

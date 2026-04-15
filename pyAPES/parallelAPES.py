@@ -11,13 +11,14 @@ TODO:
 
 import os
 import sys
-import multiprocessing as mp
+from pathlib import Path
 from threading import Thread
 from multiprocessing import Process, Queue, Pool  # , cpu_count
 #from psutil import cpu_count
 from copy import deepcopy
+from dotenv import load_dotenv
 
-from pyAPES.utils.iotools import initialize_netcdf, write_ncf
+from pyAPES.utils.iotools import initialize_netcdf, write_ncf, update_logging_configuration, get_interval_slices, save_parameters_yaml
 from pyAPES.pyAPES_MLM import MLM_model
 
 import time
@@ -26,34 +27,42 @@ import logging
 import logging.handlers
 import logging.config
 
+# Imported at module level so that spawned worker processes can access these names
+from pyAPES.parameters.mlm_outputs import parallel_logging_configuration, output_variables
 
-def _result_writer(ncf):
+
+def _result_writer(ncf, writing_queue):
     """
     Args:
         ncf: NetCDF4 file handle
+        writing_queue (Queue): queue from which write messages are consumed
     """
 
     logger = logging.getLogger()
     logger.info("Writer is ready!")
 
     while True:
-        # results is tuple (Nsim, data)
-        results = writing_queue.get()
+        # Message is a 4-tuple (nsim, data, t_start, date_info).
+        # t_start enables partial/chunked writes for the write_interval feature.
+        # date_info is a human-readable string for logging the written date range.
+        msg = writing_queue.get()
 
-        if results is None:
+        if msg is None:
             ncf.close()
             logger.info("NetCDF4 file is closed. and Writer closes.")
             break
 
-        logger.info("Writing results of simulation {}".format(results[0]))
-        write_ncf(nsim=results[0], results=results[1], ncf=ncf)
+        nsim, data, t_start, date_info = msg
+        logger.info("Writing simulation {} ({})".format(nsim, date_info))
+        write_ncf(nsim=nsim, results=data, ncf=ncf, t_start=t_start)
+
 # logging to a single file from multiple processes
 # https://docs.python.org/dev/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
 
-def _logger_listener():
+def _logger_listener(logging_queue):
     """
     Args:
-        queue (Queue): logging queue
+        logging_queue (Queue): logging queue
     """
 
     while True:
@@ -67,11 +76,11 @@ def _logger_listener():
         logger.handle(record)
 
 
-def _worker():
+def _worker(task_queue, writing_queue, logging_queue):
     """
     Args:
         task_queue (Queue): queue of task initializing parameters
-        result_queue (Queue): queue of model calculation results
+        writing_queue (Queue): queue of model calculation results
         logging_queue (Queue): queue for model loggers
     """
 
@@ -104,20 +113,46 @@ def _worker():
                 nsim=task['nsim'],
             )
 
-            result = model.run()
-            writing_queue.put((task['nsim'], result))
+            write_interval = task['general'].get('write_interval', None)
+
+            # Use chunked writes only when write_interval produces more than
+            # one chunk; if it spans the whole simulation, fall back to a
+            # single full-simulation write (write_interval treated as None).
+            if write_interval is not None:
+                slices = get_interval_slices(
+                    task['forcing'].index, task['general']['dt'], write_interval)
+                if len(slices) <= 1:
+                    write_interval = None
+
+            
+            if write_interval is None:
+                # Write the full simulation results at once
+                result = model.run()
+                date_info = '{} to {}'.format(
+                    task['forcing'].index[0].strftime('%Y-%m-%d'),
+                    task['forcing'].index[-1].strftime('%Y-%m-%d'))
+                writing_queue.put((task['nsim'], result, 0, date_info))
+            else:
+                # Periodic writes: generator yields (t_start, t_end, chunk) at interval boundaries
+                for t_start, t_end, chunk in model.run(write_interval=write_interval):
+                    date_info = '{} to {}'.format(
+                        task['forcing'].index[t_start].strftime('%Y-%m-%d'),
+                        task['forcing'].index[t_end - 1].strftime('%Y-%m-%d'))
+                    writing_queue.put((task['nsim'], chunk, t_start, date_info))
 
         except:
             message = 'FAILED: simulation {}'.format(task['nsim'])
-            root.info(message + '_' + sys.exc_info()[0])
+            # root.info(message + '_' + sys.exc_info()[0])
         # can return something if everything went right
 
 
-def driver(ncf_params,
+def driver(tasks,
+           ncf_params,
            logging_configuration,
            N_workers):
     """
     Args:
+        tasks (list): list of task parameter dicts (output of get_parameter_list)
         ncf_params (dict): netCDF4 parameters
         logging_configuration (dict): parallel logging configuration
         N_workers (int): number of worker processes
@@ -125,6 +160,11 @@ def driver(ncf_params,
     task_queue = Queue()
     logging_queue = Queue()
     writing_queue = Queue()
+
+    # Fill the task queue before starting workers
+    for task in tasks:
+        task_queue.put(deepcopy(task))
+
     # --- PROCESSES ---
     running_time = time.time()
 
@@ -133,11 +173,14 @@ def driver(ncf_params,
         workers.append(
             Process(
                 target=_worker,
+                args=(task_queue, writing_queue, logging_queue),
             )
         )
-
-        task_queue.put(None)
         workers[k].start()
+
+    # Send one termination sentinel per worker after all tasks are enqueued
+    for _ in workers:
+        task_queue.put(None)
 
     # --- NETCDF4 ---
     ncf, _ = initialize_netcdf(
@@ -151,18 +194,35 @@ def driver(ncf_params,
         filepath=ncf_params['filepath'],
         filename=ncf_params['filename'])
 
+    # --- SAVE PARAMETERS ---
+    load_dotenv()
+    pyapes_main_folder = os.getenv('pyAPES_main_folder') or os.getcwd()
+    params_dir_str = tasks[0]['general'].get('parameters_directory', 'input_parameters/')
+    tasks_dict = {
+        'Nsim_{}'.format(t['nsim']): {k: v for k, v in t.items() if k != 'forcing'}
+        for t in tasks
+    }
+    save_parameters_yaml(
+        tasks_dict,
+        Path(ncf_params['filename']).stem,
+        Path(pyapes_main_folder) / params_dir_str)
+
     writing_thread = Thread(
         target=_result_writer,
-        args=(ncf,)
+        args=(ncf, writing_queue),
     )
 
     writing_thread.start()
 
     # --- LOGGING ---
+    logging_configuration = update_logging_configuration(
+        logging_configuration, tasks[0]['general'], ncf_params['filename'],
+        handler='parallelAPES_file')
     logging.config.dictConfig(logging_configuration)
 
     logging_thread = Thread(
         target=_logger_listener,
+        args=(logging_queue,),
     )
 
     logging_thread.start()
@@ -195,7 +255,6 @@ def driver(ncf_params,
 
 if __name__ == '__main__':
     import argparse
-    from pyAPES.parameters.mlm_outputs import parallel_logging_configuration, output_variables
     from pyAPES.parameters.mlm_parameters import gpara, cpara, spara
     from pyAPES.parameters.parameter_tools import get_parameter_list
 
@@ -203,12 +262,6 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', help='number of cpus to be used', type=int)
     parser.add_argument('--scenario', help='scenario name', type=str)
     args = parser.parse_args()
-
-    # --- Queues ---
-    manager = mp.Manager()
-    logging_queue = Queue()
-    writing_queue = Queue()
-    task_queue = Queue()
 
     # --- TASKS ---
     scen = args.scenario
@@ -229,24 +282,20 @@ if __name__ == '__main__':
         'Nsoil_nodes': len(tasks[0]['soil']['grid']['dz']),
         'Ncanopy_nodes': tasks[0]['canopy']['grid']['Nlayers'],
         'Nplant_types': len(tasks[0]['canopy']['planttypes']),
-        'Nground_types': 1,  # Tämä hankala jos vaihtelee simulaatioiden välillä!!!!!
+        'Nground_types': 1,  # This is tricky if it varies between simulations!!!!!
         'time_index': tasks[0]['forcing'].index,
         'filename': time.strftime('%Y%m%d%H%M_') + scen + '_pyAPES_results.nc',
         'filepath': tasks[0]['general']['results_directory'],
     }
-
-    for para in tasks:
-        task_queue.put(deepcopy(para))
 
     # --- Number of workers ---
     Ncpu = args.cpu
 
     N_workers = Ncpu - 1
 
-    parallel_logging_configuration['handlers']['parallelAPES_file']['filename'] = time.strftime('%Y%m%d%H%M_') + scen + '.log'
-
     # --- DRIVER CALL ---
     outputfile = driver(
+        tasks=tasks,
         ncf_params=ncf_params,
         logging_configuration=parallel_logging_configuration,
         N_workers=N_workers)
