@@ -12,20 +12,27 @@ Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 
 import numpy as np
 import pandas as pd
-from pyAPES.utils.utilities import lad_weibul, lad_constant
-
+import os
+import pathlib
+from pyAPES.utils.utilities import lad_constant
+from dotenv import load_dotenv
+load_dotenv()
+pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 # model forcing: see Ex1_creating_model_forcing.ipynb
-forcing_file = 'c:/Repositories/pyAPES_main/forcing/US-Prr/US-Prr_forcing_2011_2015.dat'
+forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/US-Prr/US-Prr_forcing_2011_2015.dat')
 # vertical leaf-area density profiles for small and large Black Spruce: see Demo0_ecosystem_structure_US-Prr.ipynb
-lad_file = 'c:/Repositories/pyAPES_main/forcing/US-Prr/BlackSpruce_relative_lad_two_cohorts.csv'
+lad_file = pathlib.Path(f'{pyAPES_main_folder}/forcing/US-Prr/BlackSpruce_relative_lad_two_cohorts.csv')
 
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2011-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2011-06-15",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : 'c:/Repositories/pyAPES_main/forcing/US-Prr/US-Prr_forcing_2011_2015.dat', # forcing data file
-         'results_directory':'results/'
+         'start_time' : "2012-06-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2012-06-07",  # end time of simulation [yyyy-mm-dd]
+         'forc_filename' : forcing_file, # forcing data file
+         'results_directory': 'results/', # This is given relative to pyAPES main folder or if not in .env then current working directory 
+         'logging_directory': 'logs/',  # This is also given similar to results_directory
+         'parameters_directory': 'inputs/'  # This is also given similar to results_directory
+
          }
 
 # --- Model control flags

@@ -1189,6 +1189,40 @@ def hydraulic_conductivity(pF: Dict, x: np.ndarray, Ksat: np.ndarray=1) -> np.nd
 
     return Kh
 
+def hydraulic_conductivity_new(pF: Dict, x: np.ndarray, Ksat: np.ndarray=1) -> np.ndarray:
+    r""" 
+    Unsaturated hydraulic conductivity following vanGenuchten-Mualem -model.
+
+    Args:
+        pF (dict):
+            ThetaS (float|array): saturated water content [m3 m-3]
+            ThetaR (float|array): residual water content [m3 m-3]
+            alpha (float|array): air entry suction [cm-1]
+            n (float|array): pore size distribution [-]
+        h (float|array): pressure head [m]
+        Ksat (float|array): saturated hydraulic conductivity [units]
+    Returns:
+        Kh (float|array): hydraulic conductivity (if Ksat ~=1 then in [units], else relative [-])
+
+    """
+
+    x = np.array(x)
+
+    # water retention parameters
+    alfa = np.array(pF['alpha'])
+    n = np.array(pF['n'])
+    m = 1.0 - np.divide(1.0, n)
+
+    def relcond(x):
+        Seff = 1.0 / (1.0 + abs(alfa*x)**n)**m
+        r = Seff**0.5 * (1.0 - (1.0 - Seff**(1/m))**m)**2.0
+        return r
+
+    Kh = Ksat * relcond(100.0 * np.minimum(x, 0.0))
+
+    return Kh
+
+
 def gwl_Wsto(dz: np.ndarray, pF: Dict) -> Dict:
     r""" 
     Relationship (interpolation functions) between soil column ground water depth and

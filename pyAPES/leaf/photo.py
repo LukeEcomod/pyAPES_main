@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 .. module: photo
-    :synopsis: pyAPES leaf component. Describes coupled leaf/needle-scale photosynthesis and stomatal control using variants of
-Farquhar model and 'A-gs' schemes. Includes also leaf energy balance.
+    :synopsis: pyAPES leaf component. Describes leaf/needle-scale photosynthesis and stomatal
+    control using variants of the Farquhar model and 'A-gs' schemes.
 .. moduleauthor:: Samuli Launiainen & Kersti Leppä
 
 Key references:
@@ -15,243 +15,387 @@ Key references:
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 import logging
 from typing import List, Dict, Tuple
 
-from pyAPES.microclimate.micromet import e_sat, latent_heat
-from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
-from pyAPES.utils.constants import DEG_TO_KELVIN, PAR_TO_UMOL, EPS, SPECIFIC_HEAT_AIR, \
-    GAS_CONSTANT, O2_IN_AIR, MOLAR_MASS_H2O, H2O_CO2_RATIO, TN_GAS_CONSTANT, TN
+from pyAPES.microclimate.micromet import e_sat
+from pyAPES.utils.constants import DEG_TO_KELVIN, EPS, GAS_CONSTANT, O2_IN_AIR, \
+    H2O_CO2_RATIO, TN_GAS_CONSTANT, TN
 
 
 logger = logging.getLogger(__name__)
 
+
+
 # %%
-# --- coupled leaf energy balance and gas-exchange
+# --- Photosynthesis model class and forcing utilities
 
 
-def leaf_Ags_ebal(photop: Dict, leafp: Dict, forcing: Dict, controls: Dict,
-                  df: float = 1.0, dict_output: bool = True, logger_info: str = ''):
-    r""" 
-    Computes leaf net CO2 flux (An), respiration (Rd), transpiration (E) and estimates
-    leaf temperature (Tl) and sensible heat fluxes (H) based on leaf energy balance equation coupled with
-    leaf-level photosynthesis and stomatal control schemes.
+class PhotosynthesisModel():
+    """
+    Wrapper class for running leaf-level photosynthesis models.
 
-    Energy balance is solved using Taylor's expansion (i.e isothermal net radiation -approximation) which
-    eliminates need for iterations with the long-wave radiation-sceme.
-
-    Depending on choise of 'photo_model', photosynthesis is calculated based on biochemical model of Farquhar et
-    al. (1980), coupled with alternative stomatal control schemes (Medlyn, Ball-Woodrow-Berry, Hari, Katul-Vico et al.)
-    In all these models, stomatal conductance (gs) is proportional to instantaneous An, 
-    either by optimal stomatal control principles or
-    using semi-empirical models.
-
-    Args:
-        photop (dict): leaf gas-exchange parameters
-            Vcmax: [umol m-2 s-1] maximum carboxylation velocity at 25C
-            Jmax: [umol m-2 s-1] maximum rate of electron transport at 25C
-            Rd: [umol m-2 s-1] dark respiration rate at 25C
-            alpha: apparent quantum yield parameter
-            theta: [-] co-limitation parameter of Farquhar-model
-            La: stomatal parameter (Lambda, m [-], ...) depending on model
-            g1: [kPa^0.5] stomatal slope parameter of USO -model
-            g0: [mol m-2 s-1] residual conductance for CO2
-            #kn: [-] nitrogen attenuation factor in canopy, Not used ??
-            beta: [-] co-limitation parameter of Farquhar-model
-            drp: drought response parameters of Medlyn stomatal model and apparent Vcmax
-                 list: [Rew_crit_g1, slope_g1, Rew_crit_appVcmax, slope_appVcmax]
-            tresp' (dict): parameters of photosynthetic temperature response curve
-                - Vcmax (list): [activation energy [kJ mol-1], 
-                                 deactivation energy [kJ mol-1]
-                                 entropy factor [kJ mol-1]
-                                ]
-                - Jmax (list): [activation energy [kJ mol-1], 
-                                 deactivation energy [kJ mol-1]
-                                 entropy factor [kJ mol-1]
-                                ]
-                - Rd (list): [activation energy [kJ mol-1]
-
-        leafp (dict): leaf properties
-            lt: leaf lengthscale [m]
-
-        forcing (dict):
-            h2o: water vapor mixing ratio [mol mol-1]
-            co2: carbon dioxide mixing ratio [ppm]]
-            air_temperature: ambient air temperature [degC]
-            par_incident: incident PAR at leaves [umol m-2 s-1] 
-            sw_absorbed: absorbed SW (PAR + NIR) at leaves [W m-2]
-            lw_net: net isothermal long-wave radiation [W m-2]
-            wind_speed: mean wind speed [m s-1]
-            air_pressure: ambient pressure [Pa]
-            leaf_temperature: initial guess for leaf temperature (optional) [degC]
-            average_leaf_temperature: leaf temperature used for computing LWnet (optional) [degC]
-            radiative_conductance: radiative conductance used in computing LWnet (optional) [degC]
-
-        controls (dict):
-            photo_model (str): photosysthesis model
-                CO_OPTI (Vico et al., 2014)
-                # MEDLYN (Medlyn et al., 2011 with co-limitation Farquhar)
-                MEDLYN_FARQUHAR Medlyn et al., 2011 with co-limitation Farquhar)
-                BWB (Ball et al., 1987 with co-limitation Farquhar)
-            energy_balance (bool): True -> computes leaf temperature by solving energy balance
-        dict_output (bool): True -> returns output as dict, False as separate arrays (optional)
-        logger_info (str): optional
-
-    OUTPUT:
-        (dict):
-            net_co2: net CO2 flux (umol m-2 leaf s-1)
-            dark_respiration: CO2 respiration (umol m-2 leaf s-1)
-            transpiration: H2O flux (transpiration) (mol m-2 leaf s-1)
-            sensible_heat: sensible heat flux (W m-2 leaf)
-            fr: non-isothermal radiative flux (W m-2)
-            Tl: leaf temperature (degC)
-            stomatal_conductance: stomatal conductance for H2O (mol m-2 leaf s-1)
-            boundary_conductance: boundary layer conductance for H2O (mol m-2 leaf s-1)
-            leaf_internal_co2: leaf internal CO2 mixing ratio (mol/mol)
-            leaf_surface_co2: leaf surface CO2 mixing ratio (mol/mol)
-
-    Note: Vectorized code can be used in multi-layer sense where inputs are vectors of equal length
-
-    Note: NOT currently used in pyAPES-MLM! There coupled leaf energy balance is solved in planttype.PlantType.leaf_gas_exchange()
-
+    Note: Currently only the MEDLYN_FARQUHAR model (photo_c3_medlyn_farquhar) is
+    used in the pyAPES model.
     """
 
-    # -- parameters -----
-    lt = leafp['lt']
+    def __init__(self, photo_model: str):
+        self.photo_model = photo_model
 
-    T = np.array(forcing['air_temperature'], ndmin=1)
-    H2O = np.array(forcing['h2o'], ndmin=1)
-    Qp = forcing['par_incident']
-    P = forcing['air_pressure']
-    U = forcing['wind_speed']
-    CO2 = forcing['co2']
+        if self.photo_model.upper() == 'MEDLYN_FARQUHAR':
+            self.output_names = ['An', 'Rd', 'fe', 'gs_opt', 'Ci', 'Cs']
 
-    Ebal = controls['energy_balance']
-    model = controls['photo_model']
+    def run(self, forcing: Dict, photop: Dict) -> Dict:
+        if self.photo_model.upper() == 'MEDLYN_FARQUHAR':
+            results = photo_c3_medlyn_farquhar_fast(photop,
+                                               forcing['Qp'], forcing['T'], forcing['VPD'],
+                                               forcing['co2'], forcing['gb_c'], forcing['gb_v'],
+                                               P=forcing['air_pressure'])
+            results_dict = {k: v for k, v in zip(self.output_names, results)}
+        return results_dict
 
-    if Ebal:
-        SWabs = np.array(forcing['sw_absorbed'], ndmin=1)
-        LWnet = np.array(forcing['lw_net'], ndmin=1)
-        Rabs = SWabs + LWnet
-        # canopy nodes
-        ic = np.where(abs(LWnet) > 0.0)
 
-    if 'leaf_temperature' in forcing:
-        Tl_ini = np.array(forcing['leaf_temperature'], ndmin=1).copy()
+def initialize_photo_forcing(num_elements: int) -> Dict:
+    forcing = {}
+    forcing['Qp'] = np.zeros((num_elements,)) * np.nan
+    forcing['T'] = np.zeros((num_elements,)) * np.nan
+    forcing['VPD'] = np.zeros((num_elements,)) * np.nan
+    forcing['co2'] = np.zeros((num_elements,)) * np.nan
+    forcing['gb_c'] = np.zeros((num_elements,)) * np.nan
+    forcing['gb_v'] = np.zeros((num_elements,)) * np.nan
 
-    else:
-        Tl_ini = T.copy()
+    return forcing
 
-    Tl = Tl_ini.copy()
-    Told = Tl.copy()
 
-    if 'radiative_conductance' in forcing:
-        gr = df * np.array(forcing['radiative_conductance'], ndmin=1)
-    else:
-        gr = np.zeros(len(T))
+def set_photo_forcing(forcing: Dict, Qp, T, VPD, co2, gb_c, gb_v, P) -> Dict:
+    keys = ['Qp', 'T', 'VPD', 'co2', 'gb_c', 'gb_v', 'air_pressure']
+    values = (Qp, T, VPD, co2, gb_c, gb_v, P)
 
-    if 'average_leaf_temperature' in forcing:
-        Tl_ave = np.array(forcing['average_leaf_temperature'], ndmin=1)
+    for key, val in zip(keys, values):
+        forcing[key] = val
 
-    else:
-        Tl_ave = Tl.copy()
-
-    # vapor pressure
-    esat, s = e_sat(Tl)
-    s = s / P  # slope of esat, mol/mol / degC
-    Dleaf = esat / P - H2O
-
-    Lv = latent_heat(T) * MOLAR_MASS_H2O
-
-    itermax = 20
-    err = 999.0
-    iter_no = 0
-
-    while err > 0.01 and iter_no < itermax:
-        iter_no += 1
-        # boundary layer conductance
-        gb_h, gb_c, gb_v = leaf_boundary_layer_conductance(
-            U, lt, T, 0.5 * (Tl + Told) - T, P)
-
-        Told = Tl.copy()
-
-        if model.upper() == 'MEDLYN_FARQUHAR':
-            An, Rd, fe, gs_opt, Ci, Cs = photo_c3_medlyn_farquhar(
-                photop, Qp, Tl, Dleaf, CO2, gb_c, gb_v, P=P)
-
-        if model.upper() == 'BWB':
-            rh = (1 - Dleaf*P / esat)  # rh at leaf (-)
-            An, Rd, fe, gs_opt, Ci, Cs = photo_c3_bwb(
-                photop, Qp, Tl, rh, CO2, gb_c, gb_v, P=P)
-
-        # --- analytical co-limitation model Vico et al. 2013
-        if model.upper() == 'CO_OPTI':
-            An, Rd, fe, gs_opt, Ci, Cs = photo_c3_analytical(
-                photop, Qp, Tl, Dleaf, CO2, gb_c, gb_v)
-
-        gsv = H2O_CO2_RATIO*gs_opt
-        # geff_v = (gb_v*gsv) / (gb_v + gsv)
-        # molm-2s-1, condensation only on dry leaf part
-        geff_v = np.where(Dleaf > 0.0, (gb_v*gsv) / (gb_v + gsv), df * gb_v)
-        gb_h = df * gb_h  # sensible heat exchange only through dry leaf part
-
-        # solve leaf temperature from energy balance
-        if Ebal:
-            Tl[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - Lv[ic]*geff_v[ic]*Dleaf[ic]
-                      + Lv[ic]*s[ic]*geff_v[ic]*Told[ic]) / (SPECIFIC_HEAT_AIR*(gr[ic] + gb_h[ic]) + Lv[ic]*s[ic]*geff_v[ic])
-            err = np.nanmax(abs(Tl - Told))
-
-            if (err < 0.01 or iter_no == itermax) and abs(np.mean(T) - np.mean(Tl)) > 20.0:
-                logger.debug(logger_info + ' Unrealistic leaf temperature %.2f set to air temperature %.2f, %.2f, %.2f, %.2f, %.2f',
-                             np.mean(Tl), np.mean(T),
-                             np.mean(LWnet), np.mean(Tl_ave), np.mean(Tl_ini), np.mean(H2O))
-                Tl = T.copy()
-                Ebal = False  # recompute without solving leaf temperature
-                err = 999.
-
-            elif iter_no == itermax and err > 0.05:
-                logger.debug(logger_info + ' Maximum number of iterations reached: Tl = %.2f (err = %.2f)',
-                             np.mean(Tl), err)
-
-            # vapor pressure
-            esat, s = e_sat(Tl)
-            s = s / P  # slope of esat, mol/mol / degC
-            # s[esat / P < H2O] = EPS
-            # Dleaf = np.maximum(EPS, esat / P - H2O)  # mol/mol
-            Dleaf = esat / P - H2O
-        else:
-            err = 0.0
-
-    # outputs
-    H = SPECIFIC_HEAT_AIR*gb_h*(Tl - T)  # Wm-2
-    # flux due to radiative conductance (Wm-2)
-    Fr = SPECIFIC_HEAT_AIR*gr*(Tl - Tl_ave)
-    # condensation accounted for in wetleaf water balance
-    E = geff_v * np.maximum(0.0, Dleaf)
-    LE = E * Lv  # condensation accounted for in wetleaf energy balance
-
-    if dict_output:  # return dict
-
-        x = {'net_co2': An,
-             'dark_respiration': Rd,
-             'transpiration': E,
-             'sensible_heat': H,
-             'latent_heat': LE,
-             'fr': Fr,
-             'leaf_temperature': Tl,
-             # gsv gets high when VPD->0
-             'stomatal_conductance': np.minimum(gsv, 1.0),
-             'boundary_conductance': gb_v,
-             'leaf_internal_co2': Ci,
-             'leaf_surface_co2': Cs}
-        return x
-    else:  # return 11 arrays
-        return An, Rd, E, H, Fr, Tl, Ci, Cs, gsv, gs_opt, gb_v
+    return forcing
 
 
 # %%
-#  ---- photosynthesis - stomatal control (A-gs) models ----- """
+# --- Photosynthesis - stomatal control (A-gs) models
+
+
+def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
+                             ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
+    """
+    Leaf gas-exchange by Farquhar-Medlyn Unified Stomatal Optimality (USO) -model (Medlyn et al., 2011 GCB),
+    where co-limitation as in standard Farquhar-model
+
+    Args:
+        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp
+           can be scalars or arrays.
+           tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
+           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
+        Qp - incident PAR at leaves [umolm-2s-1]
+        T - leaf temperature [degC]
+        VPD - leaf-air vapor pressure difference [mol mol-1]
+        ca - ambient CO2 [ppm]
+        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
+        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
+
+    Returns:
+        An - net CO2 flux [umol m-2 s-1]
+        Rd - dark respiration [umol m-2 s-1]
+        fe - leaf transpiration rate [mol m-2 s-1]
+        gs - stomatal conductance for CO2 [mol m-2 s-1]
+        ci - leaf internal CO2 [ppm]
+        cs - leaf surface CO2 [ppm]
+    """
+    Tk = T + DEG_TO_KELVIN
+    VPD = np.maximum(EPS, 1e-3 * VPD * P)  # kPa
+
+    MaxIter = 50
+
+    # --- params ----
+    Vcmax = photop['Vcmax']  # [umol m-2 s-1]
+    Jmax = photop['Jmax']
+    Rd = photop['Rd']
+    alpha = photop['alpha']  # [-]
+    theta = photop['theta']
+    g1 = photop['g1']  # [kPa^0.5], slope parameter
+    g0 = photop['g0']  # [mol m-2 (leaf) s-1], for CO2
+    beta = photop['beta']
+
+    TN_GAS_CONSTANT_Tk = TN * GAS_CONSTANT * Tk
+    Tk_minus_TN = Tk - TN
+    # --- CO2 compensation point -------
+    Tau_c = 42.75 * np.exp(37830*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+
+    # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
+    Kc = 404.9 * np.exp(79430.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+    Ko = 2.784e5 * np.exp(36380.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+
+    if 'tresp' in photop:  # adjust parameters for temperature
+        tresp = photop['tresp']
+        Vcmax_T = tresp['Vcmax']
+        Jmax_T = tresp['Jmax']
+        Rd_T = tresp['Rd']
+        Vcmax, Jmax, Rd, Tau_c = photo_temperature_response(
+            Vcmax, Jmax, Rd, Vcmax_T, Jmax_T, Rd_T, Tk)
+
+    # --- model parameters k1_c, k2_c [umol/m2/s]
+    Km = Kc*(1.0 + O2_IN_AIR / Ko)
+    J = (Jmax + alpha*Qp - ((Jmax + alpha*Qp)**2.0 -
+         (4*theta*Jmax*alpha*Qp))**(0.5)) / (2*theta)
+
+    # --- iterative solution for cs and ci
+    err = 9999.0
+    cnt = 1
+    cs = ca  # leaf surface CO2
+    ci = 0.8*ca  # internal CO2
+    while err > 0.01 and cnt < MaxIter:
+        # -- rubisco -limited rate
+        Av = Vcmax * (ci - Tau_c) / (ci + Km)
+        # -- RuBP -regeneration limited rate
+        Aj = J/4.0 * (ci - Tau_c) / (ci + 2.0*Tau_c)
+
+        x = Av + Aj
+        y = Av * Aj
+        An = (x - (x**2.0 - 4.0*beta*y)**0.5) / \
+            (2.0*beta) - Rd  # co-limitation
+
+        An1 = np.maximum(An, 0.0)
+        # stomatal conductance
+        gs_opt = g0 + (1.0 + g1 / (VPD**0.5)) * An1 / cs
+        gs_opt[gs_opt < g0] = g0
+        # CO2 supply
+        cs = np.maximum(ca - An1 / gb_c, 0.5*ca)  # through boundary layer
+        ci0 = ci
+        ci = np.maximum(cs - An1 / gs_opt, 0.1*ca)  # through stomata
+
+        err = max((ci0 - ci)*(ci0-ci))
+        cnt += 1
+
+    # when Rd > photo, assume stomata closed and ci == ca
+    ix = np.where(An < 0)
+    ci[ix] = ca[ix]
+    cs[ix] = ca[ix]
+    gs_opt[ix] = g0
+    gs_v = H2O_CO2_RATIO*gs_opt
+
+    geff = (gb_v*gs_v) / (gb_v + gs_v)  # molm-2s-1
+    fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
+
+    return An, Rd, fe, gs_opt, ci, cs
+
+
+def photo_c3_medlyn_farquhar_fast(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
+                                  ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
+    """
+    Optimized version of photo_c3_medlyn_farquhar for benchmarking.
+
+    Changes from the original:
+    - Precompute loop-invariant expressions outside the iteration loop:
+        g1_factor, J4, two_Tau_c, four_beta, inv_two_beta, ca_half, ca_tenth
+    - Replace x**2.0 with x*x and (...)**0.5 with np.sqrt() to avoid power dispatch
+    - Precompute P_milli = 1e-3 * P (used twice)
+    - Precompute JaQ = Jmax + alpha*Qp (appears twice in J formula)
+    - Replace Python built-in max() with np.max() (avoids Python-level iteration over array)
+    - Replace gs_opt[gs_opt < g0] = g0 with np.maximum(g0, gs_opt, out=gs_opt) (in-place, no bool mask alloc)
+    """
+    Tk = T + DEG_TO_KELVIN
+    P_milli = 1e-3 * P  # kPa
+    VPD = np.maximum(EPS, VPD * P_milli)  # kPa
+
+    # --- params ----
+    Vcmax = photop['Vcmax']  # [umol m-2 s-1]
+    Jmax = photop['Jmax']
+    Rd = photop['Rd']
+    alpha = photop['alpha']  # [-]
+    theta = photop['theta']
+    g1 = photop['g1']  # [kPa^0.5], slope parameter
+    g0 = photop['g0']  # [mol m-2 (leaf) s-1], for CO2
+    beta = photop['beta']
+
+    TN_GAS_CONSTANT_Tk = TN * GAS_CONSTANT * Tk
+    Tk_minus_TN = Tk - TN
+    # --- CO2 compensation point -------
+    Tau_c = 42.75 * np.exp(37830*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+
+    # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
+    Kc = 404.9 * np.exp(79430.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+    Ko = 2.784e5 * np.exp(36380.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
+
+    if 'tresp' in photop:  # adjust parameters for temperature
+        tresp = photop['tresp']
+        Vcmax, Jmax, Rd, Tau_c = photo_temperature_response_fast(
+            Vcmax, Jmax, Rd, tresp['Vcmax'], tresp['Jmax'], tresp['Rd'], Tk)
+
+    # --- model parameters
+    Km = Kc * (1.0 + O2_IN_AIR / Ko)
+    JaQ = Jmax + alpha * Qp  # precompute: appears twice in J formula
+    J = (JaQ - np.sqrt(JaQ * JaQ - 4 * theta * Jmax * alpha * Qp)) / (2 * theta)
+
+    # precompute loop-invariant expressions
+    J4 = J * 0.25
+    two_Tau_c = 2.0 * Tau_c
+    four_beta = 4.0 * beta
+    inv_two_beta = 0.5 / beta
+    g1_factor = 1.0 + g1 / np.sqrt(VPD)  # VPD is constant through the loop
+    ca_half = 0.5 * ca
+    ca_tenth = 0.1 * ca
+
+    # --- iterative solution for cs and ci
+    err = 9999.0
+    cnt = 1
+    cs = ca  # leaf surface CO2
+    ci = 0.8 * ca  # internal CO2
+    while err > 0.01 and cnt < 50:
+        # -- rubisco-limited rate
+        Av = Vcmax * (ci - Tau_c) / (ci + Km)
+        # -- RuBP-regeneration limited rate
+        Aj = J4 * (ci - Tau_c) / (ci + two_Tau_c)
+
+        x = Av + Aj
+        y = Av * Aj
+        An = (x - np.sqrt(x * x - four_beta * y)) * inv_two_beta - Rd  # co-limitation
+
+        An1 = np.maximum(An, 0.0)
+        # stomatal conductance
+        gs_opt = g0 + g1_factor * An1 / cs
+        np.maximum(g0, gs_opt, out=gs_opt)
+        # CO2 supply
+        cs = np.maximum(ca - An1 / gb_c, ca_half)   # through boundary layer
+        ci0 = ci
+        ci = np.maximum(cs - An1 / gs_opt, ca_tenth)  # through stomata
+
+        err = np.max((ci0 - ci) * (ci0 - ci))
+        cnt += 1
+
+    # when Rd > photo, assume stomata closed and ci == ca
+    ix = np.where(An < 0)
+    ci[ix] = ca[ix]
+    cs[ix] = ca[ix]
+    gs_opt[ix] = g0
+    gs_v = H2O_CO2_RATIO * gs_opt
+
+    geff = (gb_v * gs_v) / (gb_v + gs_v)  # molm-2s-1
+    fe = geff * VPD / P_milli  # leaf transpiration rate
+
+    return An, Rd, fe, gs_opt, ci, cs
+
+
+def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
+                               Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
+    """
+    Adjusts Farquhar-parameters for temperature
+
+    Args:
+        - Vcmax25, maximum carboxylation velocity at 25 degC
+        - Jmax25, maximum electron transport rate at 25 degC
+        - Rd25, dark respiration rate at 25 degC
+        - Vcmax_T (list) [activation energy [kJ mol-1],
+                              deactivation energy [kJ mol-1],
+                              entropy factor [kJ mol-1]
+                             ]
+        - Jmax_T (list): [activation energy [kJ mol-1],
+                              deactivation energy [kJ mol-1],
+                              entropy factor [kJ mol-1]
+                             ]
+       - Rd_T (list): [activation energy [kJ mol-1]
+       - T [K] temperature
+
+
+    Returns:
+        - Vcmax at temperature T
+        - Jmax at temperature T
+        - Rd at temperature T
+        - Gamma_star [ppm], CO2 compensation point at T
+
+    Reference:
+        Medlyn et al., 2002.Plant Cell Environ. 25, 1167-1179; based on Bernacchi
+        et al. 2001. Plant Cell Environ., 24, 253-260.
+    """
+
+    TN_GAS_CONSTANT_T = TN_GAS_CONSTANT * T
+    T_GAS_CONSTANT = T*GAS_CONSTANT
+    T_minus_TN = T - TN
+
+    # --- CO2 compensation point -------
+    Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
+
+    # ------  Vcmax (umol m-2(leaf)s-1) ------------
+    Ha = 1e3*Vcmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd = 1e3*Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
+
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
+
+    Vcmax = Vcmax0 * NOM / DENOM
+
+    # ------  Jmax (umol m-2(leaf)s-1) ----------
+    Ha = 1e3*Jmax_T[0]  # J mol-1, activation energy Jmax
+    Hd = 1e3*Jmax_T[1]  # J mol-1, deactivation energy Jmax
+    Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
+
+    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
+        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
+    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
+
+    Jmax = Jmax0 * NOM / DENOM
+
+    # ------ Rd (umol m-2(leaf)s-1) --------
+    Ha = 1e3*Rd_T[0]  # J mol-1, activation energy dark respiration
+    Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
+
+    return Vcmax, Jmax, Rd, Gamma_star
+
+
+def photo_temperature_response_fast(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
+                                    Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
+    """
+    Optimized version of photo_temperature_response for benchmarking.
+
+    Changes from the original:
+    - Precompute T_ratio = T_minus_TN / TN_GAS_CONSTANT_T once and reuse in all 4 exp()
+      numerators (Gamma_star, Vcmax NOM, Jmax NOM, Rd) — saves 3 array divisions
+    - Precompute inv_T_GAS_CONSTANT = 1 / (T * GAS_CONSTANT) once and reuse in both
+      Vcmax and Jmax DENOM expressions — replaces 1 array division with 1 array multiply
+    - Rename Ha/Hd/Sd with suffixes to avoid variable rebinding between blocks
+    """
+    T_minus_TN = T - TN
+    TN_GAS_CONSTANT_T = TN_GAS_CONSTANT * T
+
+    # precompute: used in all 4 exp() numerators — saves 3 array divisions
+    T_ratio = T_minus_TN / TN_GAS_CONSTANT_T
+    # precompute: used in both Vcmax and Jmax DENOM — saves 1 array division
+    inv_T_GAS_CONSTANT = 1.0 / (T * GAS_CONSTANT)
+
+    # --- CO2 compensation point -------
+    Gamma_star = 42.75 * np.exp(37830 * T_ratio)
+
+    # ------  Vcmax (umol m-2(leaf)s-1) ------------
+    Ha_v = 1e3 * Vcmax_T[0]  # J mol-1, activation energy Vcmax
+    Hd_v = 1e3 * Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
+    Sd_v = Vcmax_T[2]         # entropy factor J mol-1 K-1
+
+    NOM = np.exp(Ha_v * T_ratio) * (1.0 + np.exp((TN*Sd_v - Hd_v) / TN_GAS_CONSTANT))
+    DENOM = 1.0 + np.exp((T*Sd_v - Hd_v) * inv_T_GAS_CONSTANT)
+    Vcmax = Vcmax0 * NOM / DENOM
+
+    # ------  Jmax (umol m-2(leaf)s-1) ----------
+    Ha_j = 1e3 * Jmax_T[0]  # J mol-1, activation energy Jmax
+    Hd_j = 1e3 * Jmax_T[1]  # J mol-1, deactivation energy Jmax
+    Sd_j = Jmax_T[2]         # entropy factor J mol-1 K-1
+
+    NOM = np.exp(Ha_j * T_ratio) * (1.0 + np.exp((TN*Sd_j - Hd_j) / TN_GAS_CONSTANT))
+    DENOM = 1.0 + np.exp((T*Sd_j - Hd_j) * inv_T_GAS_CONSTANT)
+    Jmax = Jmax0 * NOM / DENOM
+
+    # ------ Rd (umol m-2(leaf)s-1) --------
+    Ha_rd = 1e3 * Rd_T[0]  # J mol-1, activation energy dark respiration
+    Rd = Rd0 * np.exp(Ha_rd * T_ratio)
+
+    return Vcmax, Jmax, Rd, Gamma_star
+
 
 def photo_c3_analytical(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
                         ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray):
@@ -351,7 +495,6 @@ def photo_c3_analytical(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.nda
 
         err = np.nanmax(abs(cs - cs0))
         cnt = cnt + 1
-        # print('err', err)
 
     ix = np.where(An < 0)
     gs_opt[ix] = g0
@@ -463,119 +606,6 @@ def photo_c3_medlyn(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray
     else:
         ci[ix] = ca[ix]
         cs[ix] = ca[ix]
-    gs_opt[ix] = g0
-    gs_v = H2O_CO2_RATIO*gs_opt
-
-    geff = (gb_v*gs_v) / (gb_v + gs_v)  # molm-2s-1
-    fe = geff * VPD / (1e-3 * P)  # leaf transpiration rate
-
-    return An, Rd, fe, gs_opt, ci, cs
-
-def photo_c3_medlyn_farquhar(photop: Dict, Qp: np.ndarray, T: np.ndarray, VPD: np.ndarray,
-                             ca: np.ndarray, gb_c: np.ndarray, gb_v: np.ndarray, P: float = 101300.0) -> Tuple:
-    """
-    Leaf gas-exchange by Farquhar-Medlyn Unified Stomatal Optimality (USO) -model (Medlyn et al., 2011 GCB), 
-    where co-limitation as in standard Farquhar-model
-
-    Args:
-        photop - parameter dict with keys: Vcmax, Jmax, Rd, alpha, theta, beta, g1, g0, tresp
-           can be scalars or arrays.
-           tresp - dictionary with keys: Vcmax, Jmax, Rd: temperature sensitivity
-           parameters. OMIT key 'tresp' if no temperature adjustments for photoparameters!
-        Qp - incident PAR at leaves [umolm-2s-1]
-        T - leaf temperature [degC]
-        VPD - leaf-air vapor pressure difference [mol mol-1]
-        ca - ambient CO2 [ppm]
-        gb_c - boundary-layer conductance for CO2 [mol m-2 s-1]
-        gb_v - boundary-layer conductance for H2O [mol m-2 s-1]
-
-    Returns:
-        An - net CO2 flux [umol m-2 s-1]
-        Rd - dark respiration [umol m-2 s-1]
-        fe - leaf transpiration rate [mol m-2 s-1]
-        gs - stomatal conductance for CO2 [mol m-2 s-1]
-        ci - leaf internal CO2 [ppm]
-        cs - leaf surface CO2 [ppm]
-    """
-    Tk = T + DEG_TO_KELVIN
-    VPD = np.maximum(EPS, 1e-3 * VPD * P)  # kPa
-
-    MaxIter = 50
-
-    # --- params ----
-    Vcmax = photop['Vcmax']  # [umol m-2 s-1]
-    Jmax = photop['Jmax']
-    Rd = photop['Rd']
-    alpha = photop['alpha']  # [-]
-    theta = photop['theta']
-    g1 = photop['g1']  # [kPa^0.5], slope parameter
-    g0 = photop['g0']  # [mol m-2 (leaf) s-1], for CO2
-    beta = photop['beta']
-
-    TN_GAS_CONSTANT_Tk = TN * GAS_CONSTANT * Tk
-    Tk_minus_TN = Tk - TN
-    # --- CO2 compensation point -------
-    Tau_c = 42.75 * np.exp(37830*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
-
-    # ---- Kc & Ko (umol/mol), Rubisco activity for CO2 & O2 ------
-    Kc = 404.9 * np.exp(79430.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
-    Ko = 2.784e5 * np.exp(36380.0*(Tk_minus_TN) / (TN_GAS_CONSTANT_Tk))
-
-    if 'tresp' in photop:  # adjust parameters for temperature
-        tresp = photop['tresp']
-        Vcmax_T = tresp['Vcmax']
-        Jmax_T = tresp['Jmax']
-        Rd_T = tresp['Rd']
-        Vcmax, Jmax, Rd, Tau_c = photo_temperature_response(
-            Vcmax, Jmax, Rd, Vcmax_T, Jmax_T, Rd_T, Tk)
-
-    # --- model parameters k1_c, k2_c [umol/m2/s]
-    Km = Kc*(1.0 + O2_IN_AIR / Ko)
-    J = (Jmax + alpha*Qp - ((Jmax + alpha*Qp)**2.0 -
-         (4*theta*Jmax*alpha*Qp))**(0.5)) / (2*theta)
-    # k1_c = J / 4.0
-    # k2_c = J / 4.0 * Km / Vcmax
-
-    # --- iterative solution for cs and ci
-    err = 9999.0
-    cnt = 1
-    cs = ca  # leaf surface CO2
-    ci = 0.8*ca  # internal CO2
-    while err > 0.01 and cnt < MaxIter:
-        # -- rubisco -limited rate
-        Av = Vcmax * (ci - Tau_c) / (ci + Km)
-        # -- RuBP -regeneration limited rate
-        Aj = J/4.0 * (ci - Tau_c) / (ci + 2.0*Tau_c)
-
-        # An = np.minimum(Av, Aj) - Rd  # single limiting rate
-        x = Av + Aj
-        y = Av * Aj
-        An = (x - (x**2.0 - 4.0*beta*y)**0.5) / \
-            (2.0*beta) - Rd  # co-limitation
-
-        An1 = np.maximum(An, 0.0)
-        # print An1
-        # stomatal conductance
-        gs_opt = g0 + (1.0 + g1 / (VPD**0.5)) * An1 / cs
-        #gs_opt = np.maximum(g0, gs_opt)  # gcut is the lower limit
-        gs_opt[gs_opt<g0] = g0
-        # print gs_opt
-        # CO2 supply
-        cs = np.maximum(ca - An1 / gb_c, 0.5*ca)  # through boundary layer
-        ci0 = ci
-        ci = np.maximum(cs - An1 / gs_opt, 0.1*ca)  # through stomata
-
-        err = max((ci0 - ci)*(ci0-ci))
-        cnt += 1
-
-    # when Rd > photo, assume stomata closed and ci == ca
-    ix = np.where(An < 0)
-    # if type(ca) is float:
-    #     ci[ix] = ca
-    #     cs[ix] = ca
-    # else:
-    ci[ix] = ca[ix]
-    cs[ix] = ca[ix]
     gs_opt[ix] = g0
     gs_v = H2O_CO2_RATIO*gs_opt
 
@@ -800,7 +830,6 @@ def photo_c3_bwb(photop: Dict, Qp: np.ndarray, T: np.ndarray, RH: np.ndarray,
         # -- RuBP -regeneration limited rate
         Aj = J/4.0 * (ci - Tau_c) / (ci + 2.0*Tau_c)
 
-        # An = np.minimum(Av, Aj) - Rd  # single limiting rate
         # co-limitation
         x = Av + Aj
         y = Av * Aj
@@ -859,7 +888,7 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         Aj - electron transport limited rate (if co_limi==True)
         Tau_c - CO2 compensation point [ppm]
         Kc - Rubisco activity for CO2 [umol mol-1]
-        Ko - Rubisco activity for O [umol mol-1] 
+        Ko - Rubisco activity for O [umol mol-1]
         Km - Kc*(1.0 + O2_IN_AIR / Ko) [umol mol-1]
         J - electron transport rate [umol m-2 leaf s-1] CHECK UNITS!!
 
@@ -900,7 +929,6 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         # -- RuBP -regeneration limited rate
         Aj = J/4 * (ci - Tau_c) / (ci + 2.0*Tau_c)
 
-        # An = np.minimum(Av, Aj) - Rd  # single limiting rate
         x = Av + Aj
         y = Av * Aj
         An = (x - (x**2 - 4*beta*y)**0.5) / (2*beta) - Rd  # co-limitation
@@ -912,70 +940,6 @@ def photo_farquhar(photop: Dict, Qp: np.ndarray, ci: np.ndarray, T: np.ndarray,
         An = k1_c * (ci - Tau_c) / (k2_c + ci) - Rd
         return An, Rd, Tau_c, Kc, Ko, Km, J
 
-def photo_temperature_response(Vcmax0: np.ndarray, Jmax0: np.ndarray, Rd0: np.ndarray,
-                               Vcmax_T: list, Jmax_T: list, Rd_T: list, T: np.ndarray):
-    """
-    Adjusts Farquhar-parameters for temperature
-
-    Args:
-        - Vcmax25, maximum carboxylation velocity at 25 degC
-        - Jmax25, maximum electron transport rate at 25 degC
-        - Rd25, dark respiration rate at 25 degC
-        - Vcmax_T (list) [activation energy [kJ mol-1], 
-                              deactivation energy [kJ mol-1], 
-                              entropy factor [kJ mol-1]
-                             ]
-        - Jmax_T (list): [activation energy [kJ mol-1], 
-                              deactivation energy [kJ mol-1], 
-                              entropy factor [kJ mol-1]
-                             ]
-       - Rd_T (list): [activation energy [kJ mol-1]
-       - T [K] temperature
-
-
-    Returns:
-        - Vcmax at temperature T
-        - Jmax at temperature T
-        - Rd at temperature T
-        - Gamma_star [ppm], CO2 compensation point at T
-
-    Reference:
-        Medlyn et al., 2002.Plant Cell Environ. 25, 1167-1179; based on Bernacchi
-        et al. 2001. Plant Cell Environ., 24, 253-260.
-    """
-
-    TN_GAS_CONSTANT_T = TN_GAS_CONSTANT * T
-    T_GAS_CONSTANT = T*GAS_CONSTANT
-    T_minus_TN = T - TN
-
-    # --- CO2 compensation point -------
-    Gamma_star = 42.75 * np.exp(37830*(T_minus_TN) / (TN_GAS_CONSTANT_T))
-
-    # ------  Vcmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3*Vcmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3*Vcmax_T[1]  # J mol-1, deactivation energy Vcmax
-    Sd = Vcmax_T[2]  # entropy factor J mol-1 K-1
-
-    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
-        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
-    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    Vcmax = Vcmax0 * NOM / DENOM
-
-    # ----  Jmax (umol m-2(leaf)s-1) ------------
-    Ha = 1e3*Jmax_T[0]  # J mol-1, activation energy Vcmax
-    Hd = 1e3*Jmax_T[1]  # J mol-1, deactivation energy Vcmax
-    Sd = Jmax_T[2]  # entropy factor J mol-1 K-1
-
-    NOM = np.exp(Ha * (T_minus_TN) / (TN_GAS_CONSTANT_T)) * \
-        (1.0 + np.exp((TN*Sd - Hd) / (TN_GAS_CONSTANT)))
-    DENOM = (1.0 + np.exp((T*Sd - Hd) / (T_GAS_CONSTANT)))
-    Jmax = Jmax0*NOM / DENOM
-
-    # --- Rd (umol m-2(leaf)s-1) -------
-    Ha = 1e3*Rd_T[0]  # J mol-1, activation energy dark respiration
-    Rd = Rd0 * np.exp(Ha*(T_minus_TN) / (TN_GAS_CONSTANT_T))
-
-    return Vcmax, Jmax, Rd, Gamma_star
 
 def apparent_photocapacity(b: List, psi_leaf: np.ndarray) -> float:
     """
@@ -1050,304 +1014,6 @@ def photo_Toptima(T10: float) -> Tuple:
     rjv = 2.59 - 0.035*T10  # Jmax25 / Vcmax25
 
     return Tv, Tj, rjv
-
-
-# %%
-# --- scripts for testing functions ---- """
-
-def test_leafscale(method='MEDLYN_FARQUHAR', species='pine', Ebal=False):
-    gamma = 1.0
-    gfact = 1.0
-    if species.upper() == 'PINE':
-        photop = {
-            #                'Vcmax': 55.0,
-            #                'Jmax': 105.0,
-            #                'Rd': 1.3,
-            #                'tresp': {
-            #                    'Vcmax': [78.0, 200.0, 650.0],
-            #                    'Jmax': [56.0, 200.0, 647.0],
-            #                    'Rd': [33.0]
-            #                    },
-            'Vcmax': 94.0,  # Tarvainen et al. 2018 Physiol. Plant.
-            'Jmax': 143.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [78.3, 200.0, 650.1],
-                'Jmax': [56.0, 200.0, 647.9],
-                'Rd': [33.0]
-            },
-            'alpha': gamma * 0.2,
-            'theta': 0.7,
-            'La': 1600.0,
-            'g1': gfact * 2.3,
-            'g0': 1.0e-3,
-            'kn': 0.6,
-            'beta': 0.95,
-            'drp': 0.7,
-
-        }
-        leafp = {
-            'lt': 0.02,
-            'par_alb': 0.12,
-            'nir_alb': 0.55,
-            'emi': 0.98
-        }
-    if species.upper() == 'SPRUCE':
-        photop = {
-            #                'Vcmax': 60.0,
-            #                'Jmax': 114.0,
-            #                'Rd': 1.5,
-            #                'tresp': {
-            #                    'Vcmax': [53.2, 202.0, 640.3],  # Tarvainen et al. 2013 Oecologia
-            #                    'Jmax': [38.4, 202.0, 655.8],
-            #                    'Rd': [33.0]
-            #                    },
-            'Vcmax': 69.7,  # Tarvainen et al. 2013 Oecologia
-            'Jmax': 130.2,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [53.2, 200.0, 640.0],
-                'Jmax': [38.4, 200.0, 655.5],
-                'Rd': [33.0]
-            },
-            'alpha': gamma * 0.2,
-            'theta': 0.7,
-            'La': 1600.0,
-            'g1': gfact * 2.3,
-            'g0': 1.0e-3,
-            'kn': 0.6,
-            'beta': 0.95,
-            'drp': 0.7,
-
-        }
-        leafp = {
-            'lt': 0.02,
-            'par_alb': 0.12,
-            'nir_alb': 0.55,
-            'emi': 0.98
-        }
-    if species.upper() == 'DECID':
-        photop = {
-            #                'Vcmax': 50.0,
-            #                'Jmax': 95.0,
-            #                'Rd': 1.3,
-            #                'tresp': {
-            #                    'Vcmax': [77.0, 200.0, 636.7],  # Medlyn et al 2002.
-            #                    'Jmax': [42.8, 200.0, 637.0],
-            #                    'Rd': [33.0]
-            #                    },
-            'Vcmax': 69.1,  # Medlyn et al 2002.
-            'Jmax': 116.3,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [77.0, 200.0, 636.4],
-                'Jmax': [42.8, 200.0, 636.6],
-                'Rd': [33.0]
-            },
-            'alpha': gamma * 0.2,
-            'theta': 0.7,
-            'La': 600.0,
-            'g1': gfact * 4.5,
-            'g0': 1.0e-3,
-            'kn': 0.6,
-            'beta': 0.95,
-            'drp': 0.7,
-
-        }
-        leafp = {
-            'lt': 0.05,
-            'par_alb': 0.12,
-            'nir_alb': 0.55,
-            'emi': 0.98
-        }
-    if species.upper() == 'SHRUBS':
-        photop = {
-            'Vcmax': 50.0,
-            'Jmax': 95.0,
-            'Rd': 1.3,
-            'alpha': gamma * 0.2,
-            'theta': 0.7,
-            'La': 600.0,
-            'g1': gfact * 4.5,
-            'g0': 1.0e-3,
-            'kn': 0.3,
-            'beta': 0.95,
-            'drp': 0.7,
-            'tresp': {
-                'Vcmax': [77.0, 200.0, 636.7],
-                'Jmax': [42.8, 200.0, 637.0],
-                'Rd': [33.0]
-            }
-        }
-        leafp = {
-            'lt': 0.02,
-            'par_alb': 0.12,
-            'nir_alb': 0.55,
-            'emi': 0.98
-        }
-    # env. conditions
-    N = 50
-    P = 101300.0
-    Qp = 1000. * np.ones(N)  # np.linspace(1.,1800.,50)#
-    CO2 = 400. * np.ones(N)
-    U = 1.0  # np.array([10.0, 1.0, 0.1, 0.01])
-    T = np.linspace(1., 39., 50)  # 10. * np.ones(N) #
-    esat, s = e_sat(T)
-    H2O = (85.0 / 100.0) * esat / P
-    SWabs = 0.5 * (1-leafp['par_alb']) * Qp / PAR_TO_UMOL + \
-        0.5 * (1-leafp['nir_alb']) * Qp / PAR_TO_UMOL
-    LWnet = -30.0 * np.ones(N)
-
-    forcing = {
-        'h2o': H2O,
-        'co2': CO2,
-        'air_temperature': T,
-        'par_incident': Qp,
-        'sw_absorbed': SWabs,
-        'lw_net': LWnet,
-        'wind_speed': U,
-        'air_pressure': P
-    }
-
-    controls = {
-        'photo_model': method,
-        'energy_balance': Ebal
-    }
-
-    x = leaf_Ags_ebal(photop, leafp, forcing, controls)
-#    print(x)
-    Y = T
-    plt.figure(5)
-    plt.subplot(421)
-    plt.plot(Y, x['net_co2'], 'o')
-    plt.title('net_co2')
-    plt.subplot(422)
-    plt.plot(Y, x['transpiration'], 'o')
-    plt.title('transpiration')
-    plt.subplot(423)
-    plt.plot(Y, x['net_co2'] + x['dark_respiration'], 'o')
-    plt.title('co2 uptake')
-    plt.subplot(424)
-    plt.plot(Y, x['dark_respiration'], 'o')
-    plt.title('dark_respiration')
-    plt.subplot(425)
-    plt.plot(Y, x['stomatal_conductance'], 'o')
-    plt.title('stomatal_conductance')
-    plt.subplot(426)
-    plt.plot(Y, x['boundary_conductance'], 'o')
-    plt.title('boundary_conductance')
-    plt.subplot(427)
-    plt.plot(Y, x['leaf_internal_co2'], 'o')
-    plt.title('leaf_internal_co2')
-    plt.subplot(428)
-    plt.plot(Y, x['leaf_surface_co2'], 'o')
-    plt.title('leaf_surface_co2')
-    plt.tight_layout()
-
-
-def test_photo_temperature_response(species='pine'):
-    T = np.linspace(1., 40., 79)
-    Tk = T + DEG_TO_KELVIN
-    if species.upper() == 'PINE':
-        photop = {
-            'Vcmax': 55.0,
-            'Jmax': 105.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [78.3, 200.0, 650.1],
-                'Jmax': [56.0, 200.0, 647.9],
-                'Rd': [33.0]
-            }
-        }
-    if species.upper() == 'SPRUCE':
-        photop = {
-            'Vcmax': 60.0,
-            'Jmax': 114.0,
-            'Rd': 1.5,
-            'tresp': {
-                # Tarvainen et al. 2013 Oecologia
-                'Vcmax': [53.2, 202.0, 640.3],
-                'Jmax': [38.4, 202.0, 655.8],
-                'Rd': [33.0]
-            }
-        }
-    if species.upper() == 'DECID':
-        photop = {
-            'Vcmax': 50.0,
-            'Jmax': 95.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [77.0, 200.0, 636.7],  # Medlyn et al 2002.
-                'Jmax': [42.8, 200.0, 637.0],
-                'Rd': [33.0]
-            }
-        }
-    if species.upper() == 'SHRUBS':
-        photop = {
-            'Vcmax': 50.0,
-            'Jmax': 95.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [77.0, 200.0, 636.7],
-                'Jmax': [42.8, 200.0, 637.0],
-                'Rd': [33.0]
-            }
-        }
-
-    if species.upper() == 'PINE2':
-        photop = {
-            'Vcmax': 55.0,
-            'Jmax': 105.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [72., 200., 649.],  # (Kattge and Knorr, 2007)
-                'Jmax': [50., 200., 646.],  # (Kattge and Knorr, 2007)
-                'Rd': [33.0]
-            }
-        }
-    if species.upper() == 'SPRUCE2':
-        photop = {
-            'Vcmax': 60.0,
-            'Jmax': 114.0,
-            'Rd': 1.5,
-            'tresp': {
-                'Vcmax': [72., 200., 649.],  # (Kattge and Knorr, 2007)
-                'Jmax': [50., 200., 646.],  # (Kattge and Knorr, 2007)
-                'Rd': [33.0]
-            }
-        }
-    if species.upper() == 'DECID2':
-        photop = {
-            'Vcmax': 50.0,
-            'Jmax': 95.0,
-            'Rd': 1.3,
-            'tresp': {
-                'Vcmax': [72., 200., 649.],  # (Kattge and Knorr, 2007)
-                'Jmax': [50., 200., 646.],  # (Kattge and Knorr, 2007)
-                'Rd': [33.0]
-            }
-        }
-
-    Vcmax = photop['Vcmax']
-    Jmax = photop['Jmax']
-    Rd = photop['Rd']
-    tresp = photop['tresp']
-    Vcmax_T = tresp['Vcmax']
-    Jmax_T = tresp['Jmax']
-    Rd_T = tresp['Rd']
-    Vcmax, Jmax, Rd, Tau_c = photo_temperature_response(
-        Vcmax, Jmax, Rd, Vcmax_T, Jmax_T, Rd_T, Tk)
-
-    plt.figure(4)
-    plt.subplot(311)
-    plt.plot(T, Vcmax, 'o')
-    plt.title('Vcmax')
-    plt.subplot(312)
-    plt.plot(T, Jmax, 'o')
-    plt.title('Jmax')
-    plt.subplot(313)
-    plt.plot(T, Rd, 'o')
-    plt.title('Rd')
 
 
 def Topt_to_Sd(Ha, Hd, Topt):
