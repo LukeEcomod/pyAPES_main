@@ -56,6 +56,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+/*.ipynb
 
 # pyenv
 .python-version
@@ -105,15 +106,14 @@ docs/.DS_Store
 
 figures/
 results/
+data/
+old_obsolete/
 
 # Example demos
 Examples/results/*.*
 
 # datasets --> put in separate storage
-/data/*.*
-
-# forcing files --> put later in separate storage
-/forcing/*.*
+data/*.*
 
 # logs
 *.log
@@ -136,8 +136,27 @@ Examples/results/*.*
 # Line profiling results
 *.lprof
 
-#text files
+# Text files
 *.txt
 
-# opened files
+# Allow requirements
+!requirements.txt
+
+# UNIX opened files
 *~*
+
+# Logs
+logs/
+
+# Input parameters
+input_parameters/
+inputs/
+*. yml
+
+# Allow conda environment
+!environment.yml
+
+# Markdown files
+*.md
+# Allow readme
+!README.md

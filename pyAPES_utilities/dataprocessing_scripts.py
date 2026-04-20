@@ -66,7 +66,7 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
 
 #    dat['Tdaily'] = dat['Tair'].rolling(int((24*3600)/dt), 1).mean()
     dat['Tdaily'] = dat['Tair'].resample('D').mean()
-    dat['Tdaily'] = dat['Tdaily'].fillna(method='ffill')
+    dat['Tdaily'] = dat['Tdaily'].ffill()
 
     cols.append('Tdaily')
     readme += "\nTdaily: Daily air temperature [degC]"
@@ -122,22 +122,22 @@ def create_forcingfile(meteo_fp, output_file, dir_save, lat, lon, P_unit, timezo
         # clear sky Global radiation at surface
         dat['Qclear'] = np.maximum(0.0,
                         (So * (1.0 + 0.033 * np.cos(2.0 * np.pi * (np.minimum(dat['doy'].values, 365) - 10) / 365)) * np.cos(dat['Zen'].values)))
-        tau_atm = tau_atm = dat['Rg'].rolling(4,1).sum() / (dat['Qclear'].rolling(4,1).sum() + EPS)
+        tau_atm = tau_atm = dat['Rg'].rolling(4,min_periods=1).sum() / (dat['Qclear'].rolling(4,min_periods=1).sum() + EPS)
         # cloud cover fraction
         dat['f_cloud'] = 1.0 - (tau_atm - 0.2) / (0.7 - 0.2)
         dat.loc[dat['Qclear'] < 10, 'f_cloud'] = np.nan
 
-        dat['Qclear_12h'] = dat['Qclear'].resample('12H').sum()
-        dat['Qclear_12h'] = dat['Qclear_12h'].fillna(method='ffill')
-        dat['Rg_12h'] = dat['Rg'].resample('12H').sum()
-        dat['Rg_12h'] = dat['Rg_12h'].fillna(method='ffill')
+        dat['Qclear_12h'] = dat['Qclear'].resample('12h').sum()
+        dat['Qclear_12h'] = dat['Qclear_12h'].ffill()
+        dat['Rg_12h'] = dat['Rg'].resample('12h').sum()
+        dat['Rg_12h'] = dat['Rg_12h'].ffill()
 
         tau_atm = dat['Rg_12h'] / (dat['Qclear_12h'] + EPS)
         dat['f_cloud_12h'] = 1.0 - (tau_atm -0.2) / (0.7 - 0.2)
 
         dat['f_cloud'] = np.where((dat.index.hour > 12) & (dat['f_cloud_12h'] < 0.2), 0.0, dat['f_cloud'])
-        dat['f_cloud'] = dat['f_cloud'].fillna(method='ffill')
-        dat['f_cloud'] = dat['f_cloud'].fillna(method='bfill')
+        dat['f_cloud'] = dat['f_cloud'].ffill()
+        dat['f_cloud'] = dat['f_cloud'].bfill()
         dat.loc[dat['f_cloud'] < 0.0, 'f_cloud'] = 0.0
         dat.loc[dat['f_cloud'] > 1.0, 'f_cloud'] = 1.0
 

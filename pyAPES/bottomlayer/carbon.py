@@ -103,7 +103,7 @@ class BryophyteFarquhar(object):
                 }
 
 def conductance(para: Dict, w: float) -> float:
-    """
+    r"""
     Conductance for CO2 diffusion from bulk air to chloroplast in bryophyte.
     Assumes g = gref * fw, where gref is species-specific internal conductance, 
     occurring at w == wref, and fw [-] describes decay of conductance due to
@@ -123,7 +123,7 @@ def conductance(para: Dict, w: float) -> float:
         - w [g g-1] gravimetric water content
 
     Returns:
-        -- g [mol m\ :sup:`-2`\ (ground) s\ :sup:`-1`\] conductance for CO2
+        -- g [mol m-2 (ground) s-1] conductance for CO2
     """
  
     gref = para['gref']
