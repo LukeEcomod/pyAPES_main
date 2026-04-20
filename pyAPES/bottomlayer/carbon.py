@@ -549,35 +549,31 @@ class SoilRespiration(object):
 
         self.Nlayers = len(self.weights)
 
-    def respiration(self, soil_temperature: np.array, volumetric_liquid_content: np.array, volumetric_ice_content: np.array, volumetric_air_content) -> float:
+    def respiration(self, T: np.array, vol_water: np.array, vol_ice: np.array, vol_air) -> float:
         """ Soil respiration
 
-        Moisture response following Moyano et al. 2012 BG, https://doi.org/10.5194/bg-9-1173-2012
-        f = np.minimum(r_min, p[0] + p[1]*Sat + p[2]*Sat)
-        for low bulk density soils, p = [ -0.28, 4.325, -3.65] (fit to data in Fig.3k )
-        for high bulk density soils, p = [-0-38, 3.09, -1.83]
-
+        Moisture response following Moyano et al. 2013 Soil Biogeochem. Eq. 1 "generic soil"
+        f = np.minimum(r_min, p[0]*Sat + p[0]*Sat)
+   
         Args:
-            soil_temperature (float|array) [degC]
-            volumetric_liquid (float|array) [m3 m-3]
-            volumetric_ice (float|array) [m3 m-3]
-            volumetric_air float|array) [m3 m-3]
+            T (float|array) [degC]
+            vol_water (float|array) [m3 m-3]
+            vol_ice (float|array) [m3 m-3]
+            vol_air float|array) [m3 m-3]
         Returns:
             soil respiration rate (float): [umol m-2 (ground) s-1]
         """
 
         # unrestricted respiration rate
-        x = self.r10 * np.power(self.q10, (soil_temperature - 10.0) / 10.0)
+        x = self.r10 * np.power(self.q10, (T - 10.0) / 10.0)
 
-        # moisture response (Skopp et al., substrate diffusion, oxygen limitation)
-        # f = np.minimum(self.moisture_coeff[0] * volumetric_water**self.moisture_coeff[2],
-        #                self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
-        porosity = volumetric_liquid_content + volumetric_ice_content + volumetric_air_content
+        porosity = vol_water + vol_ice + vol_air
 
-        M = volumetric_liquid_content / (porosity - volumetric_ice_content)
-        M = np.maximum(0.0, np.minimum(1.0, M))
-
-        f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
+        S = vol_water / (porosity - vol_ice)
+        S = np.maximum(0.0, np.minimum(1.0, S))
+        
+        # generic eq. 4 from Moyano et al. 2013 Soil. Biochem. Cycl. f = 3.11 * S + 2.42 * S^2
+        f = self.moisture_coeff[0] * S + self.moisture_coeff[1] * np.power(S, 2)
         f = np.minimum(f, 1.0)
     
         # --- testing without soil water limitation

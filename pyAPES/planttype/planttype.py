@@ -212,7 +212,9 @@ class PlantType(object):
         # leaf water potential and rootzone relatively extractable water (set in update daily)
         self.PsiL = None
         self.Rew = None
-        # print(self.name, self.mask)
+
+        # previous-day LAI for growth respiration calculation
+        self._LAI_prev = self.LAI
 
     def update_daily(self, doy, T, PsiL=0.0, Rew=1.0) -> None:
         """
@@ -231,9 +233,12 @@ class PlantType(object):
             self.pheno_state = self.Pheno_Model.run(doy, T, out=True)
 
         if self.Switch_lai:
+            self._LAI_prev = self.LAI  # store before update
             self.relative_LAI = self.LAI_Model.run(doy, T, out=True)
             self.LAI = self.relative_LAI * self.LAImax
             self.lad = self.lad_normed * self.LAI
+        else:
+            self._LAI_prev = self.LAI
 
         # scale photosynthetic capacity using vertical N gradient
         f = 1.0
@@ -281,6 +286,49 @@ class PlantType(object):
             self.photop['Vcmax'] *= fv
             self.photop['Jmax'] *= fj
             self.photop['Rd'] *= fr
+
+    def growth_respiration(self, Ta: np.ndarray) -> Tuple[float, np.ndarray]:
+        """
+        Canopy growth respiration from daily LAI increment.
+
+        Rg = rg0 * max(0, dLAI) / dt_day * Q10^((T - 20) / 10)
+
+        where rg0 [umol CO2 m-2 leaf] is the integrated construction respiratory
+        cost per unit leaf area constructed. Only positive LAI increments are counted
+        (leaf construction only, not senescence).
+
+        Growth respiration is distributed over canopy layers proportional to
+        lad_normed (normalized leaf area density), so each layer's contribution
+        sums to Rg_total when integrated over the canopy profile.
+
+        Args:
+            T_a (array): air temperature at canopy layers [degC]
+
+        Returns:
+            Rg_total (float): total canopy growth respiration [umol CO2 m-2 ground s-1]
+            Rg_layers (array): per-canopy-layer growth respiration [umol CO2 m-2 ground s-1]
+                               (Rg_layers * dz integrates to Rg_total)
+        """
+        dt_day = 86400.0
+        rg0 = self.photop0.get('Rg25', 0.0)  # [umol CO2 m-2 leaf]
+        Q10 = self.photop0.get('Q10g', 2.0)
+        T_ref = 25.0
+
+        dLAI = max(0.0, self.LAI - self._LAI_prev)  # [m2 leaf m-2 ground], positive increment only
+
+        if dLAI < EPS or rg0 < EPS:
+            return 0.0, np.zeros_like(self.lad_normed)
+
+        fT = Q10 ** ((Ta - T_ref) / 10.0)
+
+        # total Rg [umol CO2 m-2 ground s-1]
+        Rg_total = rg0 * dLAI / dt_day * fT
+
+        # distribute proportional to lad_normed; lad_normed integrates to 1 over canopy
+        # so Rg_layers * dz sums to Rg_total
+        Rg_layers = Rg_total * self.lad_normed  # [umol CO2 m-2 ground s-1 m-1]
+
+        return Rg_total, Rg_layers
 
     def run(self, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple[Dict, Dict]:
         """

@@ -16,9 +16,9 @@ from pyAPES.soil.heat import sinusoidal_soil_temperature
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2019-04-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2019-06-30",  # end time of simulation [yyyy-mm-dd]
-         'start_doy': 90, # start doy (for computing initial thermal profile)
+         'start_time' : "2019-03-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2019-08-15",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 60, # start doy (for computing initial thermal profile)
          'forc_filename' : 'forcing/Soroe/DK-Sor_forcing_2015-2020.dat', # forcing data file
          'results_directory':'results/'
          }
@@ -130,10 +130,15 @@ pt1 = {'name': 'Beech',
                             # alpha is sensitive to deviding light regime in sunlit/shaded leaf & leaf mean orientation?
             'theta': 0.9,   # curvature parameter [-] 0.7 used for conifers
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 4.0,      # USO-model stomatal slope kPa^(0.5)
+            'g1': 4.0,      # USO-model stomatal slope kPa^(0.5); Medlyn et al. 2017 New Phytol.
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            # drought response. g1_onset based on Granier et al. (2007) AFM & Köcher et al. 2009 Trees
+            'drp': [0.4, 0.83, 0.3, 3.0], # Rew-based drought response parameters [g1_onset, g1_sens, vcmax_onset, vcmax_sens]
+            
+            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
+            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
             },
             
         'leafp': {
@@ -142,8 +147,8 @@ pt1 = {'name': 'Beech',
 
         # root zone: pyAPES.planttype.rootzone.RootUptake
         'rootp': {
-            'root_depth': 0.7, # rooting depth [m]
-            'beta': 0.943, # root distribution shape parameter [-]
+            'root_depth': 1.0, # rooting depth [m]
+            'beta': 0.97, # root distribution shape parameter [-]; beech has more uniform root profile than conifers
             'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
             'root_radius': 2.0e-3, # [m]
             'root_conductance': 5.0e8, # [s]
@@ -195,7 +200,10 @@ pt2 = { 'name': 'conifers',
             'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
+            # growth respiration: rg0 = construction cost [umol CO2 m-2 leaf]
+            'rg0': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10_growth': 2.0,  # temperature sensitivity of growth respiration [-]
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -231,7 +239,7 @@ snowpack = {
 soil_respiration = {
         'r10': 4.0, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
+        'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
         'beta': 0.943, # for weighting Tsoil profile to compute effective temperature for soil respiration  [-]
         }
 
@@ -398,7 +406,7 @@ soil_grid = {#thickness of computational layers [m]
                    0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2], # 300-500cm
             
             # bottom depth of layers with different characteristics [m]
-            'zh': [-10.0]
+            'zh': [-0.05, -1.0, -10.0]
          
             }
 
@@ -409,22 +417,23 @@ soil_properties = {
                     #     'alpha': [0.70, 0.06, 0.06, 0.05],
                     #     'n': [1.25, 1.35, 1.35, 1.21]
                     #     },
+                    # Loosely based on Wösten et al. 1999 Geoderma, Weynants et al. 2009 Vadose Zone J
                     'pF': {  # vanGenuchten water retention parameter
-                        'ThetaS': [0.55],
-                        'ThetaR': [0.10],
-                        'alpha': [0.02],
-                        'n': [1.35]
+                        'ThetaS': [0.6, 0.55, 0.50],
+                        'ThetaR': [0.05, 0.08, 0.1],
+                        'alpha': [0.05, 0.02, 0.02],
+                        'n': [1.25, 1.35, 1.35]
                         },
-                  'saturated_conductivity_vertical': [1E-6],  # saturated vertical hydraulic conductivity [m s-1]
-                  'saturated_conductivity_horizontal': [1E-6],  # saturated horizontal hydraulic conductivity [m s-1]
+                  'saturated_conductivity_vertical': [1E-5, 1e-6, 1e-7],  # saturated vertical hydraulic conductivity [m s-1]
+                  'saturated_conductivity_horizontal': [1E-5, 1e-6, 1e-7],  # saturated horizontal hydraulic conductivity [m s-1]
                   'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
                   'solid_composition': {
-                         'organic': [0.1],
-                         'sand': [0.36],
-                         'silt': [0.36],
-                         'clay': [0.18]
+                         'organic': [0.35, 0.1, 0.0],
+                         'sand': [0.25, 0.36, 0.40],
+                         'silt': [0.30, 0.36, 0.40],
+                         'clay': [0.10, 0.18, 0.20]
                          },
-                  'freezing_curve': [0.5],  # freezing curve parameter
+                  'freezing_curve': [0.5, 0.5, 0.5],  # freezing curve parameter
                   'bedrock': {
                               'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
                               'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -437,7 +446,7 @@ water_model = {'solve': True,
                'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
                'pond_storage_max': 0.05,  #  maximum pond depth [m]
                'initial_condition': {
-                       'ground_water_level': -10.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
+                       'ground_water_level': -5.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
                        'pond_storage': 0.0  # pond depth at surface [m]
                        },
                'lower_boundary': {

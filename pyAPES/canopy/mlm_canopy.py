@@ -178,16 +178,16 @@ class CanopyModel(object):
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
                 
-                """This could go to rootzone?"""
                 # effective REW: relative root area density weighted average over root zone layers
                 if not isinstance(Rew, float):
-                    # "uncompensated water uptake": Rew is weighted sum of all root zone layers
-                    rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)  # [-] normalized root distribution
-                    rew_pt = float(np.clip(np.sum(rel_rad * Rew[pt.Roots.ix]), 0.0, 1.0))
+                    # compensated effective REW: g_sr-weighted, so wet layers with high conductance
+                    # compensate for dry layers; see RootUptake.effective_rew()
+                    rew_pt = pt.Roots.effective_rew(Rew)
 
-                    # "bulk root zone properties": Rew is arithmetic mean over root zone layers
-                    #rew_pt = np.mean(Rew[pt.Roots.ix])
-                    #print(pt.name, rew_pt)
+                    # alternatives (uncomment to switch):
+                    # uncompensated root-density-weighted average:
+                    #rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)
+                    #rew_pt = float(np.clip(np.sum(rel_rad * np.maximum(0.0, Rew[pt.Roots.ix])), 0.0, 1.0))
                 else:
                     rew_pt = Rew
                     
@@ -597,9 +597,15 @@ class CanopyModel(object):
 
         # net ecosystem exchange [umol m-2 (ground) s-1]
         NEE = flux_co2[-1]
-        # ecosystem respiration [umol m-2 (ground) s-1]
+        # growth respiration per planttype [umol m-2 (ground) s-1]
+        Rg_total = 0.0
+        for pt in self.planttypes:
+            if pt.LAImax > 0.0:
+                rg_pt, _ = pt.growth_respiration(T_air=forcing['air_temperature'], dt_day=86400.0)
+                Rg_total += rg_pt
+        # ecosystem respiration [umol m-2 (ground) s-1]: maintenance Rd + growth Rg + forest floor
         Reco = sum([pt_st['dark_respiration']
-                   for pt_st in pt_stats]) + ff_fluxes['respiration']
+                   for pt_st in pt_stats]) + Rg_total + ff_fluxes['respiration']
         # ecosystem GPP [umol m-2 (ground) s-1]
         GPP = - NEE + Reco
         # ecosystem transpiration [m s-1 = kg m-2 (ground) s-1]
