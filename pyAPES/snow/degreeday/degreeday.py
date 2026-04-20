@@ -19,10 +19,10 @@ class DegreeDaySnow(object):
         
         Args:
             properties (dict)
-                kmelt melting coefficient [m degC-1 s-1]
-                kfreeze (float): freezing coefficient coefficient [m degC-1 s-1]
+                kmelt melting coefficient [m K-1 s-1]
+                kfreeze (float): freezing coefficient coefficient [m K-1 s-1]
                 retention (float): max fraction of liquid water in snow [-]
-                Tmelt (float): melting temperature (~0.0 degC) [degC]
+                Tmelt (float): melting temperature (~0.0 K) [K]
                 optical_properties (dict):
                     albedo (dict):
                         PAR (float): snow Par-albedo [-]

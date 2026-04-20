@@ -25,11 +25,11 @@ class Thermal:
         Args:
             properties (dict):
                 'params' (dict):
-                    'kfix' (float): Fixed thermal conductivity of snow (W/m/K)
+                    'kfix' (float): Fixed thermal conductivity of snow (W m-1 K-1)
                     'fcly' (float): Clay fraction in soil
                     'fsnd' (float): Sand fraction in soil
-                    'rhof' (float): Fresh snow density (kg/m^3)
-                    'gsat' (float): Saturated soil thermal conductivity (W/m/K)
+                    'rhof' (float): Fresh snow density (kg m-3)
+                    'gsat' (float): Saturated soil thermal conductivity (W m-1 K-1)
                 'layers' (dict):
                     'Nsoil' (int): Number of soil layers
                     'Nsmax' (int): Maximum number of snow layers
@@ -37,7 +37,7 @@ class Thermal:
                 'soilprops' (dict):
                     'bch' (float): Soil retention curve parameter
                     'hcap_soil' (float): Volumetric heat capacity of soil (J/m^3/K)
-                    'hcon_soil' (float): Soil thermal conductivity (W/m/K)
+                    'hcon_soil' (float): Soil thermal conductivity (W m-1 K-1)
                     'sathh' (float): Saturated soil matric potential (m)
                     'Vcrit' (float): Critical soil moisture content
                     'Vsat' (float): Saturated soil moisture content
@@ -78,8 +78,8 @@ class Thermal:
             forcing (dict):
                 'Nsnow' (int): Number of snow layers
                 'Dsnw' (np.ndarray): Snow layer thicknesses (m)
-                'Sice' (np.ndarray): Ice content of snow layers (kg/m^2)
-                'Sliq' (np.ndarray): Liquid content of snow layers (kg/m^2)
+                'Sice' (np.ndarray): Ice content of snow layers (kg m-2)
+                'Sliq' (np.ndarray): Liquid content of snow layers (kg m-2)
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
                 'Tsoil' (np.ndarray): Soil layer temperatures (K)
                 'Vsmc' (np.ndarray): Volumetric soil moisture content (-)
@@ -91,11 +91,11 @@ class Thermal:
             states (dict):
                 'Ds1' (float): Surface layer thickness (m)
                 'gs1' (float): Surface moisture conductance (m/s)
-                'ks1' (float): Surface layer thermal conductivity (W/m/K)
+                'ks1' (float): Surface layer thermal conductivity (W m-1 K-1)
                 'Ts1' (float): Surface layer temperature (K)
                 'csoil' (np.ndarray): Areal heat capacity of soil layers (J/K/m^2)
-                'ksnow' (np.ndarray): Thermal conductivity of snow layers (W/m/K)
-                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W/m/K)
+                'ksnow' (np.ndarray): Thermal conductivity of snow layers (W m-1 K-1)
+                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W m-1 K-1)
         """
         
         Nsnow = forcing['Nsnow']

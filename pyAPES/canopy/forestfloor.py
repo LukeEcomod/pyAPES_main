@@ -124,6 +124,9 @@ class ForestFloor(object):
 
         # -- forest floor tiled surface of organic layers. snowpack can overly ground
         self.snow_model = para['snowpack']['snow_model']
+        if not para['Ebal'] and self.snow_model == 'fsm2':
+            logger.warning('Ebal=False: snow_model switched from fsm2 to degreeday')
+            self.snow_model = 'degreeday'
         self.snowpack = Snowpack(para['snowpack'])
 
         self.snowpack.snowpack.optical_properties = {
@@ -164,7 +167,7 @@ class ForestFloor(object):
                                        for bt in self.bottomlayer_types])}
             self.emissivity = sum([bt.coverage * bt.emissivity
                                    for bt in self.bottomlayer_types])
-        # check below
+
         self.temperature = sum([bt.coverage * bt.temperature
                                 for bt in self.bottomlayer_types])
         self.surface_temperature = sum([bt.coverage * bt.surface_temperature
@@ -350,22 +353,20 @@ class ForestFloor(object):
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']
         
-        if self.snow_model == 'degreeday':
-        # --- Snow: degree-day model
+        if self.snow_model == 'degreeday': # Snow: degree-day model
             snow_forcing = {
                 'precipitation_rain': forcing['precipitation_rain'],
                 'precipitation_snow': forcing['precipitation_snow'],
                 'air_temperature': forcing['air_temperature'] + DEG_TO_KELVIN,
             }
-        elif self.snow_model == 'fsm2':
-            # -- Snow: energy balance snow model
+        elif self.snow_model == 'fsm2': # Snow: energy balance snow model
             snow_forcing = {
                 'SWsrf': forcing['par'] + forcing['nir'],
                 'Sf': forcing['precipitation_snow'],
                 'Rf': forcing['precipitation_rain'],
                 'LW': forcing['lw_dn'],
                 'Ps': forcing['air_pressure'],
-                'RH': forcing['relative_humidity'],
+                'h2o': forcing['h2o'],
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
@@ -393,10 +394,10 @@ class ForestFloor(object):
         org_forcing = forcing.copy()
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
 
-        if self.snow_model == 'degreeday':
+        if self.snow_model == 'degreeday': # Snow: degree-day model
             fluxes_snow['snow_heat_flux'] = 0.
             snow_bottom_temperature = 0.
-        else:
+        else: # Snow: energy balance snow model
             snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN
         
         org_forcing.update(

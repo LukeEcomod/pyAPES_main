@@ -28,7 +28,7 @@ class SoilModel:
                     'fcly' (float): Fraction of clay
                     'fsnd' (float): Fraction of sand
                 'initial_conditions' (dict):
-                    'Tsoil' (np.ndarray): Soil layer temperatures (k)
+                    'Tsoil' (np.ndarray): Soil layer temperatures (K)
                     'Vsmc' (np.ndarray): Soil layer moisture [-]
         """
         self.Dzsoil = properties['layers']['Dzsoil']
@@ -70,9 +70,9 @@ class SoilModel:
             Args:
                 dt (float): timestep (s)
                 forcing (dict):
-                    'Gsoil' (float): Soil heat flux at the soil surface (W/m²).
-                    'csoil' (np.ndarray): Heat capacity of each soil layer (J/m²/K).
-                    'ksoil' (np.ndarray): Thermal conductivity of soil layers (W/m/K).
+                    'Gsoil' (float): Soil heat flux at the soil surface (W m-2).
+                    'csoil' (np.ndarray): Heat capacity of each soil layer (J m-2 K-1).
+                    'ksoil' (np.ndarray): Thermal conductivity of soil layers (W m-1 K-1).
             Returns:
                 tuple:
                     'fluxes' (dict):

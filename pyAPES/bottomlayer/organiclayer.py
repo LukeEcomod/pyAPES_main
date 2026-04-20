@@ -229,14 +229,14 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            if forcing['snow_water_equivalent'] > 0.:
+            if forcing['snow_water_equivalent'] > 0.: # snow covers the litter -> compute only water exchange
                 fluxes, states = self.water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
                                 sub_dt=1800. # sub_dt = 60. does not work well
                                 )
-            else:
+            else: # no snow -> compute coupled energy and water balance
                 fluxes, states = self.heat_and_water_exchange(
                                 dt=dt,
                                 forcing=forcing,
@@ -776,6 +776,8 @@ class OrganicLayer(object):
     def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0) -> Tuple:
         """
         Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
+        This is currently not used due to instability. Check iterative solution of temperature need
+        when freezing/thawing is happening. Implemented in heat_and_water_exchange()
         Args:
             - dt (float): timestep [s]
             - forcing (dict):

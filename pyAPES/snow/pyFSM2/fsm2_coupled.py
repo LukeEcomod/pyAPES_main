@@ -19,8 +19,8 @@ class FSM2(object):
         Args:
             snowpara (dict):
                 'initial_conditions' (dict)
-                    'Sice' (np.ndarray): # Snow ice content (kg/m^2)
-                    'Sliq' (np.ndarray): # Snow liquid content (kg/m^2)
+                    'Sice' (np.ndarray): # Snow ice content (kg m-2)
+                    'Sliq' (np.ndarray): # Snow liquid content (kg m-2)
                     'Tsrf' (float): # Snow/ground surface temperature (K)
                 'layers' (dict)
                     'Nsmax' (int): # Maximum number of snow layers
@@ -76,7 +76,7 @@ class FSM2(object):
                 'Rf' (float): rainfall rate (kg/m2/s)
                 'LW' (float): surface longwave radiation (W/m2)
                 'Ps' (float): atmospheric pressure (?)
-                'RH' (float): relative humidity [-]
+                'h2o' (float): water vapor mole fraction [mol mol-1]
                 'Ta' (float): air temperature (K)
                 'Ua' (float): wind speed (m/s)
                 'reference_height' (float): first canopy calculation node or forcing height [m]
@@ -103,15 +103,15 @@ class FSM2(object):
                     'snow_energy_closure' (float): Energy balance closure (W/m^2)
                     'snow_water_closure' (float): Water balance closure (m)
                 states (dict):
-                    'snow_water_equivalent' (float): # Total snow mass on ground (kg/m^2)
+                    'snow_water_equivalent' (float): # Total snow mass on ground (kg m-2)
                     'snow_depth' (float): # Snow depth (m)
                     'snow_albedo' (float): Snow albedo
                     'snow_fraction' (float): Snow cover fraction
                     'snow_temperature' (np.ndarray): # Snow layer temperatures (K)
                     'snow_layer_depth' (np.ndarray): # Snow layer thicknesses (m)
-                    'snow_liquid_storage' (np.ndarray): # Snow liquid content (kg/m^2)
-                    'snow_ice_storage' (np.ndarray): # Snow ice content (kg/m^2)
-                    'snow_density' (np.ndarray): # Snow layer densities (kg/m^3)
+                    'snow_liquid_storage' (np.ndarray): # Snow liquid content (kg m-2)
+                    'snow_ice_storage' (np.ndarray): # Snow ice content (kg m-2)
+                    'snow_density' (np.ndarray): # Snow layer densities (kg m-3)
                     'snow_layers' (float): Number of snow layers
         """
 
@@ -120,7 +120,7 @@ class FSM2(object):
         Rf = forcing['Rf']
         LW = forcing['LW']
         Ps = forcing['Ps']
-        RH = forcing['RH']
+        h2o = forcing['h2o']
         Ta = forcing['Ta']
         Ua = forcing['Ua']
         reference_height = forcing['reference_height'] 
@@ -208,7 +208,7 @@ class FSM2(object):
                             'ks1': thermal_states['ks1'], #
                             'LW': LW, #
                             'Ps': Ps, #
-                            'RH': RH, #
+                            'h2o': h2o, #
                             'Ta': Ta, #
                             'Ua': Ua, #
                             'fsnow': swrad_states['fsnow'], # snow model forcing
@@ -256,7 +256,7 @@ class FSM2(object):
                     }
 
             fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                    'snow_heat_flux': snow_fluxes['Gsoil'],  # heat flux to organiclayer
+                    'snow_heat_flux': snow_fluxes['Gsoil'], # heat flux to soil
                     'snow_longwave_out': ebal_fluxes['LWout'],
                     'snow_shortwave_out': swrad_fluxes['SWout'],
                     'snow_sensible_heat': ebal_fluxes['H'],

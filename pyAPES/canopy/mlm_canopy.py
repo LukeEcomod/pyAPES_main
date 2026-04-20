@@ -148,6 +148,7 @@ class CanopyModel(object):
         # self.forestfloor = ForestFloor(cpara['forestfloor'],
         #                                respiration_profile=self.root_distr)
 
+        cpara['forestfloor']['Ebal'] = self.Switch_Ebal
         self.forestfloor = ForestFloor(cpara['forestfloor'],
                                        z_soil=-np.cumsum(dz_soil))
 
@@ -488,7 +489,6 @@ class CanopyModel(object):
                 'air_pressure': forcing['air_pressure'],
                 'wind_speed': U[1],
                 'friction_velocity': ustar[1],
-                'relative_humidity': forcing['relative_humidity'],
                 'soil_temperature': forcing['soil_temperature'],
                 'soil_water_potential': forcing['soil_water_potential'][0],
                 'soil_volumetric_water': forcing['soil_volumetric_water'],

@@ -21,8 +21,8 @@ class Thermal:
         Args:
             properties (dict):
                 'params' (dict):
-                    'kfix' (float): Fixed thermal conductivity for snow (W/m/K)
-                    'rhof' (float): Reference snow density for thermal conductivity (kg/m^3
+                    'kfix' (float): Fixed thermal conductivity for snow (W m-1 K-1)
+                    'rhof' (float): Reference snow density for thermal conductivity (kg m-3)
                 'layers' (dict):
                     'Nsmax' (int): Maximum number of snow layers
                 'physics_options' (dict):
@@ -46,12 +46,12 @@ class Thermal:
             forcing (dict):
                 'Nsnow' (int): Number of snow layers
                 'Dsnw' (np.ndarray): Snow layer thicknesses (m)
-                'Sice' (np.ndarray): Ice content of snow layers (kg/m^2)
-                'Sliq' (np.ndarray): Liquid content of snow layers (kg/m^2)
+                'Sice' (np.ndarray): Ice content of snow layers (kg m-2)
+                'Sliq' (np.ndarray): Liquid content of snow layers (kg m-2)
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
                 'Tsoil' (np.ndarray): Soil layer temperatures (K)
-                'ksoil' (np.ndarray): Soil layer thermal conductivities (W/m/K)
-                'kbt' (float): Thermal conductivity of organic layer (W/m/K)
+                'ksoil' (np.ndarray): Soil layer thermal conductivities (W m-1 K-1)
+                'kbt' (float): Thermal conductivity of organic layer (W m-1 K-1)
                 'gs1' (float): Surface moisture conductance (m/s)
                 'Dzsoil' (float): Soil layer thickness (m)
                 'Dzbt' (float): Thickness of organic layer (m)
@@ -62,10 +62,10 @@ class Thermal:
             states (dict):
                 'Ds1' (float): Surface layer thickness (m)
                 'gs1' (float): Surface moisture conductance (m/s)
-                'ks1' (float): Surface layer thermal conductivity (W/m/K)
+                'ks1' (float): Surface layer thermal conductivity (W m-1 K-1)
                 'Ts1' (float): Surface layer temperature (K)
-                'ksnow' (np.ndarray): Thermal conductivity of snow layers (W/m/K)
-                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W/m/K)
+                'ksnow' (np.ndarray): Thermal conductivity of snow layers (W m-1 K-1)
+                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W m-1 K-1)
         """
         
         # read forcings

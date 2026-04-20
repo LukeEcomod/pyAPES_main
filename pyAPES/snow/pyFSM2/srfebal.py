@@ -66,25 +66,25 @@ class EnergyBalance:
                 'ks1' (float): Surface layer thermal conductivity (W/m/K)
                 'LW' (float): Incoming longwave radiation (W/m2)
                 'Ps' (float): Surface pressure (Pa)
-                'RH' (float): Relative humidity (%)
+                'h2o' (float): water vapor mole fraction [mol mol-1]
                 'SWsrf' (float): SW absorbed by snow/ground surface (W/m^2)
                 'Ta' (float): Air temperature (K)
                 'Ts1' (float): Surface layer temperature (K)
                 'Ua' (float): Wind speed (m/s)
-                'Sice' (np.ndarray): Ice content of snow layers (kg/m^2)
+                'Sice' (np.ndarray): Ice content of snow layers (kg m-2)
                 'z0sf' (float): Surface roughness length [m]
         Returns
             (tuple):
             fluxes (dict):
-                'Esrf' (float): Moisture flux from the surface (kg/m^2/s)
-                'Gsrf' (float): Heat flux into snow/ground surface (W/m^2)
-                'H' (float): Sensible heat flux to the atmosphere (W/m^2)
-                'LE' (float): Latent heat flux to the atmosphere (W/m^2)
-                'LWout' (float): Outgoing LW radiation (W/m^2)
-                'SWout' (float): Outgoing SW radiation (W/m^2)
-                'Melt' (float): Surface melt rate (kg/m^2/s)
-                'subl' (float): Sublimation rate (kg/m^2/s)
-                'Rsrf' (float): Net radiation (W/m^2)
+                'Esrf' (float): Moisture flux from the surface (kg m-2 s-1)
+                'Gsrf' (float): Heat flux into snow/ground surface (W m-2)
+                'H' (float): Sensible heat flux to the atmosphere (W m-2)
+                'LE' (float): Latent heat flux to the atmosphere (W m-2)
+                'LWout' (float): Outgoing LW radiation (W m-2)
+                'SWout' (float): Outgoing SW radiation (W m-2)
+                'Melt' (float): Surface melt rate (kg m-2 s-1)
+                'subl' (float): Sublimation rate (kg m-2 s-1)
+                'Rsrf' (float): Net radiation (W m-2)
             states (dict):
                 'Tsrf' (float): Surface temperature (K)
                 'rL' (float): Monin-Obukhov length (m)
@@ -96,7 +96,7 @@ class EnergyBalance:
         ks1 = forcing['ks1']
         LW = forcing['LW']
         Ps = forcing['Ps']
-        RH = forcing['RH']
+        h2o = forcing['h2o']
         SWsrf = forcing['SWsrf']
         Ta = forcing['Ta']
         Ts1 = forcing['Ts1']
@@ -118,10 +118,8 @@ class EnergyBalance:
             self.zU1 = zU + self.vegh
             self.zT1 = zT + self.vegh
 
-        # Convert relative to specific humidity
-        Tc = Ta - T_MELT
-        es = SATURATION_VAPOR_PRESSURE_MELT * np.exp(17.5043*Tc/(241.3 + Tc))
-        Qa = (RH/100.)*R_RATIO*es/Ps
+        # Convert mole fraction to specific humidity [kg kg-1]
+        Qa = h2o * R_RATIO
 
         # Roughness lengths
         self.z0g = (self.z0sn**fsnow) * (z0sf**(1 - fsnow))

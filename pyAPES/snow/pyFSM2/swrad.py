@@ -26,7 +26,7 @@ class SWrad(object):
                     'asmx' (float): Maximum albedo for fresh snow
                     'asmn' (float): Minimum albedo for melting snow
                     'hfsn' (float): Snow cover fraction depth scale (m)
-                    'Salb' (float): Snowfall to refresh albedo (kg/m^2)
+                    'Salb' (float): Snowfall to refresh albedo (kg m-2)
                     'Talb' (float): Snow albedo decay temperature threshold (C)
                     'tcld' (float): Cold snow albedo decay time scale (s)
                     'tmlt' (float): Melting snow albedo decay time scale (s)
@@ -67,7 +67,7 @@ class SWrad(object):
                 forcing (dict):
                     'Sdif' (float):  # Diffuse shortwave radiation (W/m^2)
                     'Sdir' (float):  # Direct shortwave radiation (W/m^2)
-                    'Sf' (float):    # Snowfall rate (kg/m^2/s)
+                    'Sf' (float):    # Snowfall rate (kg m-2 s-1)
                     'Tsrf' (float):  # Surface temperature (K)
                     'Dsnw' (float):  # Snow depth (m)
                     'alb0' (float):  # Surface albedo [-]
@@ -75,9 +75,9 @@ class SWrad(object):
             Returns:
                 (tuple):
                     fluxes (dict):
-                        'SWout' (float): Shortwave radiation reflected by surface (W/m^2)
-                        'SWsrf' (float): Shortwave radiation absorbed by surface (W/m^2)
-                        'SWsub' (float): Shortwave radiation absorbed by snowpack (W/m^2)
+                        'SWout' (float): Shortwave radiation reflected by surface (W m-2)
+                        'SWsrf' (float): Shortwave radiation absorbed by surface (W m-2)
+                        'SWsub' (float): Shortwave radiation absorbed by snowpack (W m-2)
                     states (dict):
                         'snow_albedo' (float): Snow albedo
                         'srf_albedo' (float): Surface albedo
