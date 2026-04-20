@@ -29,7 +29,7 @@ SPECIFIC_HEAT_H2O = 4.18e3
 SPECIFIC_HEAT_ICE = 2.09e3
 #: [J kg-1 K-1], specific heat of organic matter
 SPECIFIC_HEAT_ORGANIC_MATTER = 1.92e3
-#: [J kg-1 K-1], heat capacity of dry air at constant pressure
+#: [J mol-1 K-1], specific heat capacity of dry air at constant pressure
 SPECIFIC_HEAT_AIR = 29.3
 #: [W m-2 K-4], Stefan-Boltzmann constant
 STEFAN_BOLTZMANN = 5.6697e-8
@@ -92,6 +92,26 @@ CV_WATER = 4.18e6  # water
 CV_ICE = 1.93e6  # ice
 CV_ORGANIC = 2.50e6  # dry organic matter
 CV_MINERAL = 2.31e6  # soil minerals
+
+#%% for pyAPES.snow
+#: [J kg-1], latent heat of fusion
+LATENT_HEAT_FUSION = 0.334e6
+#: [J kg-1], latent heat of vaporisation
+LATENT_HEAT_VAPORISATION = 2.501e6
+#: [J kg-1], latent heat of sublimation
+LATENT_HEAT_SUBLIMATION = LATENT_HEAT_VAPORISATION + LATENT_HEAT_FUSION
+# [kg/m/s] Dynamic viscosity of water
+WATER_VISCOCITY = 1.78e-3
+#: [K] Melting point
+T_MELT = 273.15
+#: [-] Pi
+PI = 3.14159
+
+#%% for pyAPES.snow.pyFSM2.srfebal
+#: [Pa] Saturation vapor pressure at melting point
+SATURATION_VAPOR_PRESSURE_MELT = 611.213
+#: [-] Ratio of molecular weights of water and dry air
+R_RATIO = MOLAR_MASS_H2O / MOLAR_MASS_AIR
 
 # H2O molar density [mol m-3]
 H2O_MOLARDENSITY = 55.5e3

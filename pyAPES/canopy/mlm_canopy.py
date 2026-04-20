@@ -148,6 +148,7 @@ class CanopyModel(object):
         # self.forestfloor = ForestFloor(cpara['forestfloor'],
         #                                respiration_profile=self.root_distr)
 
+        cpara['forestfloor']['Ebal'] = self.Switch_Ebal
         self.forestfloor = ForestFloor(cpara['forestfloor'],
                                        z_soil=-np.cumsum(dz_soil))
 
