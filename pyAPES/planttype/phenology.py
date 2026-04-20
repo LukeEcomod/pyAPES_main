@@ -78,7 +78,7 @@ class Photo_cycle_decid(object):
 
     """
 
-    def __init__(self, p: Dict, loc: Dict):
+    def __init__(self, p: Dict, loc: Dict, DDsum0: float=0.0):
         """
         Args:
 
@@ -109,7 +109,7 @@ class Photo_cycle_decid(object):
         mask     = (dl_arr >= self.sdl) & post_sol
         self.sso = int(doys[mask][-1]) if mask.any() else 258
 
-        self.DDsum   = 0.0
+        self.DDsum   = DDsum0
         self.mat_doy = None   # first DOY ddmat was exceeded
         self.f       = self.fmin
 

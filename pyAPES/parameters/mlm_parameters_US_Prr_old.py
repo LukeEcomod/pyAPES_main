@@ -39,7 +39,9 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
        'WMA': False,  # assume air-space scalar profiles well-mixed
        'Ebal': True,  # computes leaf temperature by solving energy balance
-       # WaterStress, seasonal_LAI, pheno_cycle moved to plant-type parameters for flexibility
+       'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
+       'seasonal_LAI': True,  # account for seasonal LAI dynamics
+       'pheno_cycle': True  # account for phenological cycle
        }
 
 # site location
@@ -64,9 +66,7 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             }
 
 # --- Short- and long-wave radiation: pyAPES.microclimate.radiation.Radiation
-radiation = {'SWmodel': 'ZHAOQUALLS',
-             'LWmodel': 'ZHAOQUALLS',
-             'clump': 0.7,  # clumping index [-]
+radiation = {'clump': 0.7,  # clumping index [-]
              'leaf_angle': 1.0,  # leaf-angle distribution [-]
              'Par_alb': 0.12,  # shoot Par-albedo [-]
              'Nir_alb': 0.55,  # shoot NIR-albedo [-]
@@ -93,11 +93,6 @@ lad_sp1 = np.interp(z, z0, spruce_lad['large_spruce'].values)
 lad_sp2 = np.interp(z, z0, spruce_lad['small_spruce'].values)
 
 pt1 = { 'name': 'Spruce large',
-       'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': True,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
-            },
         'LAImax': 0.4, # maximum annual LAI m2m-2
         'lad': lad_sp1, # normalized leaf area density profile [m2m-3] (sum(lad) * dz = 1)       
         
@@ -141,10 +136,7 @@ pt1 = { 'name': 'Spruce large',
             'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
-            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
-            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
+            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -161,11 +153,6 @@ pt1 = { 'name': 'Spruce large',
         }
 
 pt2 = { 'name': 'Spruce small',
-       'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': True,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
-            },
         'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_sp2, # normalized leaf area density profile [m2m-3] (sum(lad) * dz = 1)       
         # lad_weibul provides species lad-profiles from Teske & Thistle
@@ -207,10 +194,7 @@ pt2 = { 'name': 'Spruce small',
             'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
-            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
-            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
+            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -227,11 +211,6 @@ pt2 = { 'name': 'Spruce small',
         }
 
 pt3 = { 'name': 'Understory',
-       'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': True,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
-            },
         'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
@@ -270,10 +249,7 @@ pt3 = { 'name': 'Understory',
             'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
-            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
-            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
+            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]

@@ -440,7 +440,7 @@ class CanopyModel(object):
 
             pt_stats = []
             pt_layerwise = []
-
+            Rg_total = 0.0
             for pt in self.planttypes:
 
                 # --- sunlit and shaded leaves gas-exchange and optional energy balance
@@ -461,13 +461,22 @@ class CanopyModel(object):
                 # update canopy leaf temperature; it must be lad-weighted average
                 Tleaf += layer_stats_i['leaf_temperature'] * df * pt.lad
 
+                # leaf growth respiration per planttype, non-zero only when dLAI/dt > 0.
+                
+                if pt.LAImax > 0.0:
+                    rg_tot, rg_layer = pt.growth_respiration(Ta=forcing['air_temperature'])
+                    pt_stats_i['total_growth_respiration'] = rg_tot
+                    Rg_total += rg_tot
+                    sources['co2'] += rg_layer
+                
                 # append results
                 pt_stats.append(pt_stats_i)
-
+            
                 # set pt.lad=0 to np.NaN
                 layer_stats_i['leaf_temperature'] *= pt.mask
                 pt_layerwise.append(layer_stats_i)
-            del pt, pt_stats_i, layer_stats_i
+
+            del pt, pt_stats_i, layer_stats_i, rg_tot, rg_layer
 
             # --- end of planttype -loop
 
@@ -597,12 +606,7 @@ class CanopyModel(object):
 
         # net ecosystem exchange [umol m-2 (ground) s-1]
         NEE = flux_co2[-1]
-        # growth respiration per planttype [umol m-2 (ground) s-1]
-        Rg_total = 0.0
-        for pt in self.planttypes:
-            if pt.LAImax > 0.0:
-                rg_pt, _ = pt.growth_respiration(T_air=forcing['air_temperature'], dt_day=86400.0)
-                Rg_total += rg_pt
+
         # ecosystem respiration [umol m-2 (ground) s-1]: maintenance Rd + growth Rg + forest floor
         Reco = sum([pt_st['dark_respiration']
                    for pt_st in pt_stats]) + Rg_total + ff_fluxes['respiration']
@@ -738,12 +742,16 @@ class CanopyModel(object):
         pt_results = {
             # water potentials in root zone [m]
             'root_water_potential': np.array([pt.Roots.h_root for pt in self.planttypes]),
+            # relatively extractable water [-]
+            'rew': np.array([pt.Roots.Rew for pt in self.planttypes]),
             # [kg m-2]
             'total_transpiration': np.array([pt_st['transpiration'] * MOLAR_MASS_H2O for pt_st in pt_stats]),
             # [umol m-2 (ground) s-1]
             'total_gpp': np.array([pt_st['net_co2'] + pt_st['dark_respiration'] for pt_st in pt_stats]),
             # [umol m-2 (ground) s-1]
             'total_dark_respiration': np.array([pt_st['dark_respiration'] for pt_st in pt_stats]),
+            # [umol m-2 (ground) s-1]
+            'total_growth_respiration': np.array([pt_st.get('total_growth_respiration', 0.0) for pt_st in pt_stats]),
             # [mol m-2 (ground) s-1]
             'total_stomatal_conductance_h2o':  np.array([pt_st['stomatal_conductance'] for pt_st in pt_stats]),
             # [mol m-2 (ground) s-1]

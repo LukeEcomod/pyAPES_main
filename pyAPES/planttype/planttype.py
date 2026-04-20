@@ -167,7 +167,7 @@ class PlantType(object):
             self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
         
         elif self.Switch_pheno == 'decid':
-            self.Pheno_Model = Photo_cycle_decid(p['phenop'], loc)  # phenology model instance
+            self.Pheno_Model = Photo_cycle_decid(p['phenop'], loc, DDsum0=DDsum)  # phenology model instance
             self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
         
         else:
@@ -287,7 +287,7 @@ class PlantType(object):
 
     def growth_respiration(self, Ta: np.ndarray) -> Tuple[float, np.ndarray]:
         """
-        Canopy growth respiration from daily LAI increment.
+        Growth respiration from daily LAI increment.
 
         Rg = rg0 * max(0, dLAI) / dt_day * Q10^((T - 20) / 10)
 
@@ -307,7 +307,7 @@ class PlantType(object):
             Rg_layers (array): per-canopy-layer growth respiration [umol CO2 m-2 ground s-1]
                                (Rg_layers * dz integrates to Rg_total)
         """
-        dt_day = 86400.0
+        dt_day = 86400.0 # s
         rg0 = self.photop0.get('Rg25', 0.0)  # [umol CO2 m-2 leaf]
         Q10 = self.photop0.get('Q10g', 2.0)
         T_ref = 25.0

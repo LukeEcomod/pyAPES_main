@@ -5,8 +5,16 @@
 .. moduleauthor:: Samuli Launiainen
 
 Define pyAPES_MLM parameters and forcing file here.
-
 Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
+
+*** 
+Parameterization for FLUXNET / ICOS -SITE SOROE (DK-Sor). Hemiboreal beech forest with some coniferous trees.
+Primary references: Pilegard & Ibrom, 2020. Tellus B; Pilegard et al. 2011. Agric. For. Met.
+
+Soil properties are based on reported soil type as no measurements / reports are available.
+The site has vigorous understory that blossoms in spring and senescences when beech canopy closes. This
+planttype is not included here, and explains why GPP and LE are underestimated in spring.
+***
 
 """
 
@@ -17,7 +25,7 @@ from pyAPES.soil.heat import sinusoidal_soil_temperature
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2019-03-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2019-08-15",  # end time of simulation [yyyy-mm-dd]
+         'end_time' : "2019-11-30",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 60, # start doy (for computing initial thermal profile)
          'forc_filename' : 'forcing/Soroe/DK-Sor_forcing_2015-2020.dat', # forcing data file
          'results_directory':'results/'
@@ -113,7 +121,6 @@ pt1 = {'name': 'Beech',
             },
 
 
-
         # A-gs model: pyAPES.leaf.photo
         # Vcmax, Jmax: Kattge et al. 2009 leaf N scaling
         'photop': {
@@ -134,7 +141,7 @@ pt1 = {'name': 'Beech',
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
             # drought response. g1_onset based on Granier et al. (2007) AFM & Köcher et al. 2009 Trees
-            'drp': [0.4, 0.83, 0.3, 3.0], # Rew-based drought response parameters [g1_onset, g1_sens, vcmax_onset, vcmax_sens]
+            'drp': [0.5, 0.8, 0.2, 3.0], # Rew-based drought response parameters [g1_onset, g1_sens, vcmax_onset, vcmax_sens]
             
             # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
             'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
@@ -147,7 +154,7 @@ pt1 = {'name': 'Beech',
 
         # root zone: pyAPES.planttype.rootzone.RootUptake
         'rootp': {
-            'root_depth': 1.0, # rooting depth [m]
+            'root_depth': 0.8, # rooting depth [m]
             'beta': 0.97, # root distribution shape parameter [-]; beech has more uniform root profile than conifers
             'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
             'root_radius': 2.0e-3, # [m]
@@ -200,10 +207,10 @@ pt2 = { 'name': 'conifers',
             'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
             'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
+            'drp': [0.3, 0.8, 0.3, 3.0], # Rew-based drought response parameters.
             # growth respiration: rg0 = construction cost [umol CO2 m-2 leaf]
-            'rg0': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10_growth': 2.0,  # temperature sensitivity of growth respiration [-]
+            'rg25': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -446,7 +453,7 @@ water_model = {'solve': True,
                'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
                'pond_storage_max': 0.05,  #  maximum pond depth [m]
                'initial_condition': {
-                       'ground_water_level': -5.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
+                       'ground_water_level': -4.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
                        'pond_storage': 0.0  # pond depth at surface [m]
                        },
                'lower_boundary': {

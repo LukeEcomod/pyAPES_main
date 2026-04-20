@@ -335,7 +335,7 @@ class MLM_model(object):
                 else:
                     # extract layerwise Rew from soil.Water (array)
                     # this is multiplied in self.canopy_model.run_daily with each PlantType's root distribution
-                    self.soil.water.Rew[:]=1.0
+                    # self.soil.water.Rew[:]=1.0 # for testing
                     Rew = self.soil.water.Rew 
 
                 self.canopy_model.run_daily(
