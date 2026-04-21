@@ -549,37 +549,31 @@ class SoilRespiration(object):
 
         self.Nlayers = len(self.weights)
 
-    def respiration(self, T: np.array, vol_water: np.array, vol_ice: np.array, vol_air) -> float:
+    def respiration(self, T: np.array, vol_water: np.array, porosity: np.array) -> float:
         """ Soil respiration
 
         Moisture response following Moyano et al. 2013 Soil Biogeochem. Eq. 1 "generic soil"
-        f = np.minimum(r_min, p[0]*Sat + p[0]*Sat)
-   
+    
         Args:
             T (float|array) [degC]
             vol_water (float|array) [m3 m-3]
-            vol_ice (float|array) [m3 m-3]
-            vol_air float|array) [m3 m-3]
+            porosity (float|array) [m3 m-3]
         Returns:
             soil respiration rate (float): [umol m-2 (ground) s-1]
         """
 
         # unrestricted respiration rate
-        x = self.r10 * np.power(self.q10, (T - 10.0) / 10.0)
-
-        porosity = vol_water + vol_ice + vol_air
-
-        S = vol_water / (porosity - vol_ice)
-        S = np.maximum(0.0, np.minimum(1.0, S))
+        fT = np.power(self.q10, (T - 10.0) / 10.0)
         
         # generic eq. 4 from Moyano et al. 2013 Soil. Biochem. Cycl. f = 3.11 * S + 2.42 * S^2
-        f = self.moisture_coeff[0] * S + self.moisture_coeff[1] * np.power(S, 2)
-        f = np.minimum(f, 1.0)
-    
-        # --- testing without soil water limitation
-        respiration = x * f
+        S = vol_water / porosity # relative liquid water content
+        S = np.maximum(0.0, np.minimum(1.0, S))
 
-        respiration = sum(self.weights * respiration[0:self.Nlayers])
+        fm = self.moisture_coeff[0] * S + self.moisture_coeff[1] * np.power(S, 2)
+        fm = np.minimum(fm, 1.0)
+        
+        f = np.sum(self.weights * fT * fm)
+        respiration = self.r10 * f
 
         return respiration
     

@@ -252,7 +252,7 @@ class PlantType(object):
         self.photop['Jmax'] = f * self.pheno_state * self.photop0['Jmax']
         self.photop['Rd'] = f * self.pheno_state * self.photop0['Rd']
 
-        # water stress responses: move into own sub-models?
+        # water stress responses: move into own sub-models in photo.py?
         if self.Switch_WaterStress == 'Rew':
             self.Rew = Rew
             # drought responses from Hyde scots pine shoot chambers, 2006; for 'Medlyn - model' only
