@@ -600,9 +600,22 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     L = (wliq*kw + f_gas*wair*kg + f_min*f_solid*ks + f_ice*wice*ki) \
         / (wliq + f_gas*wair + f_min*f_solid + f_ice*wice)
 
-    # in fully organic layer, use o'Donnell et al. 2009
-    L[f_org >= 0.9] = 0.032 + 5e-1 * wliq[f_org >= 0.9]
+    # organic layers:
+    ix = f_org > 0.5 # OM content > 30% of mass
+    # o'Donnell et al. 2009, extended for ice;
+    #  ice contribution scaled by K_ICE/K_WATER relative to the liquid slope
+    
+    #L[ix] = (0.032 + 0.5 * wliq[ix] + (K_ICE / K_WATER) * 0.5 * wice[ix])
 
+    # Porada et al. 2016 (citing Ekici et al. 2014)
+    Lo = 0.05
+    wtot = wliq + wice
+    Ke = wtot / poros
+    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * Ke[ix] + (1- Ke[ix]) * Lo
+    
+    # geometric mean
+    #L[ix] = np.power(K_ORG, f_solid[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * np.power(K_AIR, wair[ix])
+    
     # in bedrock
     L[~np.isnan(bedrockL)] = bedrockL[~np.isnan(bedrockL)]
 

@@ -28,7 +28,7 @@ lad_file = pathlib.Path(f'{pyAPES_main_folder}/forcing/US-Prr/BlackSpruce_relati
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2012-06-01",  # start time of simulation [yyyy-mm-dd]
+         'start_time' : "2012-05-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2012-06-15",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 100,
          'forc_filename' : forcing_file, # forcing data file

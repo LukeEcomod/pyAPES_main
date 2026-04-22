@@ -18,7 +18,8 @@ from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, 
                              STEFAN_BOLTZMANN, DEG_TO_KELVIN, SPECIFIC_HEAT_AIR, \
                              SPECIFIC_HEAT_ORGANIC_MATTER, SPECIFIC_HEAT_H2O, SPECIFIC_HEAT_ICE, GAS_CONSTANT, \
                              LATENT_HEAT_FREEZING, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
-                             THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL
+                             THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL, \
+                             K_ORG, K_WATER, K_ICE, K_AIR
 
 from pyAPES.bottomlayer.carbon import BryophyteFarquhar, OrganicRespiration
 # machine epsilon
@@ -154,7 +155,8 @@ class OrganicLayer(object):
         self.volumetric_water = (self.water_content / WATER_DENSITY * self.bulk_density)
 
         # [W m-1 K-1]
-        self.thermal_conductivity = thermal_conductivity(self.volumetric_water)
+        self.thermal_conductivity = thermal_conductivity(self.volumetric_water, self.volumetric_ice, 
+                                                         self.porosity)
 
         #: [m]
         self.water_potential = water_retention_curve(
@@ -561,8 +563,14 @@ class OrganicLayer(object):
 
             # --- calculate change in moss heat content
 
+            # --- State variables of bryophyte layer
+            # [g g-1]
+            water_content = (new_water_storage / self.dry_mass)
+            # [m3 m-3]
+            _wliq, _wice, _ = frozen_water(temperature, (water_content / WATER_DENSITY * self.bulk_density))
             # heat conduction between moss and soil [W m-2 K-1]
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+
+            moss_thermal_conductivity = thermal_conductivity(_wliq, _wice, self.porosity)
 
             # thermal conductance [W m-2 K-1], assume the layers act as two resistors in series
             g_moss = moss_thermal_conductivity / zm
@@ -722,12 +730,14 @@ class OrganicLayer(object):
 
         # [m3 m-3]
         volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)
+        #volumetric_water = (wliq / self.dry_mass / WATER_DENSITY * self.bulk_density)
+        #volumetric_ice = (wice / self.dry_mass / WATER_DENSITY * self.bulk_density) # neglect density changes
 
         # must constrain theta as: theta = max(volumetric_water, pF['theta_r'])
         # [m]
         matrix_potential = water_retention_curve(self.water_retention, theta=volumetric_water)
         # [m s-1]
-        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water,)
+        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water)
 
         # [W m-1 K-1]
         Lambda = thermal_conductivity(volumetric_water)
@@ -972,16 +982,18 @@ def reflectance(water_content: float, max_water_content: float, albedo: Dict) ->
 
         return {'PAR': albedo_par, 'NIR': albedo_nir}
 
-def thermal_conductivity(volumetric_water: float, method: str='odonnel') -> float:
+def thermal_conductivity(volumetric_water: float, volumetric_ice: float=0.0, porosity: float=0.9, 
+                         method: str='porada') -> float:
     r"""
-    Thermal conductivity of bryophyte layer
-
-    By default organic matter heat conductivity is calculated by using equation
-    by O'Donnel et al. (2009, Soil Sci. 174).
+    Thermal conductivity [W m-1 K-1] of organic layer. 
+    Default: Porada et al. 2016. Effects of bryophyte and lichen cover on permafrost
+    soil temperature at large scale. The Cryosphere, 10(5), pp.2291-2315.
 
     Args:
         - volumetric_water (float): vol. water content [m3 m-3]
         - flag (str):
+            - 'ekici': Ekici et al. 2014; Porada et al. 2016
+            - 'geomean': geometric mean of constituents
             - 'odonnel': O'Donnel et al. (2009). Soil Sci. 174
             - 'campbell': Campbell et al. (1985)
             - 'constant': 0.25 [W m-1 K-1]
@@ -993,28 +1005,36 @@ def thermal_conductivity(volumetric_water: float, method: str='odonnel') -> floa
 
     method = method.lower()
 
-    heat_conductivity = None
-
-    if method == 'odonnel':  # O'Donnell
-        heat_conductivity = np.minimum(0.6,
-                                       3.0e-2 + 5.0e-1 * volumetric_water)
-
-        heat_conductivity = np.maximum(4.0e-2, heat_conductivity)
-
+    L = None
+    
+    if method == 'porada':
+        # Porada et al. 2016 (citing Ekici et al. 2014)
+        Lo = 0.05
+        wtot = volumetric_water + volumetric_ice
+        Ke = wtot / porosity
+        L = np.power(K_ORG, 1.0 - wtot) * np.power(K_WATER, volumetric_water) \
+            * np.power(K_ICE, volumetric_ice) * Ke + (1 - Ke) * Lo
+   
+    elif method == 'odonnel':  # O'Donnell
+        L = np.minimum(0.6, 3.0e-2 + 0.5 * volumetric_water + K_ICE/K_WATER * 0.5* volumetric_ice)
+        L = np.maximum(4.0e-2, L)
+    
+    elif method == 'geomean':
+        volumetric_air = porosity - volumetric_water - volumetric_ice
+        L = np.power(K_ORG, 1.0 - porosity) * np.power(K_WATER, volumetric_water)  \
+            * np.power(K_ICE, volumetric_ice) *np.power(K_AIR, volumetric_air)
+    # no ice effect
     elif method == 'campbell':
-        heat_conductivity = (
-            0.4 + 0.5
-            * volumetric_water(0.4 - 0.06)
-            * np.exp(-(1. * volumetric_water)**4))
+        L = (0.4 + 0.5 * volumetric_water(0.4 - 0.06) * np.exp(-(1. * volumetric_water)**4))
 
     elif method == 'constant':
-        heat_conductivity = 0.25
+        L = 0.25
 
     elif method == 'lauren':
-        heat_conductivity = -0.004 + 0.609 * volumetric_water
+        L = -0.004 + 0.609 * volumetric_water
 
     # [W/(m K)]
-    return heat_conductivity
+    return L
 
 
 def surface_atm_conductance(wind_speed: float, zref: float, dT: float=0.0, zom: float=0.01, b: float=1.1e-3) -> Dict:
