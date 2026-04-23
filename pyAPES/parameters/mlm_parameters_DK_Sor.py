@@ -450,10 +450,10 @@ soil_properties = {
 # --- water model: pyAPES.soil.water.Water
 
 water_model = {'solve': True,
-               'type': 'Richards',  # solution approach 'Richards' | 'Equilibrium'
+               'type': 'Equilibrium',  # solution approach 'Richards' | 'Equilibrium'
                'pond_storage_max': 0.05,  #  maximum pond depth [m]
                'initial_condition': {
-                       'ground_water_level': -4.0,  # groundwater depth [m], <=0; to set up initial soil moisture profile
+                       'ground_water_level': -0.2,  # groundwater depth [m], <=0; to set up initial soil moisture profile
                        'pond_storage': 0.0  # pond depth at surface [m]
                        },
                'lower_boundary': {
@@ -475,19 +475,12 @@ water_model = {'solve': True,
 # --- heat model: pyAPES.soil.heat.Heat
 
 # initial temperature profile
-doy0 = gpara['start_doy'] + 30 # to correct cold bias in simulation starting Mar 1st
+doy0 = gpara['start_doy']# to correct cold bias in simulation starting Mar 1st
 zz = -np.cumsum(soil_grid['dz'])
 T_ini = sinusoidal_soil_temperature(z=zz, doy=doy0, 
                                               T_mean=8.0, T_amplitude=10.0, 
                                               thermal_diffusivity=3e-7
                                     )
-# # Exponential correction for wintertime cold bias near surface:
-# # dT decays from dT_surface at z=0 to ~1% of dT_surface at z=-1m, zero below.
-# dT_surface = 2.0  # [degC] temperature correction at soil surface
-# dT = dT_surface * np.exp(5.0*zz)  # exp decay: dT(z=-1m) = 0.01 * dT_surface
-# dT[zz < -1.0] = 0.0
-# T_ini = T_ini + dT
-# print(T_ini)
 
 heat_model = {'solve': True,
               'initial_condition': {

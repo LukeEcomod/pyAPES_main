@@ -14,7 +14,7 @@ It can represent moss/lichen (bryophyte) species/groups or litter layer.
 import numpy as np
 from typing import List, Dict, Tuple
 
-from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, LATENT_HEAT, \
+from pyAPES.utils.constants import WATER_DENSITY, ICE_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, LATENT_HEAT, \
                              STEFAN_BOLTZMANN, DEG_TO_KELVIN, SPECIFIC_HEAT_AIR, \
                              SPECIFIC_HEAT_ORGANIC_MATTER, SPECIFIC_HEAT_H2O, SPECIFIC_HEAT_ICE, GAS_CONSTANT, \
                              LATENT_HEAT_FREEZING, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
@@ -142,21 +142,24 @@ class OrganicLayer(object):
         #: [degC]
         self.temperature = initial_conditions['temperature']
         self.surface_temperature = initial_conditions['temperature']
-        #: [g f-1]
+        #: [g g-1]
         self.water_content = min(initial_conditions['water_content'], self.max_water_content)
 
         # [kg m-2]
         self.water_storage = self.water_content * self.dry_mass
 
-        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature,
-                                                                      self.water_storage)
-        
+        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature, self.water_storage)
+
+        wtot = self.water_content / WATER_DENSITY * self.bulk_density
+
+        theta_liq, theta_ice, _ = frozen_water(self.temperature, wtot)
+
         #: [m\ :sup:`3` m\ :sup:`-3`\ ]
-        self.volumetric_water = (self.water_content / WATER_DENSITY * self.bulk_density)
+        self.volumetric_water = theta_liq
+        self.volumetric_ice = theta_ice
 
         # [W m-1 K-1]
-        self.thermal_conductivity = thermal_conductivity(self.volumetric_water, self.volumetric_ice, 
-                                                         self.porosity)
+        self.thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
         #: [m]
         self.water_potential = water_retention_curve(
@@ -186,6 +189,7 @@ class OrganicLayer(object):
         self.ice_storage = self.iteration_results['ice_storage']
         self.water_content = self.iteration_results['water_content']
         self.volumetric_water = self.iteration_results['volumetric_water']
+        self.volumetric_ice = self.iteration_results['volumetric_ice']
         self.water_potential = self.iteration_results['water_potential']
         self.thermal_conductivity = self.iteration_results['thermal_conductivity']
 
@@ -365,7 +369,7 @@ class OrganicLayer(object):
         SWabs = (1.0 - self.albedo['PAR']) * forcing['par'] + \
                 (1.0 - self.albedo['NIR']) * forcing['nir']
         
-        # -- time loop
+        # -- time loop broken into subtimesteps
         t = 0.0
         while t < dt:
             REDO = False
@@ -378,18 +382,17 @@ class OrganicLayer(object):
 
             # initial state
 
-            # [g g-1]
+            # gravimetric total [g g-1]
             water_content = (water_storage / self.dry_mass)
 
-            # [m m-3]
-            volumetric_water = (water_content / WATER_DENSITY
+            # volumetric total, liquid and ice [m m-3]
+            wtot = (water_content / WATER_DENSITY
                                 * self.bulk_density)
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
             # [m]
             # theta is restricted above or equal Theta_r in water_retention_curve
-            water_potential = water_retention_curve(self.water_retention,
-                                                    theta=volumetric_water
-                                                    )
+            water_potential = water_retention_curve(self.water_retention, theta=theta_liq)
 
             # --- constraints for recharge & evaporation
             max_recharge = max(max_storage - water_storage, 0.0)
@@ -416,8 +419,8 @@ class OrganicLayer(object):
             # radiation balance # [J m-2 s-1] or [W m-2]
 
             # thermal conductance in moss (O'Donnell et al.)
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-            gms = moss_thermal_conductivity / zm
+            L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
+            gms = L / zm
 
             # conductances from surface to air
             conductance_to_air = surface_atm_conductance(wind_speed=forcing['wind_speed'],
@@ -534,7 +537,7 @@ class OrganicLayer(object):
             # --- compute capillary rise from soil [ kg m-2 s-1 = mm s-1]
 
             # Kh: soil-moss hydraulic conductivity assuming two resistors in series
-            Km = hydraulic_conductivity(self.water_retention, volumetric_water)
+            Km = hydraulic_conductivity(self.water_retention, theta_liq)
             Ks = parameters['soil_hydraulic_conductivity']
 
             # conductance of layer [s-1]
@@ -561,22 +564,24 @@ class OrganicLayer(object):
                     - evaporation_rate
                     ) * sub_dt
 
-            # --- calculate change in moss heat content
+            # --- calculate change in moss heat content--
 
-            # --- State variables of bryophyte layer
-            # [g g-1]
+            # gravimetric [g g-1]
             water_content = (new_water_storage / self.dry_mass)
             # [m3 m-3]
-            _wliq, _wice, _ = frozen_water(temperature, (water_content / WATER_DENSITY * self.bulk_density))
-            # heat conduction between moss and soil [W m-2 K-1]
+            wtot = water_content / WATER_DENSITY * self.bulk_density
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
-            moss_thermal_conductivity = thermal_conductivity(_wliq, _wice, self.porosity)
+            # heat conduction between moss and soil [W m-2 K-1]
+            L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
             # thermal conductance [W m-2 K-1], assume the layers act as two resistors in series
-            g_moss = moss_thermal_conductivity / zm
+            g_moss = L / zm
             g_soil = parameters['soil_thermal_conductivity'] / zs
 
             thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
+            
+            # --- flux components
 
             # [J m-2 s-1 == W m-2]
             ground_heat_flux = thermal_conductance *(temperature - forcing['soil_temperature'])
@@ -595,6 +600,7 @@ class OrganicLayer(object):
                     - ground_heat_flux
                     )   
             
+            # -- initial state [at beqining of subtimestep]
             # liquid and ice content, and dWliq/dTs
             wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
             
@@ -678,6 +684,8 @@ class OrganicLayer(object):
 
                 # advance in time
                 t = t + sub_dt
+            
+            # --- end of subtimestep loop
 
         # water fluxes [kg m-2 s-1]
         pond_recharge_rate = u[0] / dt
@@ -725,22 +733,23 @@ class OrganicLayer(object):
                            - heat_fluxes)
 
         # --- State variables of bryophyte layer
+        # [kg m-2 == mm]
+        liquid_water_storage, ice_storage, _ = frozen_water(temperature, water_storage)
+        
         # [g g-1]
         water_content = (water_storage / self.dry_mass)
-
+        
         # [m3 m-3]
-        volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)
-        #volumetric_water = (wliq / self.dry_mass / WATER_DENSITY * self.bulk_density)
-        #volumetric_ice = (wice / self.dry_mass / WATER_DENSITY * self.bulk_density) # neglect density changes
+        theta_liq = liquid_water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
+        theta_ice = ice_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
 
-        # must constrain theta as: theta = max(volumetric_water, pF['theta_r'])
         # [m]
-        matrix_potential = water_retention_curve(self.water_retention, theta=volumetric_water)
+        matrix_potential = water_retention_curve(self.water_retention, theta=theta_liq)
         # [m s-1]
-        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water)
+        Kliq = hydraulic_conductivity(self.water_retention, theta_liq)
 
         # [W m-1 K-1]
-        Lambda = thermal_conductivity(volumetric_water)
+        L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
         # return fluxes and state variables
         fluxes = {
@@ -760,16 +769,17 @@ class OrganicLayer(object):
             }
 
         states = {
-            'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_water': theta_liq,  # [m3 m-3]
+            'volumetric_ice': theta_ice,  # [m3 m-3]
             'water_potential': matrix_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2] or [mm]
-            'liquid_water_storage': wliq,  # [kg m-2 == mm]
-            'ice_storage': wice,  # [kg m-2 == mm]  # NOT included yet!!!
+            'liquid_water_storage': liquid_water_storage, # [kg m-2] or [mm]
+            'ice_storage': ice_storage, # [kg m-2] or [mm]
             'temperature': temperature,  # [degC]
             'surface_temperature': Ts, # [degC]
             'hydraulic_conductivity': Kliq,  # [m s-1]
-            'thermal_conductivity': Lambda,  # [W m-1 K-1]
+            'thermal_conductivity': L,  # [W m-1 K-1]
             }
 
         return fluxes, states
@@ -908,7 +918,8 @@ class OrganicLayer(object):
         # --- Heat exchange; no energy balance --> sensible_heat is set to zero and moss assumed to be at air temperature
 
         # heat conduction between moss and soil [W m-2 K-1]
-        moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+        moss_thermal_conductivity = thermal_conductivity(volumetric_water, volumetric_ice=0.0, 
+                                                         porosity=self.porosity)
 
         # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
         g_moss = moss_thermal_conductivity / zm
@@ -936,9 +947,12 @@ class OrganicLayer(object):
 
         states = {
             'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_ice': 0.0,
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
+            'liquid_water_storage': water_storage, # [kg m-2] or [mm]
+            'ice_storage': 0.0, # [kg m-2] or [mm]
             'hydraulic_conductivity': Kliq,  # [m s-1]
             'thermal_conductivity': moss_thermal_conductivity,  # [W m-1 K-1]
             'temperature': temperature,  # [degC]

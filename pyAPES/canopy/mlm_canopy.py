@@ -593,7 +593,8 @@ class CanopyModel(object):
         # --- update state variables
         self.interception.update()
         self.forestfloor.update()
-
+        
+  
         # --- Compile outputs
 
         # --- integrate to ecosystem fluxes (per m-2 ground) ---

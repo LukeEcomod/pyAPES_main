@@ -29,7 +29,7 @@ lad_file = pathlib.Path(f'{pyAPES_main_folder}/forcing/US-Prr/BlackSpruce_relati
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2012-05-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2012-06-15",  # end time of simulation [yyyy-mm-dd]
+         'end_time' : "2012-07-01",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 100,
          'forc_filename' : forcing_file, # forcing data file
          'results_directory': 'results/', # This is given relative to pyAPES main folder or if not in .env then current working directory 
@@ -41,8 +41,7 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 # --- Model control flags
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
        'WMA': False,  # assume air-space scalar profiles well-mixed
-       'Ebal': True,  # computes leaf temperature by solving energy balance
-       # WaterStress, seasonal_LAI, pheno_cycle moved to plant-type parameters for flexibility
+       'Ebal': True,  # computes leaf and surface temperature by solving energy balance
        }
 
 # site location
@@ -369,7 +368,7 @@ Forest_moss = {
     },
 
     'initial_conditions': {
-        'temperature': 10.0, # degC
+        'temperature': 1.0, # degC
         'water_content': 10.0 # g H2O g-1 DM
     }
 }
@@ -410,7 +409,7 @@ Sphagnum = {
         'pore_connectivity': -2.1  # [-]
     },
     'initial_conditions': {
-        'temperature': 10.0, # degC
+        'temperature': 1.0, # degC
         'water_content': 20.0 # g g-1 DM
     }
 }

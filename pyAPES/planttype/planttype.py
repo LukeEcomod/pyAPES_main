@@ -565,14 +565,13 @@ class PlantType(object):
 
             # solve leaf gas-exchange
             self.photo_forcing = set_photo_forcing(self.photo_forcing,
-                                                   Qp,
-                                                   forcing['wet_leaf_temperature'],
-                                                   Dleaf,
-                                                   forcing['co2'],
-                                                   gb_c,
-                                                   gb_v,
-                                                   forcing['air_pressure'],
-                                                   Qa)
+                                                       Qp,
+                                                       Tl,
+                                                       Dleaf,
+                                                       forcing['co2'],
+                                                       gb_c,
+                                                       gb_v,
+                                                       P)
 
             photo_results = self.Photo_model.run(
                 self.photo_forcing, self.photop)
