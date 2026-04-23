@@ -210,19 +210,25 @@ class MLM_model(object):
         self.soil = Soil_1D(soil_para)
 
         # create canopy model instance
+        
+        # update planttype-specific phenology and LAI parameters for initial temperature
+        # initial delayed temperature and degreedaysum for pheno & LAI-models from forcing file
 
-        # initial delayed temperature and degreedaysum for pheno & LAI-models
-        if canopy_para['ctr']['pheno_cycle'] and 'X' in forcing:
-            for pt in list(canopy_para['planttypes'].keys()):
-                canopy_para['planttypes'][pt]['phenop'].update(
-                    {'Xo': forcing['X'].iloc[0]})
+        # if canopy_para['ctr']['pheno_cycle'] and 'X' in forcing:
+        #     for pt in list(canopy_para['planttypes'].keys()):
+        #         canopy_para['planttypes'][pt]['phenop'].update({'Xo': forcing['X'].iloc[0]})
+        
+        # if canopy_para['ctr']['seasonal_LAI'] and 'DDsum' in forcing:
+        #     for pt in list(canopy_para['planttypes'].keys()):
+        #         canopy_para['planttypes'][pt]['laip'].update({'DDsum0': forcing['DDsum'].iloc[0]})
+    
+        # modified mlm_canopy --> Planttype -->LAI_model & pheno_model calls so that this is given as argument, 
+        # not as part of parameter dicts
+        DDsum0 = forcing['DDsum'].iloc[0] if 'DDsum' in forcing else 0.0
+        X0 = forcing['X'].iloc[0] if 'X' in forcing else 0.0
 
-        if canopy_para['ctr']['seasonal_LAI'] and 'DDsum' in forcing:
-            for pt in list(canopy_para['planttypes'].keys()):
-                canopy_para['planttypes'][pt]['laip'].update(
-                    {'DDsum0': forcing['DDsum'].iloc[0]})
-
-        self.canopy_model = CanopyModel(canopy_para, self.soil.grid['dz'])
+        self.canopy_model = CanopyModel(canopy_para, dz_soil=self.soil.grid['dz'], 
+                                        DDsum=DDsum0, X=X0)
 
         self.Nplant_types = len(self.canopy_model.planttypes)
         self.Nground_types = len(
@@ -320,12 +326,17 @@ class MLM_model(object):
             # --- CanopyModel ---
             # run daily loop: updates LAI, phenology and moisture stress ---
             if self.forcing['doy'].iloc[k] != self.forcing['doy'].iloc[k-1] or k == 0:
-
+                
+                # Note! USING PRESCRIBED REW FROM FORCING FILE SHOULD BE OPTION (flag) GIVEN IN PARAMETERS
                 if 'Rew' in self.forcing:
-                    # Rew from forcing
+                    # Rew from forcing (float)
                     Rew = self.forcing['Rew'].iloc[k]
+                    
                 else:
-                    Rew = 1.0  # should be calculated in soil
+                    # extract layerwise Rew from soil.Water (array)
+                    # this is multiplied in self.canopy_model.run_daily with each PlantType's root distribution
+                    # self.soil.water.Rew[:]=1.0 # for testing
+                    Rew = self.soil.water.Rew 
 
                 self.canopy_model.run_daily(
                     self.forcing['doy'].iloc[k],

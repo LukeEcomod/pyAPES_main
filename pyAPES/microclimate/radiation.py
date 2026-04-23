@@ -34,6 +34,7 @@ from matplotlib import pyplot as plt
 from typing import List, Dict, Tuple
 from scipy.linalg import solve_banded
 
+from pyAPES.utils.utilities import tridiag
 from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
 logger = logging.getLogger(__name__)
 
@@ -95,8 +96,8 @@ class Radiation(object):
 
         Returns:
             (tuple):
-                Q_sl (array): incident SW normal to sunlit leaves [W m-2]
-                Q_sh (array): incident SW normal to shaded leaves [W m-2]
+                Q_sl (array): incident SW sunlit leaves are exposed to [W m-2]
+                Q_sh (array): incident SW shaded leaves  are exposed to [W m-2]
                 q_sl (array): absorbed SW by sunlit leaves [W m-2(leaf)]
                 q_sh (array): absorbed SW by shaded leaves [W m-2(leaf)]
                 q_soil (array): absorbed SW by soil surface [W m-2(ground)]
@@ -292,6 +293,7 @@ def kbeam(zen: float, x: float=1.0) -> float:
     """
 
     zen = np.array(zen)
+    zen[zen > 90.0 * DEG_TO_RAD] = 90.0 * DEG_TO_RAD
     x = np.array(x)
 
     XN1 = (np.sqrt(x*x + np.tan(zen)**2))
@@ -333,7 +335,7 @@ def kdiffuse(LAI: float, x: float=1.0) -> float:
     # integrate over hemisphere to get Kd, Campbell & Norman (1998, eq. 15.5)
     YY = np.exp(-Kb*LAI)*np.sin(ang)*np.cos(ang)
 
-    Taud = 2.0*np.trapezoid(YY*dang)
+    Taud = 2.0*np.trapz(YY*dang)
     Kd = -np.log(Taud) / (LAI + EPS)  # extinction coefficient for diffuse radiation
 
     return Kd
@@ -346,6 +348,8 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     canopy using two-stream approach. Includes multiple reflections between foliage layers and soil surface.
     Incident radiation is given per ground area to be in line with A-gs measurements at leaf and shoot scale, i.e.
     Vcmax and Jmax reported in literature.
+
+    version Apr 7th, 2026 / Samuli & Kersti
 
     Reference:
         Zhao W. & Qualls R.J. (2005). A multiple-layer canopy scattering model
@@ -588,12 +592,8 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
 
     # Incident radiation is given per ground area. 
     # Sunlit leaves receive direct (IbSky) + diffuse (SWdo + SWuo), shaded leaves receive diffuse only (SWdo + SWuo).
-    Q_sl = IbSky + SWdo + SWuo  # [W m-2 ground], incident on truly sunlit un-clumped (physical) leaf area
-    Q_sh = SWdo + SWuo  # [W m-2 ground], incident on shaded un-clumped (physical) leaf area
-
-    # old approach
-    # Q_sh = Clump*Kd*(SWdo + SWuo)  # normal to shaded leaves is all diffuse
-    # Q_sl = Kb*IbSky + Q_sh  # normal to sunlit leaves is direct and diffuse
+    Q_sl = IbSky + SWdo + SWuo  # [W m-2 ground], incident on truly sunlit leaves
+    Q_sh = SWdo + SWuo  # [W m-2 ground], incident on shaded leaves
 
     # --- for diagonstics ---
     if PlotFigs:
@@ -737,8 +737,7 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     IdSky = max(IdSky, 0.0001)
 
     L = Clump*LAIz  # effective layerwise LAI (or PAI) in original grid
-    Lcum = np.cumsum(np.flipud(L), 0)  # cumulative plant area index from canopy top
-    Lcum = np.flipud(Lcum)  # node 0 is canopy bottom, N is top
+    Lcum = np.flipud(np.cumsum(np.flipud(L), 0.0))  # cumulative plant area from the sky, index 0 = ground
     LAI = max(Lcum)
 
     # attenuation coefficients
@@ -772,7 +771,7 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     qb1 = IbSky*np.exp(-Kb*Lcum)  # beam
     qbt1 = (1.0 - rb1)*IbSky*np.exp(-(1.0 - LeafAlbedo)**0.5*Kb*Lcum)  # total beam
     qsc1 = qbt1 - (1.0 - rb1)*qb1  # scattered part of beam
-    #print(Lcum, f_sl, qd1, qb1, qsc1)
+    # print Lcum, f_sl, qd1, qb1, qsc1
 
     # incident fluxes at each layer per unit ground area
     SWd = qd1 + qsc1  # total diffuse
@@ -799,36 +798,38 @@ def canopy_sw_Spitters(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     f_sl = Clump*f_sl
 
     if PlotFigs:
+        plt.figure(999)
+        plt.subplot(221)
+        plt.title("Source: radiation.canopy_sw_Spitters")
 
-        fig, ax = plt.subplots(2,2, figsize=(6,8))
-  
-        ax[0,0].set_title("Source: radiation.canopy_sw_Spitters")
-
-        ax[0,0].plot(f_sl, -Lcum/Clump, 'r-', (1 - f_sl), -Lcum/Clump, 'b-')
-        ax[0,0].set_ylabel("-Lcum eff.")
-        ax[0,0].set_xlabel("sunlit & shaded fractions (-)")
-        ax[0,0].legend(('f$_{sl}$, total LAI= %.2f' % np.sum(f_sl*LAIz), 'f$_{sh}$, total = %.2f' % np.sum((1 - f_sl)*LAIz)), fontsize=6)
+        plt.plot(f_sl, -Lcum/Clump, 'r-', (1 - f_sl), -Lcum/Clump, 'b-')
+        plt.ylabel("-Lcum eff.")
+        plt.xlabel("sunlit & shaded fractions (-)")
+        plt.legend(('f_{sl}, total = %.2f' % np.sum(f_sl*LAIz), 'f_{sh}, total = %.2f' % np.sum((1 - f_sl)*LAIz)), loc='best')
 
         # add input parameter values to fig
-        ax[0,0].text(0.05, 0.65, r'$LAI$ = %1.1f m2 m-2' % (LAI))
-        ax[0,0].text(0.50, 0.65, r'$ZEN$ = %1.3f ' % (Zen / DEG_TO_RAD))
-        ax[0,0].text(0.70, 0.65, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
-        ax[0,0].text(1.0, 0.65, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
+        plt.text(0.05, 0.75, r'$LAI$ = %1.1f m2 m-2' % (LAI))
+        plt.text(0.05, 0.65, r'$ZEN$ = %1.3f rad' % (Zen))
+        plt.text(0.05, 0.55, r'$\alpha_l$ = %0.2f' % (LeafAlbedo))
+        plt.text(0.05, 0.45, r'$\alpha_s$ = %0.2f' % (SoilAlbedo))
 
-        ax[0,1].plot(Q_sl, -Lcum/Clump, 'ro-', Q_sh, -Lcum/Clump, 'bo-')
-        ax[0,1].set_ylabel("-Lcum eff.")
-        ax[0,1].set_xlabel("Incident radiation (Wm-2 (leaf))")
-        ax[0,1].legend(('sunlit', 'shaded'),  fontsize=6)
+        plt.subplot(222)
+        plt.plot(Q_sl, -Lcum/Clump, 'ro-', Q_sh, -Lcum/Clump, 'bo-')
+        plt.ylabel("-Lcum eff.")
+        plt.xlabel("Incident radiation (Wm-2 (leaf))")
+        plt.legend(('sunlit', 'shaded'), loc='best')
 
-        ax[1,0].plot(SWd, -Lcum/Clump, 'bo', SWb, -Lcum/Clump, 'ro')
-        ax[1,0].legend(('SWd', 'SWb'), loc='best', fontsize=6)
-        ax[1,0].set_ylabel("-Lcum eff.")
-        ax[1,0].set_xlabel("Incident SW (Wm-2 )")
+        plt.subplot(223)
+        plt.plot(SWd, -Lcum/Clump, 'bo', SWb, -Lcum/Clump, 'ro')
+        plt.legend(('SWd', 'SWb'), loc='best')
+        plt.ylabel("-Lcum eff.")
+        plt.xlabel("Incident SW (Wm-2 )")
 
-        ax[1,1].plot(q_sl, -Lcum/Clump, 'ro-', q_sh, -Lcum/Clump, 'bo-')
-        ax[1,1].set_ylabel("-Lcum eff.")
-        ax[1,1].set_xlabel("Absorbed radiation (Wm-2 (leaf))")
-        ax[1,1].legend(('sunlit', 'shaded'), loc='best', fontsize=6)
+        plt.subplot(224)
+        plt.plot(q_sl, -Lcum/Clump, 'ro-', q_sh, -Lcum/Clump, 'bo-')
+        plt.ylabel("-Lcum eff.")
+        plt.xlabel("Absorbed radiation (Wm-2 (leaf))")
+        plt.legend(('sunlit', 'shaded'), loc='best')
 
     return SWb, SWd, Q_sl, Q_sh, q_sl, q_sh, q_soil, f_sl, alb
 
@@ -900,8 +901,8 @@ def compute_clouds_rad(doy: float, Zen: float, Rg: float, H2O: float, Tair: floa
 
     df = pd.DataFrame({'f_cloud': f_cloud, 'f_diff': f_diff, 'emi_sky': emi_sky})
     df = df.interpolate()
-    df = df.ffill()
-    df = df.bfill()
+    df = df.fillna(method='bfill')
+    df = df.fillna(method='ffill')
 
     return df['f_cloud'].values, df['f_diff'].values, df['emi_sky'].values
 
@@ -909,9 +910,8 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
               leaf_emi: float=1.0, PlotFigs: bool=False) -> Tuple:
     """
     Estimates long-wave (LW) radiation budget and net isothermal LW radiation within horizontally 
-    homogeneous canopy. Assumes canopy elements as black bodies (es=1.0) at local leaf or air temperature
-    T(z), i.e. neglects scattering. Note that depending whether Tleaf or Tair is used, the leaf energy budged must be
-    revised account for the dT = Tleaf - Tair.
+    homogeneous canopy. Assumes canopy elements as black bodies (es=1.0) at local air temperature
+    T(z), i.e. neglects scattering.
 
     Reference:
        Adapted from Flerchinger et al. 2009. Simulation of within-canopy radiation exchange, NJAS 57, 5-15.
@@ -925,10 +925,10 @@ def canopy_lw(LAIz: np.ndarray, Clump: float, x: float, T: np.ndarray, LWdn0: fl
     
     Returns:
         (tuple):
-            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance, accounts for mean leaf orientation
-            LWdn (array): [W m-2 (ground), downward LW profile in the canopy
-            LWup (array): [W m-2 (ground), upward LW profile in the canopy
-            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance
+            LWleaf (array):  [W m-2 (leaf)], leaf net isothermal LW balance;
+            LWdn (array): [W m-2 (ground), downward LW profile in the canopy;
+            LWup (array): [W m-2 (ground), upward LW profile in the canopy;
+            gr (array): [mol m-2 (leaf) s-1], leaf radiative conductance.
     
     """
 
@@ -1091,6 +1091,9 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     C = np.zeros(2*M+2)
     D = np.zeros(2*M+2)
 
+    # subdiagonal
+    A[1:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+    A[2:2*M+1:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
     # diagonal
     B[0] = 1.0
     B[1:2*M+1:2] = - rd[0:M]*(taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))*(
@@ -1098,22 +1101,9 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     B[2:2*M+1:2] = - rd[2:M+2]*(taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))*(
                     1 - aL[2:M+2])*(1 - taud[2:M+2])
     B[2*M+1] = 1.0
-
-    # # for tridiag
-    # # subdiagonal
-    # A[1:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
-    # A[2:2*M+1:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
-    # # superdiagonal
-    # C[1:2*M+1:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
-    # C[2:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
-
-    # for solve_banded
-    # subdiagonal
-    A[0:2*M:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
-    A[1:2*M:2] = 1 - rd[1:M+1]*rd[2:M+2]*(1 - aL[1:M+1])*(1 - taud[1:M+1])*(1 - aL[2:M+2])*(1 - taud[2:M+2])
     # superdiagonal
-    C[2:2*M+2:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
-    C[3:2*M+2:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
+    C[1:2*M+1:2] = 1 - rd[0:M]*rd[1:M+1]*(1 - aL[0:M])*(1 - taud[0:M])*(1 - aL[1:M+1])*(1 - taud[1:M+1])
+    C[2:2*M+1:2] = - (taud[1:M+1] + (1 - taud[1:M+1])*(1 - aL[1:M+1])*(1 - rd[1:M+1]))
 
     # rhs
     LWsource = aL*STEFAN_BOLTZMANN*(T + DEG_TO_KELVIN)**4
@@ -1130,8 +1120,7 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
 
     # ---- solve a*LW = D
     if soil_emi < 1.0 and leaf_emi < 1.0:
-        # LW = tridiag(A,B,C,D)
-        LW = solve_banded((1,1),np.vstack((C,B,A)),D)
+        LW = tridiag(A,B,C,D)
     else:
         matrix = np.zeros([2*M+2, 2*M+2])
         row, col = np.diag_indices(matrix.shape[0])
