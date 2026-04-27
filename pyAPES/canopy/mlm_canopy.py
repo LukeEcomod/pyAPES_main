@@ -35,7 +35,7 @@ class CanopyModel(object):
     multi-layer, multi-species plant canopies and forest floor.
     """
 
-    def __init__(self, cpara: Dict, dz_soil: np.ndarray):
+    def __init__(self, cpara: Dict, dz_soil: np.ndarray, DDsum: float=0.0, X:float=0.0):
         r""" Initializes canopy object and submodel objects using given parameters.
 
         Args:
@@ -62,7 +62,8 @@ class CanopyModel(object):
                     snowpack (dict): smow model parameters
                     initial_conditions (dict): initial conditions for forest floor
             dz_soil (array): thickness of soilprofile layers, needed for rootzone & soil respiration
-
+            Ddsum (float): degree-day sum at start of forcing [degC]
+            X (float): delayed temperature at start of forcing [degC]
         Returns:
             self (object): CanopyModel, including following sub-models:
                 planttypes (list):
@@ -98,8 +99,12 @@ class CanopyModel(object):
         ptnames = list(cpara['planttypes'].keys())
         ptnames.sort()
         for pt in ptnames:
+            # SL 17.3. changing call here. ctr parameters are now part of planttype parameters
+            #ptypes.append(PlantType(
+            #    self.z, cpara['planttypes'][pt], dz_soil, ctr=cpara['ctr'], loc=cpara['loc']))
             ptypes.append(PlantType(
-                self.z, cpara['planttypes'][pt], dz_soil, ctr=cpara['ctr'], loc=cpara['loc']))
+                self.z, cpara['planttypes'][pt], dz_soil, loc=cpara['loc'], DDsum=DDsum, X=X))
+ 
         self.planttypes = ptypes
 
         # --- stand characteristics: sum over planttypes---
@@ -144,7 +149,7 @@ class CanopyModel(object):
         self.interception = Interception(
             cpara['interception'], self.lad * self.dz)
 
-        # forestfloor. Now soil respiration profile is as root_distr
+        # forestfloor. Now soil respiration profile weights are set equal to relative root_distr
         # self.forestfloor = ForestFloor(cpara['forestfloor'],
         #                                respiration_profile=self.root_distr)
 
@@ -162,7 +167,7 @@ class CanopyModel(object):
             doy (float): day of year [days]
             Ta (float): mean daily air temperature [degC]
             PsiL (float): leaf water potential [MPa] --- CHECK??
-            Rew (float): relatively extractable water (-)
+            Rew (float or array): relatively extractable water in rootzone or at each soil layer (-)
 
         Returns
             (none)
@@ -172,8 +177,22 @@ class CanopyModel(object):
         for pt in self.planttypes:
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
+                
+                # effective REW: relative root area density weighted average over root zone layers
+                if not isinstance(Rew, float):
+                    # compensated effective REW: g_sr-weighted, so wet layers with high conductance
+                    # compensate for dry layers; see RootUptake.effective_rew()
+                    rew_pt = pt.Roots.effective_rew(Rew)
+
+                    # alternatives (uncomment to switch):
+                    # uncompensated root-density-weighted average:
+                    #rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)
+                    #rew_pt = float(np.clip(np.sum(rel_rad * np.maximum(0.0, Rew[pt.Roots.ix])), 0.0, 1.0))
+                else:
+                    rew_pt = Rew
+                    
                 # updates pt properties
-                pt.update_daily(doy, Ta, PsiL=PsiL, Rew=Rew)
+                pt.update_daily(doy, Ta, PsiL=PsiL, Rew=rew_pt)
 
         # canopy leaf area index [m2 m-2]
         self.LAI = sum([pt.LAI for pt in self.planttypes])
@@ -271,8 +290,7 @@ class CanopyModel(object):
 
             # absorbed radiation by leafs [W m-2(leaf)]
             radiation_profiles['sw_absorbed'] = (
-                radiation_profiles['par']['sunlit']['absorbed'] *
-                sunlit_fraction
+                radiation_profiles['par']['sunlit']['absorbed'] * sunlit_fraction
                 + radiation_profiles['nir']['sunlit']['absorbed'] * sunlit_fraction
                 + radiation_profiles['par']['shaded']['absorbed'] *
                 (1. - sunlit_fraction)
@@ -422,7 +440,7 @@ class CanopyModel(object):
 
             pt_stats = []
             pt_layerwise = []
-
+            Rg_total = 0.0
             for pt in self.planttypes:
 
                 # --- sunlit and shaded leaves gas-exchange and optional energy balance
@@ -443,13 +461,22 @@ class CanopyModel(object):
                 # update canopy leaf temperature; it must be lad-weighted average
                 Tleaf += layer_stats_i['leaf_temperature'] * df * pt.lad
 
+                # leaf growth respiration per planttype, non-zero only when dLAI/dt > 0.
+                
+                if pt.LAImax > 0.0:
+                    rg_tot, rg_layer = pt.growth_respiration(Ta=forcing['air_temperature'])
+                    pt_stats_i['total_growth_respiration'] = rg_tot
+                    Rg_total += rg_tot
+                    sources['co2'] += rg_layer
+                
                 # append results
                 pt_stats.append(pt_stats_i)
-
+            
                 # set pt.lad=0 to np.NaN
                 layer_stats_i['leaf_temperature'] *= pt.mask
                 pt_layerwise.append(layer_stats_i)
-            del pt, pt_stats_i, layer_stats_i
+
+            del pt, pt_stats_i, layer_stats_i, rg_tot, rg_layer
 
             # --- end of planttype -loop
 
@@ -566,7 +593,8 @@ class CanopyModel(object):
         # --- update state variables
         self.interception.update()
         self.forestfloor.update()
-
+        
+  
         # --- Compile outputs
 
         # --- integrate to ecosystem fluxes (per m-2 ground) ---
@@ -579,9 +607,10 @@ class CanopyModel(object):
 
         # net ecosystem exchange [umol m-2 (ground) s-1]
         NEE = flux_co2[-1]
-        # ecosystem respiration [umol m-2 (ground) s-1]
+
+        # ecosystem respiration [umol m-2 (ground) s-1]: maintenance Rd + growth Rg + forest floor
         Reco = sum([pt_st['dark_respiration']
-                   for pt_st in pt_stats]) + ff_fluxes['respiration']
+                   for pt_st in pt_stats]) + Rg_total + ff_fluxes['respiration']
         # ecosystem GPP [umol m-2 (ground) s-1]
         GPP = - NEE + Reco
         # ecosystem transpiration [m s-1 = kg m-2 (ground) s-1]
@@ -714,12 +743,16 @@ class CanopyModel(object):
         pt_results = {
             # water potentials in root zone [m]
             'root_water_potential': np.array([pt.Roots.h_root for pt in self.planttypes]),
+            # relatively extractable water [-]
+            'rew': np.array([pt.Roots.Rew for pt in self.planttypes]),
             # [kg m-2]
             'total_transpiration': np.array([pt_st['transpiration'] * MOLAR_MASS_H2O for pt_st in pt_stats]),
             # [umol m-2 (ground) s-1]
             'total_gpp': np.array([pt_st['net_co2'] + pt_st['dark_respiration'] for pt_st in pt_stats]),
             # [umol m-2 (ground) s-1]
             'total_dark_respiration': np.array([pt_st['dark_respiration'] for pt_st in pt_stats]),
+            # [umol m-2 (ground) s-1]
+            'total_growth_respiration': np.array([pt_st.get('total_growth_respiration', 0.0) for pt_st in pt_stats]),
             # [mol m-2 (ground) s-1]
             'total_stomatal_conductance_h2o':  np.array([pt_st['stomatal_conductance'] for pt_st in pt_stats]),
             # [mol m-2 (ground) s-1]
