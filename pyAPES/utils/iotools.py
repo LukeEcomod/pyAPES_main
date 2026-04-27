@@ -313,7 +313,6 @@ def read_results(outputfiles):
         results (xarray|list of xarrays):
             simulation results from given outputfile(s)
     """
-    print(outputfiles)
     if type(outputfiles) != list:
         outputfiles = [outputfiles]
 

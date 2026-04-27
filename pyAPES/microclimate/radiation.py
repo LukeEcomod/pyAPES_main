@@ -942,8 +942,8 @@ def compute_clouds_rad(doy: float, Zen: float, Rg: float, H2O: float, Tair: floa
     df = pd.DataFrame(
         {'f_cloud': f_cloud, 'f_diff': f_diff, 'emi_sky': emi_sky})
     df = df.interpolate()
-    df = df.fillna(method='bfill')
-    df = df.fillna(method='ffill')
+    df = df.bfill()
+    df = df.ffill()
 
     return df['f_cloud'].values, df['f_diff'].values, df['emi_sky'].values
 

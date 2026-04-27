@@ -109,14 +109,14 @@ docs/.DS_Store
 
 figures/
 results/
-data/
+/data/
 old_obsolete/
 
 # Example demos
 Examples/results/*.*
 
 # datasets --> put in separate storage
-data/*.*
+/data/*.*
 
 # logs
 *.log
