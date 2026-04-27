@@ -58,6 +58,12 @@ target/
 .ipynb_checkpoints
 /*.ipynb
 
+# sandboxes
+sand*.py
+sand*.ipynb
+*playground*.ipynb
+*playground*.py
+
 # pyenv
 .python-version
 
@@ -82,9 +88,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-
-sand*.py
-sand*.ipynb
 
 # ipython:
 /__pycache__
@@ -138,6 +141,9 @@ data/*.*
 
 # Text files
 *.txt
+
+#PDF files
+*.pdf
 
 # Allow requirements
 !requirements.txt
