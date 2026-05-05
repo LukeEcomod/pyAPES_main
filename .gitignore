@@ -161,4 +161,4 @@ inputs/
 # Allow readme
 !README.md
 Examples/.cache.sqlite
-forcing/FI-Ran/FI-Ran_forcing_2022_2025.dat
+miscellaneous/

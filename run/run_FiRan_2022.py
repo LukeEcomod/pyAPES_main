@@ -41,4 +41,4 @@ params = {
 
 resultfile, _ = driver(parameters=params,
                        create_ncf=True,
-                       result_file='FiRan_2022_test.nc')
+                       result_file='FiRan_2022_test4.nc')

@@ -18,8 +18,8 @@ load_dotenv()
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2022-01-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2025-12-31",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2022-03-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2022-12-31",  # end time of simulation [yyyy-mm-dd]
          'forc_filename' : r'forcing/FI-Ran/FI-Ran_forcing_2022_2025.dat', # forcing data file
          'results_directory':'results/',
          'logging_directory': 'logs/',
@@ -83,7 +83,7 @@ interception = {'wmax': 0.2,  # maximum interception storage capacity for rain [
 #       Note: tree height h must be less than grid['zref']
 
 lad_normed = np.genfromtxt(
-    r'forcing/Hyytiala/lad_profiles_normed.dat', delimiter=';')  # same z as in canopy
+    r'forcing\FI-Ran\ran_lad_prof_norm_2022.dat', delimiter=';')  # same z as in canopy
 lad = lad_normed[:, 1:]  # pine, spruce, decid
 
 # pt1 = { 'name': 'pine',
@@ -198,7 +198,7 @@ pt2 = { 'name': 'spruce',
 
 pt3 = { 'name': 'decid',
         'LAImax': 1.2, # maximum annual LAI m2m-2
-        'lad': lad[:,2],  # leaf-area density m2m-3
+        'lad': lad[:,0],  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         'phenop': {
             'Xo': 0.0, # initial delayed temperature [degC]
@@ -253,7 +253,7 @@ pt3 = { 'name': 'decid',
 
 pt4 = { 'name': 'shrubs',
         'LAImax': 0.7, # maximum annual LAI m2m-2
-        'lad': lad_constant(z, LAI=1.0, h=0.5, hb=0.0),  # leaf-area density [m2 m-3]
+        'lad': lad[:,2],  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         'phenop': {
             'Xo': 0.0, # initial delayed temperature [degC]
@@ -339,7 +339,7 @@ Forest_moss = {
     # Based on literature review of Pleurozium schreberi and Hylocomium splendens
     'name': 'forest mosses',
     'layer_type': 'bryophyte',
-    'coverage': 1.0,  # fractional coverage [-]
+    'coverage': 0.5,  # fractional coverage [-]
     'height': 0.057,  # range (min, max): [0.021, 0.10]
     'roughness_height': 0.01,  # [m]
     'bulk_density': 14.3,  # kg m-3 range: [7.3, 28.74]
@@ -389,7 +389,7 @@ Forest_moss = {
 Sphagnum = {
     'name': 'Sphagnum sp.',
     'layer_type': 'bryophyte',
-    'coverage': 0.0,  # Note - now no sphagnum!
+    'coverage': 0.1,  # fractional coverage
     'height': 0.06,  # range: [0.044, 0.076]
     'roughness_height': 0.02,  # [m]
     'bulk_density': 35.1,  # [kg m-3], range: [9.28, 46.7]
@@ -432,7 +432,7 @@ Sphagnum = {
 Litter = {
     'name': 'Litter',
     'layer_type': 'litter',
-    'coverage': 0.0,  # [-], Note - now no litter!
+    'coverage': 0.4,  # [-]
     'height': 0.03,  # [m]
     'roughness_height': 0.01,  # [m]
     'bulk_density': 45.0,  # [kg m-3]
@@ -470,9 +470,9 @@ Litter = {
 
 forestfloor = {
     'bottom_layer_types': {
-        # 'litter': Litter,
+        'litter': Litter,
         'forest_moss': Forest_moss,
-        # 'sphagnum': Sphagnum,
+        'sphagnum': Sphagnum,
     },
     'snowpack': snowpack,
     'soil_respiration': soil_respiration
@@ -492,7 +492,7 @@ cpara = {'loc': loc,
 
 # --- Soil water & heat: pyAPES.soil.Soil
 
-# grid and soil properties: pF and conductivity values from Launiainen et al. (2015), Hyytiala
+# grid and soil properties: borrowed from lettosuo
 
 soil_grid = {#thickness of computational layers [m]
             'dz': [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
@@ -500,30 +500,33 @@ soil_grid = {#thickness of computational layers [m]
                    0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
                    0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
             # bottom depth of layers with different characteristics [m]
-            'zh': [-0.05, -0.11, -0.35, -10.0]
+            'zh': [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1., -1.5, -2.0]
             }
 
 soil_properties = {'pF': {  # vanGenuchten water retention parameters
-                        'ThetaS': [0.80, 0.50, 0.50, 0.41],
-                        'ThetaR': [0.01, 0.08, 0.08, 0.03],
-                        'alpha': [0.70, 0.06, 0.06, 0.05],
-                        'n': [1.25, 1.35, 1.35, 1.21]
+                        'ThetaS': [0.943, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882, 0.882],
+                        'ThetaR': [0.002, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104, 0.104],
+                        'alpha': [0.202, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044, 0.044],
+                        'n': [1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349, 1.349]
                         },
-                  'saturated_conductivity_vertical': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated vertical hydraulic conductivity [m s-1]
-                  'saturated_conductivity_horizontal': [2.42E-05, 2.08e-06, 3.06e-06, 4.17e-06],  # saturated horizontal hydraulic conductivity [m s-1]
+                  'saturated_conductivity_vertical': [4.97E-05, 3.21E-05, 2.07E-05, 1.34E-05, 8.63E-06, 5.57E-06,
+                                                      3.60E-06, 2.32E-06, 1.50E-06, 9.68E-07, 2.61E-07, 1.16E-07],  # saturated vertical hydraulic conductivity [m s-1]
+                  'saturated_conductivity_horizontal': [30*4.97E-05, 20*3.21E-05, 10*2.07E-05, 1.34E-05, 8.63E-06, 5.57E-06,
+                                                      3.60E-06, 2.32E-06, 1.50E-06, 9.68E-07, 2.61E-07, 1.16E-07],  # saturated horizontal hydraulic conductivity [m s-1]
                   'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
                   'solid_composition': {
-                         'organic': [0.1611, 0.0714, 0.1091, 0.028],
-                         'sand': [0.4743, 0.525, 0.5037, 0.5495],
-                         'silt': [0.3429, 0.3796, 0.3641, 0.3973],
-                         'clay': [0.0217, 0.0241, 0.0231, 0.0252]
+                         'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                         'sand': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                         'silt': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                         'clay': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
                          },
-                  'freezing_curve': [0.2, 0.5, 0.5, 0.5],  # freezing curve parameter
+                  'freezing_curve': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # freezing curve parameter
                   'bedrock': {
                               'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
                               'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
                               }
                   }
+
 
 # --- water model: pyAPES.soil.water.Water
 
