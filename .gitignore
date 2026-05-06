@@ -98,6 +98,9 @@ venv.bak/
 pyproject.toml
 poetry.lock
 
+# notebooks sandbox
+notebooks/
+
 # vscode settings
 .vscode
 

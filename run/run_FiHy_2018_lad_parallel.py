@@ -10,7 +10,8 @@ if __name__ == '__main__':
         'canopy': cpara,
         'soil': spara
     }
-
+    params['general']['start_time'] = '2018-06-01'
+    params['general']['end_time'] = '2018-06-30'
     tasks = get_parameter_list(params, 'hyytiala_2018_lad')
     print(tasks[0]['general'])
 

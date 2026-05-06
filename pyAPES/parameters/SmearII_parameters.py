@@ -20,7 +20,8 @@ load_dotenv()
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
          'start_time' : "2018-06-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2018-06-07",  # end time of simulation [yyyy-mm-dd]
-         'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
+         #'forc_filename' : r'forcing/Hyytiala/FIHy_forcing_2018.dat', # forcing data file
+         'forc_filename' : r'/Users/opa/data/pyAPES/forcing/FIHy_forcing_1997_2021.dat', # forcing data file
          'results_directory':'results/',
          'logging_directory': 'logs/',
          'parameters_directory': 'inputs/',
