@@ -600,12 +600,81 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     L = (wliq*kw + f_gas*wair*kg + f_min*f_solid*ks + f_ice*wice*ki) \
         / (wliq + f_gas*wair + f_min*f_solid + f_ice*wice)
 
-    # in fully organic layer, use o'Donnell et al. 2009
-    L[f_org >= 0.9] = 0.032 + 5e-1 * wliq[f_org >= 0.9]
+    # organic layers:
+    ix = f_org > 0.5 # OM content > 30% of mass
+    # o'Donnell et al. 2009, extended for ice;
+    #  ice contribution scaled by K_ICE/K_WATER relative to the liquid slope
+    
+    #L[ix] = (0.032 + 0.5 * wliq[ix] + (K_ICE / K_WATER) * 0.5 * wice[ix])
 
+    # Porada et al. 2016 (citing Ekici et al. 2014)
+    Lo = 0.05
+    wtot = wliq + wice
+    Ke = wtot / poros
+    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * Ke[ix] + (1- Ke[ix]) * Lo
+    
+    # geometric mean
+    #L[ix] = np.power(K_ORG, f_solid[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * np.power(K_AIR, wair[ix])
+    
     # in bedrock
     L[~np.isnan(bedrockL)] = bedrockL[~np.isnan(bedrockL)]
 
     return L
+
+
+def sinusoidal_soil_temperature(z: np.ndarray, doy: float, T_mean: float, T_amplitude: float,
+                                thermal_diffusivity: float = 3e-7,
+                                doy_tmax: float = 196.0) -> np.ndarray:
+    r"""
+    Estimates soil temperature profile from sinusoidal heat-wave propagation theory.
+
+    Assumes the soil surface temperature follows a sinusoidal annual cycle and
+    solves the 1D heat conduction analytically:
+
+    .. math::
+        T(z,t) = \bar{T} + A_0 \cdot e^{-|z|/d} \cdot
+                 \cos\!\left(\frac{2\pi(t - t_{\max})}{365.25} - \frac{|z|}{d}\right)
+
+    where the damping depth :math:`d = \sqrt{\alpha P / \pi}`,
+    :math:`\alpha` is the soil thermal diffusivity and :math:`P = 365.25 \times 86400` s.
+
+    References:
+        Hillel (1982) Introduction to Soil Physics. Academic Press.
+
+    Args:
+        z (array): node elevations relative to soil surface, negative downward [m]
+        doy (float): day of year [1..366]
+        T_mean (float): annual mean soil temperature [degC]
+        T_amplitude (float): annual surface temperature amplitude (half-range) [degC]
+        thermal_diffusivity (float): soil thermal diffusivity [m2 s-1], default 3e-6
+            (representative of loam at field capacity)
+        doy_tmax (float): day of year when surface temperature is at annual maximum,
+            default 196.0 (approx. July 15)
+
+    Returns:
+        T (array): soil temperature profile at given doy [degC]
+
+    Example::
+
+        import numpy as np
+        from pyAPES.soil.heat import sinusoidal_soil_temperature
+        dz = np.array([0.05]*20)
+        z = dz / 2 - np.cumsum(dz)   # node elevations [m]
+        T = sinusoidal_soil_temperature(z, doy=1, T_mean=6.0, T_amplitude=10.0)
+    """
+    z = np.asarray(z, dtype=float)
+    depth = -z  # positive downward [m]
+
+    # annual period [s]
+    P = 365.25 * 86400.0
+    # damping depth [m]
+    d = np.sqrt(thermal_diffusivity * P / np.pi)
+
+    # phase offset from annual maximum [radians]
+    phase = 2.0 * np.pi * (doy - doy_tmax) / 365.25
+
+    T = T_mean + T_amplitude * np.exp(-depth / d) * np.cos(phase - depth / d)
+
+    return T
 
 # EOF

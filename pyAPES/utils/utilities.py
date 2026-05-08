@@ -158,8 +158,10 @@ def lad_weibul(z: np.ndarray, LAI: float, h: float, hb: float = 0.0,
 
     """
 
-    para = {'pine': [0.906, 2.145], 'spruce': [
-        2.375, 1.289], 'birch': [0.557, 1.914]}
+    para = {'pine': [0.906, 2.145], 
+            'spruce': [2.375, 1.289],
+            'birch': [0.557, 1.914],
+            'generic_deciduous': [0.574, 2.230]}
 
     if (max(z) <= h) | (h <= hb):
         raise ValueError("h must be lower than uppermost gridpoint")

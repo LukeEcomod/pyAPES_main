@@ -308,11 +308,11 @@ class ForestFloor(object):
          }
 
         # --- Soil respiration # Moyano et al. 2012 BG soil moisture response
+        poros = forcing['soil_volumetric_water'] + forcing['soil_volumetric_ice'] + forcing['soil_volumetric_air']
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
                                         forcing['soil_temperature'],
                                         forcing['soil_volumetric_water'],
-                                        forcing['soil_volumetric_ice'],
-                                        forcing['soil_volumetric_air'])
+                                        poros)
 
         fluxes['respiration'] += fluxes['soil_respiration']
         fluxes['net_co2'] += fluxes['soil_respiration']

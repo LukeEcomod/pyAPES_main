@@ -50,7 +50,7 @@ from pyAPES.leaf.boundarylayer import leaf_boundary_layer_conductance
 from pyAPES.microclimate.micromet import e_sat, latent_heat
 from pyAPES.utils.constants import PAR_TO_UMOL, MOLAR_MASS_H2O, SPECIFIC_HEAT_AIR, EPS, H2O_CO2_RATIO
 
-from pyAPES.planttype.phenology import Photo_cycle, LAI_cycle
+from pyAPES.planttype.phenology import LAI_cycle, Photo_cycle_conifer, Photo_cycle_decid
 from pyAPES.planttype.rootzone import RootUptake
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class PlantType(object):
     functions.
     """
 
-    def __init__(self, z: np.ndarray, p: Dict, dz_soil: np.ndarray, ctr: Dict, loc: Dict):
+    def __init__(self, z: np.ndarray, p: Dict, dz_soil: np.ndarray, loc: Dict, DDsum: float=0.0, X: float=0.0):
         r""" Initialises a planttype object and submodel objects
         using given parameters.
 
@@ -70,6 +70,11 @@ class PlantType(object):
 
             p (dict):
                 'name' (str): name of planttype
+                'ctr' (dict): switches and specifications for computation
+                    'WaterStress' (str): account for water stress using 'Rew', 'PsiL' or 'None'
+                    'seasonal_LAI' (bool): account for seasonal LAI dynamics
+                    'pheno_cycle' (str): account for seasonal Vcmax, Jmax, Rd dynamics
+                
                 'LAImax' (float): maximum leaf area index [m2m-2]
                 'lad' (array): normalized leaf area density profile [m2m-3]
 
@@ -125,13 +130,12 @@ class PlantType(object):
 
             dz_soil (array): thickness of soilprofile layers, needed for rootzone [m]
 
-            ctr (dict): switches and specifications for computation
-                'WaterStress' (str): account for water stress using 'Rew', 'PsiL' or 'None'
-                'seasonal_LAI' (bool): account for seasonal LAI dynamics
-                'pheno_cycle' (bool): account for phenological cycle
             loc (dict): site location
                 'lat': latitude (decimal degrees)
                 'lon': 'longitude (decimal degrees)
+            Ddsum (float): degree-day sum at start of forcing [degC]
+            X (float): delayed temperature at start of forcing [degC]
+
         Returns:
             self (object):
                 .name (str)
@@ -148,27 +152,31 @@ class PlantType(object):
                 .Roots (object): root properties
         """
 
-        self.Switch_pheno = ctr['pheno_cycle']  # include phenology
-        self.Switch_lai = ctr['seasonal_LAI']  # seasonal LAI
+        self.Switch_pheno = p['ctr']['pheno_cycle']  # include phenology
+        self.Switch_lai = p['ctr']['seasonal_LAI']  # seasonal LAI
         # water stress affects stomata
-        self.Switch_WaterStress = ctr['WaterStress']
+        self.Switch_WaterStress = p['ctr']['WaterStress']
 
         self.StomaModel = 'MEDLYN_FARQUHAR' # stomatal model
 
         self.name = p['name']
 
-        # seasonal phenology model
-        if self.Switch_pheno:
-            self.Pheno_Model = Photo_cycle(
-                p['phenop'])  # phenology model instance
+        # seasonal phenology model to scale Vcmax25
+        if self.Switch_pheno == 'conifer':
+            self.Pheno_Model = Photo_cycle_conifer(p['phenop'])  # phenology model instance
             self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
+        
+        elif self.Switch_pheno == 'decid':
+            self.Pheno_Model = Photo_cycle_decid(p['phenop'], loc, DDsum0=DDsum)  # phenology model instance
+            self.pheno_state = self.Pheno_Model.f  # phenology state [0...1]
+        
         else:
             self.pheno_state = 1.0
 
-        # dynamic LAI model
+        # dynamic LAI
         if self.Switch_lai:
             # seasonality of leaf area
-            self.LAI_Model = LAI_cycle(p['laip'], loc)  # LAI model instance
+            self.LAI_Model = LAI_cycle(p['laip'], loc, DDsum)  # LAI model instance
             # LAI relative to annual maximum [0...1]
             self.relative_LAI = self.LAI_Model.f
         else:
@@ -198,8 +206,13 @@ class PlantType(object):
 
         # leaf properties
         self.leafp = p['leafp']  # leaf properties (dict)
+        
+        # leaf water potential and rootzone relatively extractable water (set in update daily)
+        self.PsiL = None
+        self.Rew = None
 
-        # print(self.name, self.mask)
+        # previous-day LAI for growth respiration calculation
+        self._LAI_prev = self.LAI
 
     def update_daily(self, doy, T, PsiL=0.0, Rew=1.0) -> None:
         """
@@ -215,12 +228,15 @@ class PlantType(object):
         """
 
         if self.Switch_pheno:
-            self.pheno_state = self.Pheno_Model.run(T, out=True)
+            self.pheno_state = self.Pheno_Model.run(doy, T, out=True)
 
         if self.Switch_lai:
+            self._LAI_prev = self.LAI  # store before update
             self.relative_LAI = self.LAI_Model.run(doy, T, out=True)
             self.LAI = self.relative_LAI * self.LAImax
             self.lad = self.lad_normed * self.LAI
+        else:
+            self._LAI_prev = self.LAI
 
         # scale photosynthetic capacity using vertical N gradient
         f = 1.0
@@ -236,9 +252,11 @@ class PlantType(object):
         self.photop['Jmax'] = f * self.pheno_state * self.photop0['Jmax']
         self.photop['Rd'] = f * self.pheno_state * self.photop0['Rd']
 
-        # water stress responses: move into own sub-models?
+        # water stress responses: move into own sub-models in photo.py?
         if self.Switch_WaterStress == 'Rew':
+            self.Rew = Rew
             # drought responses from Hyde scots pine shoot chambers, 2006; for 'Medlyn - model' only
+            # Rew is relatively extractable water in the bulk root zone
             b = self.photop['drp']
             fm = np.minimum(1.0, (Rew / b[0])**b[1])
             self.photop['g1'] = fm * self.photop0['g1']
@@ -250,6 +268,7 @@ class PlantType(object):
             self.photop['Rd'] *= fv
 
         if self.Switch_WaterStress == 'PsiL':
+            self.PsiL = PsiL
             PsiL = np.minimum(-1e-5, PsiL)
             b = self.photop0['drp']
 
@@ -265,6 +284,49 @@ class PlantType(object):
             self.photop['Vcmax'] *= fv
             self.photop['Jmax'] *= fj
             self.photop['Rd'] *= fr
+
+    def growth_respiration(self, Ta: np.ndarray) -> Tuple[float, np.ndarray]:
+        """
+        Growth respiration from daily LAI increment.
+
+        Rg = rg0 * max(0, dLAI) / dt_day * Q10^((T - 20) / 10)
+
+        where rg0 [umol CO2 m-2 leaf] is the integrated construction respiratory
+        cost per unit leaf area constructed. Only positive LAI increments are counted
+        (leaf construction only, not senescence).
+
+        Growth respiration is distributed over canopy layers proportional to
+        lad_normed (normalized leaf area density), so each layer's contribution
+        sums to Rg_total when integrated over the canopy profile.
+
+        Args:
+            T_a (array): air temperature at canopy layers [degC]
+
+        Returns:
+            Rg_total (float): total canopy growth respiration [umol CO2 m-2 ground s-1]
+            Rg_layers (array): per-canopy-layer growth respiration [umol CO2 m-2 ground s-1]
+                               (Rg_layers * dz integrates to Rg_total)
+        """
+        dt_day = 86400.0 # s
+        rg0 = self.photop0.get('Rg25', 0.0)  # [umol CO2 m-2 leaf]
+        Q10 = self.photop0.get('Q10g', 2.0)
+        T_ref = 25.0
+
+        dLAI = max(0.0, self.LAI - self._LAI_prev)  # [m2 leaf m-2 ground], positive increment only
+
+        if dLAI < EPS or rg0 < EPS:
+            return 0.0, np.zeros_like(self.lad_normed)
+
+        fT = Q10 ** ((Ta - T_ref) / 10.0)
+
+        # total Rg [umol CO2 m-2 ground s-1]
+        Rg_total = rg0 * dLAI / dt_day * fT
+
+        # distribute proportional to lad_normed; lad_normed integrates to 1 over canopy
+        # so Rg_layers * dz sums to Rg_total
+        Rg_layers = Rg_total * self.lad_normed  # [umol CO2 m-2 ground s-1 m-1]
+
+        return Rg_total, Rg_layers
 
     def run(self, forcing: Dict, parameters: Dict, controls: Dict) -> Tuple[Dict, Dict]:
         """
@@ -387,7 +449,7 @@ class PlantType(object):
                 'leaf_internal_co2': leaf internal CO2 mixing ratio (mol/mol)
                 'leaf_surface_co2': leaf surface CO2 mixing ratio (mol/mol)
 
-        Samuli Launiainen & Kersti Haahti, Last edit 25.11.2019 / SL
+        Samuli Launiainen, Kersti Leppä, O-P Tikkasalo, Last edit 11/2025 / OpaT
         """
 
         Ebal = controls['energy_balance']
@@ -503,14 +565,13 @@ class PlantType(object):
 
             # solve leaf gas-exchange
             self.photo_forcing = set_photo_forcing(self.photo_forcing,
-                                                   Qp,
-                                                   forcing['wet_leaf_temperature'],
-                                                   Dleaf,
-                                                   forcing['co2'],
-                                                   gb_c,
-                                                   gb_v,
-                                                   forcing['air_pressure'],
-                                                   Qa)
+                                                       Qp,
+                                                       Tl,
+                                                       Dleaf,
+                                                       forcing['co2'],
+                                                       gb_c,
+                                                       gb_v,
+                                                       P)
 
             photo_results = self.Photo_model.run(
                 self.photo_forcing, self.photop)
