@@ -43,7 +43,7 @@ loc = {'lat': 61.18292236,  # latitude, decimal deg
 
 # grid
 grid = {'zmax': 5.0,  # heigth of grid from ground surface. Corresponds to height of forcing data [m]
-        'Nlayers': 51  # number of layers [-]
+        'Nlayers': 41 # number of layers [-]
         }
 
 z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
