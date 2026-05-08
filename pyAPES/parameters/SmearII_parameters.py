@@ -37,6 +37,9 @@ ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/u
        'pheno_cycle': True  # account for phenological cycle
        }
 
+ctr_conifer = dict(ctr, pheno_cycle='conifer')
+ctr_decid = dict(ctr, pheno_cycle='decid')
+
 # site location
 loc = {'lat': 61.51,  # latitude, decimal deg
        'lon': 24.0  # longitude, decimal deg
@@ -87,6 +90,7 @@ lad_normed = np.genfromtxt(
 lad = lad_normed[:, 1:]  # pine, spruce, decid
 
 pt1 = { 'name': 'pine',
+        'ctr': ctr_conifer,
         'LAImax': 2.1, # maximum annual LAI m2m-2
         'lad': lad[:,0],  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
@@ -142,6 +146,7 @@ pt1 = { 'name': 'pine',
        }
 
 pt2 = { 'name': 'spruce',
+        'ctr': ctr_conifer,
         'LAImax': 1.2, # maximum annual LAI m2m-2
         'lad': lad[:,1],  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
@@ -197,15 +202,18 @@ pt2 = { 'name': 'spruce',
        }
 
 pt3 = { 'name': 'decid',
+        'ctr': ctr_decid,
         'LAImax': 1.2, # maximum annual LAI m2m-2
         'lad': lad[:,2],  # leaf-area density m2m-3
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
+        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle_decid
         'phenop': {
-            'Xo': 0.0, # initial delayed temperature [degC]
             'fmin': 0.01, # minimum relative photosynthetic capacity
-            'Tbase': -4.7,  # base temperature [degC]
-            'tau': 8.33,  # time constant [d]
-            'smax': 15.0  # threshold for full acclimation [degC]
+            'Tbase': 5.0,  # base temperature for DDsum [degC]
+            'ddo': 45.0,   # DDsum at bud burst [degC d]
+            'ddmat': 250.0, # DDsum at full maturity [degC d]
+            'sdl': 12.0,   # daylength threshold for senescence onset [h]
+            'sdur': 30.0,  # senescence duration [days]
+            'f_sso': 0.9,  # relative Vcmax at senescence onset [-]
             },
         # seasonal cycle of LAI: #  pyAPES.planttype.phenology.LAI_cycle
         'laip': {
@@ -252,6 +260,7 @@ pt3 = { 'name': 'decid',
        }
 
 pt4 = { 'name': 'shrubs',
+        'ctr': ctr_conifer,
         'LAImax': 0.7, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.5, hb=0.0),  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
