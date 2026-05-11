@@ -26,15 +26,14 @@ class Snowpack(object):
         """
         
         if snowpara['snow_model'] == 'degreeday':
-            self.snowpack = DegreeDaySnow(snowpara['degreeday'])
+            self.model = DegreeDaySnow(snowpara['degreeday'])
 
         elif snowpara['snow_model'] == 'fsm2':
-            self.snowpack = FSM2(snowpara['fsm2'])
+            self.model = FSM2(snowpara['fsm2'])
 
         else:
-            raise NotImplementedError(f"Snow model type is not implemented.")
-            # importataan loggeri ja logger error (katso muista moduuleista mallia)
-            # esim heat.py stä
+            logger.error(f"Snow model type '{snowpara['snow_model']}' is not implemented.")
+            raise NotImplementedError(f"Snow model type '{snowpara['snow_model']}' is not implemented.")
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
@@ -42,7 +41,7 @@ class Snowpack(object):
         Returns:
         """
 
-        fluxes, states = self.snowpack.run(dt, forcing)
+        fluxes, states = self.model.run(dt, forcing)
         
         return fluxes, states
 

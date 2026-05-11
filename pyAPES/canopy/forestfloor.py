@@ -127,11 +127,12 @@ class ForestFloor(object):
         if not para['Ebal'] and self.snow_model == 'fsm2':
             logger.warning('Ebal=False: snow_model switched from fsm2 to degreeday')
             self.snow_model = 'degreeday'
+            para['snowpack']['snow_model'] = 'degreeday'
         self.snowpack = Snowpack(para['snowpack'])
 
         if self.snow_model == 'degreeday':
             # assign snowpack optical properties from parameters, as they are not computed in degreeday model
-            self.snowpack.snowpack.optical_properties = para['snowpack']['degreeday']['optical_properties']
+            self.snowpack.model.optical_properties = para['snowpack']['degreeday']['optical_properties']
 
         self.soilrespiration = SoilRespiration(para['soil_respiration'], z_soil=z_soil)
 
@@ -159,9 +160,9 @@ class ForestFloor(object):
         self.bottomlayer_types = bltypes
         logger.info('Forestfloor has %s bottomlayer types', len(self.bottomlayer_types))
 
-        if self.snowpack.snowpack.swe > 0:
-            self.albedo = self.snowpack.snowpack.optical_properties['albedo']
-            self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
+        if self.snowpack.model.swe > 0:
+            self.albedo = self.snowpack.model.optical_properties['albedo']
+            self.emissivity = self.snowpack.model.optical_properties['emissivity']
         else:
             self.albedo = {'PAR': sum([bt.coverage * bt.albedo['PAR']
                                        for bt in self.bottomlayer_types]),
@@ -198,16 +199,16 @@ class ForestFloor(object):
         Updates forestfloor-object state variables
         """
         
-        self.snowpack.snowpack.update()
+        self.snowpack.model.update()
 
         for bt in self.bottomlayer_types:
             bt.update_state()
         
-        if self.snowpack.snowpack.swe > 0:
-            self.albedo = self.snowpack.snowpack.optical_properties['albedo']
-            self.emissivity = self.snowpack.snowpack.optical_properties['emissivity']
-            self.surface_temperature = self.snowpack.snowpack.snow_surface_temperature - DEG_TO_KELVIN
-            self.bt_surface_temperature = self.snowpack.snowpack.snow_surface_temperature - DEG_TO_KELVIN
+        if self.snowpack.model.swe > 0:
+            self.albedo = self.snowpack.model.optical_properties['albedo']
+            self.emissivity = self.snowpack.model.optical_properties['emissivity']
+            self.surface_temperature = self.snowpack.model.snow_surface_temperature - DEG_TO_KELVIN
+            self.bt_surface_temperature = self.snowpack.model.snow_surface_temperature - DEG_TO_KELVIN
         else:
             self.albedo['PAR'] = sum([bt.coverage * bt.albedo['PAR']
                                       for bt in self.bottomlayer_types])
@@ -452,7 +453,7 @@ class ForestFloor(object):
                     state[key] = states_snow[key] - DEG_TO_KELVIN
                 else:
                     state[key] = states_snow[key]
-            if (self.snowpack.snowpack.swe > 0. or states_snow['snow_water_equivalent'] > 0.):
+            if (self.snowpack.model.swe > 0. or states_snow['snow_water_equivalent'] > 0.):
                 state['surface_temperature'] = states_snow['snow_surface_temperature'] - DEG_TO_KELVIN
                 fluxes['sensible_heat'] = fluxes_snow['snow_sensible_heat']
                 fluxes['longwave_out'] = fluxes_snow['snow_longwave_out']
