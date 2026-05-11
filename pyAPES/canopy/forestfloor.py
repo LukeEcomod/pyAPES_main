@@ -148,6 +148,9 @@ class ForestFloor(object):
                 bltypes.append(OrganicLayer(para['bottom_layer_types'][bt]))
             else:
                 logger.info('Forestfloor: %s, coverage 0.0 omitted!', bt)
+        
+        # assign snow_model once to all OrganicLayer instances
+        OrganicLayer.snow_model = self.snow_model
 
         f_organic = sum([bt.coverage for bt in bltypes])
         if abs(f_organic - 1.0) > EPS:
@@ -342,6 +345,8 @@ class ForestFloor(object):
             #'albedo': None,
             #'emissivity': None
          }
+        
+        #controls.update({'snow_model': self.snow_model})
 
         # --- Soil respiration # Moyano et al. 2012 BG soil moisture response
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
@@ -395,18 +400,27 @@ class ForestFloor(object):
         del org_forcing['precipitation_rain'], org_forcing['precipitation_snow']
 
         if self.snow_model == 'degreeday': # Snow: degree-day model
-            fluxes_snow['snow_heat_flux'] = 0.
-            snow_bottom_temperature = 0.
+            #fluxes_snow['snow_heat_flux'] = 0.
+            org_forcing.update(
+                {'snow_temperature': states_snow['snow_surface_temperature'] - DEG_TO_KELVIN, # snow surface temperature [K] (equals to air temperature in degreeday model)
+                'snow_heat_flux': fluxes['ground_heat'],
+                }
+            )
         else: # Snow: energy balance snow model
-            snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN
+            #snow_bottom_temperature = states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN
+            org_forcing.update(
+                {'snow_temperature': states_snow['snow_temperature'][states_snow['snow_layers']-1] - DEG_TO_KELVIN, # snow bottom temperature [K]
+                 'snow_heat_flux': fluxes_snow['snow_heat_flux']
+                }
+            )
         
         org_forcing.update(
                 {'precipitation': fluxes_snow['potential_infiltration'],
                 'soil_temperature': forcing['soil_temperature'][0],
                 'snow_water_equivalent': states_snow['snow_water_equivalent'],
-                'snow_heat_flux': fluxes_snow['snow_heat_flux'],
-                'snow_temperature': snow_bottom_temperature}
-                )
+                #'snow_heat_flux': fluxes_snow['snow_heat_flux'],
+                #'snow_temperature': snow_bottom_temperature
+                })
         # bottomlayer-type specific fluxes and state for output: list of dicts
         bt_results = []
 

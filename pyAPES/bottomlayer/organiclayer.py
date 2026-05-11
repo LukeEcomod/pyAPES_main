@@ -97,7 +97,6 @@ class OrganicLayer(object):
         """
         self.name = properties['name']
         self.layer_type = properties['layer_type']
-
         self.coverage = properties['coverage']
         self.height = properties['height']
         self.roughness_height = properties['roughness_height']
@@ -229,7 +228,7 @@ class OrganicLayer(object):
 
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
-            if forcing['snow_water_equivalent'] > 0.: # snow covers the litter -> compute only water exchange
+            if forcing['snow_water_equivalent'] > 0. and self.snow_model == 'fsm2': # snow covers the litter -> compute only water exchange
                 fluxes, states = self.water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
