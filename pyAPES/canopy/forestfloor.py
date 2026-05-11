@@ -129,10 +129,9 @@ class ForestFloor(object):
             self.snow_model = 'degreeday'
         self.snowpack = Snowpack(para['snowpack'])
 
-        self.snowpack.snowpack.optical_properties = {
-                'emissivity': 0.97,
-                'albedo': {'PAR': 0.8, 'NIR': 0.8}
-                }
+        if self.snow_model == 'degreeday':
+            # assign snowpack optical properties from parameters, as they are not computed in degreeday model
+            self.snowpack.snowpack.optical_properties = para['snowpack']['degreeday']['optical_properties']
 
         self.soilrespiration = SoilRespiration(para['soil_respiration'], z_soil=z_soil)
 
@@ -346,8 +345,6 @@ class ForestFloor(object):
             #'emissivity': None
          }
         
-        #controls.update({'snow_model': self.snow_model})
-
         # --- Soil respiration # Moyano et al. 2012 BG soil moisture response
         fluxes['soil_respiration'] = self.soilrespiration.respiration(
                                         forcing['soil_temperature'],
