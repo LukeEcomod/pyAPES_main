@@ -122,6 +122,10 @@ data/*.*
 # shell scripts
 *.sh
 
+# Allow repo hooks
+!hooks/
+!hooks/**
+
 # nc files
 *.nc
 

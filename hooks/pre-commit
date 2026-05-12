@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# pre-commit hook: blocks large files and research data file types
+# from being committed to this repository.
+#
+# Checks only newly added files (diff-filter=A), so modifications to
+# already-tracked files (e.g. environment.yml, forcing/*.dat) are allowed.
+#
+# To bypass in exceptional cases: git commit --no-verify
+
+set -uo pipefail
+
+MAX_SIZE_BYTES=$(( 5 * 1024 * 1024 ))   # 5 MB
+
+# Extensions blocked regardless of size
+BLOCKED_EXTENSIONS=("nc" "npy" "npz" "yml" "pdf")
+
+errors=()
+
+while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+
+    ext="$(echo "${file##*.}" | tr '[:upper:]' '[:lower:]')"
+
+    for blocked in "${BLOCKED_EXTENSIONS[@]}"; do
+        if [[ "$ext" == "$blocked" ]]; then
+            errors+=("Blocked file type (.${ext}): ${file}")
+            break
+        fi
+    done
+
+    blob_size=$(git cat-file -s ":${file}" 2>/dev/null || echo 0)
+    if (( blob_size > MAX_SIZE_BYTES )); then
+        size_mb=$(( blob_size / 1024 / 1024 ))
+        errors+=("File too large (${size_mb} MB > 5 MB): ${file}")
+    fi
+
+done < <(git diff --cached --name-only --diff-filter=A)
+
+if (( ${#errors[@]} > 0 )); then
+    printf '\n[pre-commit] Commit blocked — the following files are not allowed:\n' >&2
+    for err in "${errors[@]}"; do
+        printf '  - %s\n' "$err" >&2
+    done
+    printf '\nData files (.nc, .npy, .npz) and configuration files (.yml) must not be\n' >&2
+    printf 'committed to this repository. Store them separately or add to .gitignore.\n' >&2
+    printf 'Publications and figures (.pdf) larger than 5 MB also belong elsewhere.\n' >&2
+    printf '\nTo bypass (use with caution): git commit --no-verify\n\n' >&2
+    exit 1
+fi
+
+exit 0
