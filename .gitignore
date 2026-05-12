@@ -165,3 +165,9 @@ inputs/
 *.md
 # Allow readme
 !README.md
+
+# notebooks
+notebooks/
+
+# plans
+plans/
