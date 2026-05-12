@@ -108,6 +108,7 @@ figures/
 results/
 data/
 old_obsolete/
+input_parameters/
 
 # Example demos
 Examples/results/*.*

@@ -1129,7 +1129,7 @@ def canopy_lw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Tleaf: np.nda
     D[2*M+1] = LWdn0
 
     # ---- solve a*LW = D
-    if soil_emi < 1.0 and leaf_emi < 1.0:
+    if soil_emi <= 1.0 and leaf_emi <= 1.0:
         # LW = tridiag(A,B,C,D)
         LW = solve_banded((1,1),np.vstack((C,B,A)),D)
     else:
