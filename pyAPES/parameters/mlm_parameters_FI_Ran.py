@@ -19,8 +19,8 @@ _repo_root = Path(__file__).parent.parent.parent
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2022-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2022-06-15",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2022-04-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2022-10-15",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 152,  # start doy (for computing initial thermal profile)
          'forc_filename' : r'forcing/FI-Ran/FI-Ran_forcing_2022_2025.dat', # forcing data file
          'results_directory':'results/'
@@ -92,7 +92,7 @@ pt1 = { 'name': 'spruce',
             'seasonal_LAI': False,  # account for seasonal LAI dynamics
             'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 1.2, # maximum annual LAI m2m-2
+        'LAImax': 0.1, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density m2m-3
         #lad[:,1],  # leaf-area density m2m-3
 
@@ -154,8 +154,8 @@ pt2 = { 'name': 'decid',
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
             'pheno_cycle': None, #'decid',  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 1.2, # maximum annual LAI m2m-2
-        'lad': lad_weibul(z, LAI=1.2, h=1.0, hb=0.2, species='generic_deciduous'),  # leaf-area density m2m-3
+        'LAImax': 0.3, # maximum annual LAI m2m-2
+        'lad': lad_weibul(z, LAI=1.0, h=1.0, hb=0.2, species='generic_deciduous'),  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic capacity: pyAPES.planttype.phenology.Photo_cycle_decid
         # Three-phase exponential model following Wilson et al. (2001) PCE Fig. 4.
         # 'phenop': {
@@ -217,7 +217,7 @@ pt3 = { 'name': 'shrubs',
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
             'pheno_cycle': None,  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.7, # maximum annual LAI m2m-2
+        'LAImax': 0.3, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         # 'phenop': {
@@ -304,7 +304,7 @@ Forest_moss = {
     # Based on literature review of Pleurozium schreberi and Hylocomium splendens
     'name': 'forest mosses',
     'layer_type': 'bryophyte',
-    'coverage': 0.5,  # fractional coverage [-]
+    'coverage': 0.45,  # fractional coverage [-]
     'height': 0.057,  # range (min, max): [0.021, 0.10]
     'roughness_height': 0.01,  # [m]
     'bulk_density': 14.3,  # kg m-3 range: [7.3, 28.74]
@@ -354,7 +354,7 @@ Forest_moss = {
 Sphagnum = {
     'name': 'Sphagnum sp.',
     'layer_type': 'bryophyte',
-    'coverage': 0.1,  # fractional coverage
+    'coverage': 0.15,  # fractional coverage
     'height': 0.06,  # range: [0.044, 0.076]
     'roughness_height': 0.02,  # [m]
     'bulk_density': 35.1,  # [kg m-3], range: [9.28, 46.7]
