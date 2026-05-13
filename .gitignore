@@ -122,6 +122,10 @@ data/*.*
 # shell scripts
 *.sh
 
+# Allow repo hooks
+!hooks/
+!hooks/**
+
 # nc files
 *.nc
 
@@ -161,3 +165,9 @@ inputs/
 *.md
 # Allow readme
 !README.md
+
+# notebooks
+notebooks/
+
+# plans
+plans/
