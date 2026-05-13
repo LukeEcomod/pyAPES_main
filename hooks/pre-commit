@@ -44,7 +44,7 @@ if (( ${#errors[@]} > 0 )); then
     done
     printf '\nData files (.nc, .npy, .npz) and configuration files (.yml) must not be\n' >&2
     printf 'committed to this repository. Store them separately or add to .gitignore.\n' >&2
-    printf 'Publications and figures (.pdf) larger than 5 MB also belong elsewhere.\n' >&2
+    printf 'Publications and figures (.pdf) and files larger than 5 MB also belong elsewhere.\n' >&2
     printf '\nTo bypass (use with caution): git commit --no-verify\n\n' >&2
     exit 1
 fi
