@@ -235,12 +235,6 @@ class OrganicLayer(object):
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
             if forcing['snow_water_equivalent'] > 0. and self.snow_model == 'fsm2': # snow covers the litter -> compute only water exchange
-                # fluxes, states = self.water_exchange_under_snow(
-                #                 dt=dt,
-                #                 forcing=forcing,
-                #                 parameters=parameters,
-                #                 sub_dt=1800. # sub_dt = 60. does not work well
-                #                 )
                 fluxes, states = self.heat_and_water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
