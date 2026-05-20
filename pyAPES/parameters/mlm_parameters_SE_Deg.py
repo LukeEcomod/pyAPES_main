@@ -37,12 +37,6 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
        'WMA': False,  # assume air-space scalar profiles well-mixed
        'Ebal': True,  # computes leaf and surface temperature by solving energy balance
-<<<<<<< HEAD
-=======
-       'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-       'seasonal_LAI': False,  # account for seasonal LAI dynamics
-       'pheno_cycle': False  # account for phenological cycle
->>>>>>> origin/main
        }
 
 # site location
@@ -96,11 +90,7 @@ pt1 = {
     'ctr': {
         'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
         'seasonal_LAI': True,  # account for seasonal LAI dynamics
-<<<<<<< HEAD
         'pheno_cycle': None #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
-=======
-        'pheno_cycle': False #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
->>>>>>> origin/main
         },
     'LAImax': 0.6, # maximum annual LAI m2m-2
     'lad': lad_constant(z, LAI=1.0, h=0.5),  # leaf-area density m2m-3
@@ -215,30 +205,6 @@ pt2 = { 'name': 'pine',
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
-<<<<<<< HEAD
-# --- pyAPES.snow.snowpack.DegreeDaySnow
-snowpack = {
-    'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1] (=2.0 mm/C/d)
-    'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm/C/d)
-    'retention': 0.2,  # max fraction of liquid water in snow [-]
-    'Tmelt': 0.0,  # temperature when melting starts [degC]
-    'optical_properties': {
-        'emissivity': 0.97,
-        'albedo': {'PAR': 0.8, 'NIR': 0.8}
-    },
-    'initial_conditions': {
-        'temperature': 0.0,
-        'snow_water_equivalent': 0.0}
-}
-
-# --- pyAPES.bottomlayer.carbon.SoilRespiration
-soil_respiration = {
-    'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
-    'q10': 2.0, # temperature sensitivity [-]
-    'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
-    'beta': 1.0 # exponential decay for potential soil respiration depth profile
-}
-=======
 # --- pyAPES.snow
 snow = {
     'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
@@ -323,20 +289,12 @@ snow = {
     }
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
-#soil_respiration = {
-#    'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
-#    'q10': 2.0, # temperature sensitivity [-]
-#    'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
-#    'beta': 1.0 # exponential decay for potential soil respiration depth profile
-#}
-
 soil_respiration = {
-        'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
-        'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
-        'beta': 0.943, # root distribution shape parameter [-]
-        }
->>>>>>> origin/main
+    'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
+    'q10': 2.0, # temperature sensitivity [-]
+    'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
+    'beta': 1.0 # exponential decay for potential soil respiration depth profile
+}
 
 # Note: renewed bryophyte parameters
 
@@ -385,11 +343,7 @@ forestfloor = {
     'bottom_layer_types': {
         'Sphagnum': Sphagnum,
     },
-<<<<<<< HEAD
-    'snowpack': snowpack,
-=======
     'snowpack': snow,
->>>>>>> origin/main
     'soil_respiration': soil_respiration
 }
 

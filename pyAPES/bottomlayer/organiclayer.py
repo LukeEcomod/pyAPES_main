@@ -235,7 +235,13 @@ class OrganicLayer(object):
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
             if forcing['snow_water_equivalent'] > 0. and self.snow_model == 'fsm2': # snow covers the litter -> compute only water exchange
-                fluxes, states = self.water_exchange_under_snow(
+                # fluxes, states = self.water_exchange_under_snow(
+                #                 dt=dt,
+                #                 forcing=forcing,
+                #                 parameters=parameters,
+                #                 sub_dt=1800. # sub_dt = 60. does not work well
+                #                 )
+                fluxes, states = self.heat_and_water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
@@ -844,6 +850,7 @@ class OrganicLayer(object):
         volumetric_water = self.volumetric_water
 
         wliq, wice, gamma = frozen_water(temperature, water_storage)
+        theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # liquid volumetric [m3 m-3]
 
         zm = 0.5 * self.height
         zs = abs(parameters['soil_depth'])
@@ -872,10 +879,10 @@ class OrganicLayer(object):
 
             #--- capillary rise from underlying soil during subdt [kg m-2]
             # water potential [m]
-            water_potential = water_retention_curve(self.water_retention, volumetric_water)
+            water_potential = water_retention_curve(self.water_retention, theta_liq)
 
             # hydraulic conductivity from soil to moss [m s-1]
-            Km = hydraulic_conductivity(self.water_retention, volumetric_water)
+            Km = hydraulic_conductivity(self.water_retention, theta_liq)
 
             # conductance of layer [s-1]
             g_moss = Km / zm
@@ -896,11 +903,12 @@ class OrganicLayer(object):
 
             #--- compute new state
             water_content = water_storage / self.dry_mass  # [g g-1]
-            volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)  # [m3 m-3]
+            wtot = water_content / WATER_DENSITY * self.bulk_density  # total volumetric [m3 m-3]
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
             # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
             # heat conduction between moss and soil [W m-2 K-1]
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+            moss_thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
             # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
             g_moss = moss_thermal_conductivity / zm
@@ -950,8 +958,8 @@ class OrganicLayer(object):
             t = t + sub_dt
         
         # new state
-        water_potential = water_retention_curve(self.water_retention, volumetric_water) # [m]
-        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water) #[m s-1]
+        water_potential = water_retention_curve(self.water_retention, theta_liq) # [m]
+        Kliq = hydraulic_conductivity(self.water_retention, theta_liq) #[m s-1]
 
         # fluxes
         capillary_rise = capillary_rise / dt
@@ -971,6 +979,10 @@ class OrganicLayer(object):
                             - LATENT_HEAT_FREEZING * self.ice_storage)
 
         wliq, wice, _ = frozen_water(temperature, water_storage)
+
+        theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
+        theta_ice = wice / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
+
         heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
                             + SPECIFIC_HEAT_H2O * wliq
                             + SPECIFIC_HEAT_ICE * wice) * temperature
@@ -996,7 +1008,8 @@ class OrganicLayer(object):
         }
 
         states = {
-            'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_water': theta_liq,  # [m3 m-3]
+            'volumetric_ice': theta_ice,  # [m3 m-3]
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
@@ -1048,6 +1061,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
@@ -1155,6 +1169,7 @@ class OrganicLayer(object):
 
         states = {
             'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_ice': 0.0,
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
@@ -1205,6 +1220,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
