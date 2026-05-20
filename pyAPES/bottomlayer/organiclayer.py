@@ -836,6 +836,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
