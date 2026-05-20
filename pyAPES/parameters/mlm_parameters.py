@@ -183,19 +183,88 @@ pt2 = { 'name': 'shrubs',
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
-# --- pyAPES.snow.snowpack.DegreeDaySnow
-snowpack = {
-        'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
-        'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
-        'retention': 0.2,  # max fraction of liquid water in snow [-]
-        'Tmelt': 0.0,  # temperature when melting starts [degC]
-        'optical_properties': {
-                'emissivity': 0.97,
-                'albedo': {'PAR': 0.8, 'NIR': 0.8}
-                },
-        'initial_conditions': {'temperature': 0.0,
-                               'snow_water_equivalent': 0.0}
+# --- pyAPES.snow
+snow = {
+    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
+    # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
+    'degreeday': {
+            'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
+            'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
+            'retention': 0.2,  # max fraction of liquid water in snow [-]
+            'Tmelt': 273.15,  # temperature when melting starts [K]
+            'optical_properties': {
+                    'emissivity': 0.97,
+                    'albedo': {'PAR': 0.8, 'NIR': 0.8}
+                    },
+            'initial_conditions': {'temperature': 273.15,
+                                'snow_water_equivalent': 0.0,
+                                }
+            },
+
+    # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
+    'fsm2': {'physics_options': {
+                'DENSTY': 1,
+                'HYDRL': 1,
+                'CONDCT': 1,
+                'ZOFFST': 0,
+                'EXCHNG': 1,
+                'ALBEDO': 2,
+                'SNFRAC': 0,
+                'SWPART': 0,
+            },
+            'params': {
+                'asmn': 0.5,            # Minimum albedo for melting snow
+                'asmx': 0.85,           # Maximum albedo for fresh snow
+                'eta0': 3.7e7,          # Reference snow viscosity (Pa s)
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+                'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
+                'rcld': 300,            # Maximum density for cold snow (kg/m^3)
+                'rfix': 300,            # Fixed snow density (kg/m^3)
+                'rgr0': 5e-5,           # Fresh snow grain radius (m)
+                'rhof': 100,            # Fresh snow density (kg/m^3)
+                'rhow': 300,            # Wind-packed snow density (kg/m^3)
+                'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
+                'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)
+                'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
+                'Talb': -2,             # Snow albedo decay temperature threshold (C)
+                'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
+                'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+                'trho': 200*3600,       # Snow compaction timescale (s)
+                'Wirr': 0.03,           # Irreducible liquid water content of snow
+                'z0sf': 0.1,           # Snow-free surface roughness length (m)
+                'z0sn': 0.001,          # Snow roughness length (m)
+                'zT': 2.,              # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
+                'zU': 3.,              # Wind measurement height with offset (m) ! only in fsm2_standalone
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+            },
+            'layers': {
+                'Nsmax': 3,                 # Maximum number of snow layers
+                'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
+                'Nsoil': 4,                 # Soil layers
+                'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]), # Soil layer thicknesses
+            },
+            'initial_conditions': {
+                'Nsnow': 0,             # Number of snow layers
+                'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
+                'Rgrn': np.array([5e-5, 5e-5, 5e-5]),      # Snow layer grain radius (m)
+                'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
+                'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
+                'Tsnow': np.array([273.15, 273.15, 273.15]),   # Snow layer temperatures (K)
+                'Tsoil': np.array([285., 285., 285., 285.]),   # Soil layer temperatures (K)
+                'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
+                'Tsrf': 285.,         # Snow/ground surface temperature (K)
+                'fsnow': 0.0,           # Snow cover fraction
+                'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])  # Volumetric water content in soil, only for fsm soil module
+            },
+            'soilprops': { # only for fsm soil module
+                'fcly': 0.3,    # Fraction of clay
+                'fsnd': 0.6,    # Fraction of sand
+                'gsat': 0.01,   # Surface conductance for saturated soil (m/s)
+                'z0sf': 0.1,    # Surface roughness length
+                'alb0': 0.2     # Snow-free surface albedo
+            }
         }
+    }
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
 soil_respiration = {
@@ -336,7 +405,7 @@ forestfloor = {
         'forest_moss': Forest_moss,
         #'sphagnum': Sphagnum,
     },
-    'snowpack': snowpack,
+    'snowpack': snow,
     'soil_respiration': soil_respiration
 }
 

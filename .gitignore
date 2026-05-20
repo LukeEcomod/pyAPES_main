@@ -111,6 +111,7 @@ figures/
 results/
 /data/
 old_obsolete/
+input_parameters/
 
 # Example demos
 Examples/results/*.*
@@ -123,6 +124,10 @@ Examples/results/*.*
 
 # shell scripts
 *.sh
+
+# Allow repo hooks
+!hooks/
+!hooks/**
 
 # nc files
 *.nc
@@ -166,3 +171,9 @@ inputs/
 *.md
 # Allow readme
 !README.md
+
+# notebooks
+notebooks/
+
+# plans
+plans/
