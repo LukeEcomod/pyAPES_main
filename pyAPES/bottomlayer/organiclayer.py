@@ -795,8 +795,7 @@ class OrganicLayer(object):
     def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0) -> Tuple:
         """
         Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
-        This is currently not used due to instability. Check iterative solution of temperature need
-        when freezing/thawing is happening. Implemented in heat_and_water_exchange()
+        
         Args:
             - dt (float): timestep [s]
             - forcing (dict):
