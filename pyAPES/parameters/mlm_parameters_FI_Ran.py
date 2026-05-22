@@ -19,11 +19,15 @@ _repo_root = Path(__file__).parent.parent.parent
 
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2022-04-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2022-10-15",  # end time of simulation [yyyy-mm-dd]
+        #  'start_time' : "2022-06-20",  # start time of simulation [yyyy-mm-dd]
+        #  'end_time' : "2022-06-30",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2022-05-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2022-09-30",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 152,  # start doy (for computing initial thermal profile)
          'forc_filename' : r'forcing/FI-Ran/FI-Ran_forcing_2022_2025.dat', # forcing data file
-         'results_directory':'results/'
+         'results_directory':'results/',
+         'logging_directory': 'logs/',
+         'parameters_directory': 'inputs/' 
          }
 
 # --- Model control flags
@@ -55,7 +59,7 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'Utop': 5.0,  # ensemble U/ustar [-]
             'Ubot': 0.01,  # flow at lower boundary [m s-1 or -]
             # turbulent Schmidt numbers in canopy flow
-            'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}
+            'Sc': {'T': 2.3, 'H2O': 2.3, 'CO2': 2.3}
             }
 
 # --- Short- and long-wave radiation: pyAPES.microclimate.radiation.Radiation
@@ -64,7 +68,7 @@ radiation = {'SWmodel': 'ZHAOQUALLS',
              'clump': 0.7,  # clumping index [-]
              'leaf_angle': 1.0,  # leaf-angle distribution [-]
              'Par_alb': 0.1,  # shoot Par-albedo [-]
-             'Nir_alb': 0.39,  # shoot NIR-albedo [-]
+             'Nir_alb': 0.30,  # shoot NIR-albedo [-]
              'leaf_emi': 0.98  # leaf emissivity [-]
              }
 

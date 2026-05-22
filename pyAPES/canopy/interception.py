@@ -174,7 +174,7 @@ class Interception(object):
         s = s / P  # [mol mol-1 K-1]
 
         """ --- solve wet Leaf temperature from energy balance--- """
-        itermax = 20
+        itermax = 30
         err = 999.0
         iterNo = 0
         while err > 0.01 and iterNo < itermax:
