@@ -19,13 +19,13 @@ from dotenv import load_dotenv
 load_dotenv()
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 # model forcing: see Demo_creating_model_forcing_Degero.ipynb
-forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2014-2016.dat')
+forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2021-2023.dat')
 
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2016-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2016-06-30",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2022-10-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2023-05-01",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 150,
          'forc_filename' : forcing_file,  # forcing data file
          'results_directory': 'results/',  # This is given relative to pyAPES main folder or if not in .env then current working directory
