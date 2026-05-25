@@ -569,7 +569,7 @@ class SoilRespiration(object):
         #                self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
         porosity = volumetric_liquid_content + volumetric_ice_content + volumetric_air_content
 
-        M = volumetric_liquid_content / (porosity - volumetric_ice_content)
+        M = volumetric_liquid_content / np.maximum(porosity - volumetric_ice_content, EPS)
         M = np.maximum(0.0, np.minimum(1.0, M))
 
         f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
