@@ -1067,7 +1067,9 @@ def theta_psi(pF: Dict, x: float):
     x = np.minimum(x, ts)
     x = np.maximum(x, tr)  # checks limits
     s = (ts - tr) / ((x - tr) + EPS)
-    Psi = -1e-2 / a * (s**(1.0 / m) - 1.0)**(1.0 / n)  # m
+    # for numerics
+    Psi = -1e-2 / a * (np.maximum(s**(1.0 / m) - 1.0, 0.0))**(1.0 / n)  # m
+    #Psi = -1e-2 / a * (s**(1.0 / m) - 1.0)**(1.0 / n)  # m
 
     return Psi
 
