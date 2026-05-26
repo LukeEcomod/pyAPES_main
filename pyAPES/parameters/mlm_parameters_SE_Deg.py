@@ -101,7 +101,7 @@ pt1 = {
 
     # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
     'laip': {
-        'lai_min': 0.8,
+        'lai_min': 0.1, # relative to LAImax (0.8)
         'lai_ini': None,
         'DDsum0': 0.0,
         'Tbase': 5.0,
@@ -148,9 +148,9 @@ pt2 = { 'name': 'pine',
         'ctr': {
             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
             'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
+            'pheno_cycle': None,  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.2, # maximum annual LAI m2m-2
+        'LAImax': 0.1, # maximum annual LAI m2m-2 (0.2)
         'lad': lad_weibul(z, LAI=1.0, h=5.0, hb=1.0, species='pine'),  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         'phenop': {
@@ -162,7 +162,7 @@ pt2 = { 'name': 'pine',
             },
         # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
         'laip': {
-            'lai_min': 0.8,
+            'lai_min': 1.0,
             'lai_ini': None,
             'DDsum0': 0.0,
             'Tbase': 5.0,
