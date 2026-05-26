@@ -14,11 +14,12 @@ It can represent moss/lichen (bryophyte) species/groups or litter layer.
 import numpy as np
 from typing import List, Dict, Tuple
 
-from pyAPES.utils.constants import WATER_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, LATENT_HEAT, \
+from pyAPES.utils.constants import WATER_DENSITY, ICE_DENSITY, MOLAR_MASS_H2O, MOLAR_MASS_C, LATENT_HEAT, \
                              STEFAN_BOLTZMANN, DEG_TO_KELVIN, SPECIFIC_HEAT_AIR, \
                              SPECIFIC_HEAT_ORGANIC_MATTER, SPECIFIC_HEAT_H2O, SPECIFIC_HEAT_ICE, GAS_CONSTANT, \
                              LATENT_HEAT_FREEZING, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
-                             THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL
+                             THERMAL_DIFFUSIVITY_AIR, AIR_DENSITY, AIR_VISCOSITY, GRAVITY, PAR_TO_UMOL, \
+                             K_ORG, K_WATER, K_ICE, K_AIR
 
 from pyAPES.bottomlayer.carbon import BryophyteFarquhar, OrganicRespiration
 # machine epsilon
@@ -139,20 +140,24 @@ class OrganicLayer(object):
         #: [degC]
         self.temperature = initial_conditions['temperature']
         self.surface_temperature = initial_conditions['temperature']
-        #: [g f-1]
+        #: [g g-1]
         self.water_content = min(initial_conditions['water_content'], self.max_water_content)
 
         # [kg m-2]
         self.water_storage = self.water_content * self.dry_mass
 
-        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature,
-                                                                      self.water_storage)
-        
+        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature, self.water_storage)
+
+        wtot = self.water_content / WATER_DENSITY * self.bulk_density
+
+        theta_liq, theta_ice, _ = frozen_water(self.temperature, wtot)
+
         #: [m\ :sup:`3` m\ :sup:`-3`\ ]
-        self.volumetric_water = (self.water_content / WATER_DENSITY * self.bulk_density)
+        self.volumetric_water = theta_liq
+        self.volumetric_ice = theta_ice
 
         # [W m-1 K-1]
-        self.thermal_conductivity = thermal_conductivity(self.volumetric_water)
+        self.thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
         #: [m]
         self.water_potential = water_retention_curve(
@@ -182,6 +187,7 @@ class OrganicLayer(object):
         self.ice_storage = self.iteration_results['ice_storage']
         self.water_content = self.iteration_results['water_content']
         self.volumetric_water = self.iteration_results['volumetric_water']
+        self.volumetric_ice = self.iteration_results['volumetric_ice']
         self.water_potential = self.iteration_results['water_potential']
         self.thermal_conductivity = self.iteration_results['thermal_conductivity']
 
@@ -371,7 +377,7 @@ class OrganicLayer(object):
         SWabs = (1.0 - self.albedo['PAR']) * forcing['par'] + \
                 (1.0 - self.albedo['NIR']) * forcing['nir']
         
-        # -- time loop
+        # -- time loop broken into subtimesteps
         t = 0.0
         while t < dt:
             REDO = False
@@ -384,18 +390,17 @@ class OrganicLayer(object):
 
             # initial state
 
-            # [g g-1]
+            # gravimetric total [g g-1]
             water_content = (water_storage / self.dry_mass)
 
-            # [m m-3]
-            volumetric_water = (water_content / WATER_DENSITY
+            # volumetric total, liquid and ice [m m-3]
+            wtot = (water_content / WATER_DENSITY
                                 * self.bulk_density)
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
             # [m]
             # theta is restricted above or equal Theta_r in water_retention_curve
-            water_potential = water_retention_curve(self.water_retention,
-                                                    theta=volumetric_water
-                                                    )
+            water_potential = water_retention_curve(self.water_retention, theta=theta_liq)
 
             # --- constraints for recharge & evaporation
             max_recharge = max(max_storage - water_storage, 0.0)
@@ -422,8 +427,8 @@ class OrganicLayer(object):
             # radiation balance # [J m-2 s-1] or [W m-2]
 
             # thermal conductance in moss (O'Donnell et al.)
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-            gms = moss_thermal_conductivity / zm
+            L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
+            gms = L / zm
 
             # conductances from surface to air
             conductance_to_air = surface_atm_conductance(wind_speed=forcing['wind_speed'],
@@ -540,7 +545,7 @@ class OrganicLayer(object):
             # --- compute capillary rise from soil [ kg m-2 s-1 = mm s-1]
 
             # Kh: soil-moss hydraulic conductivity assuming two resistors in series
-            Km = hydraulic_conductivity(self.water_retention, volumetric_water)
+            Km = hydraulic_conductivity(self.water_retention, theta_liq)
             Ks = parameters['soil_hydraulic_conductivity']
 
             # conductance of layer [s-1]
@@ -567,16 +572,24 @@ class OrganicLayer(object):
                     - evaporation_rate
                     ) * sub_dt
 
-            # --- calculate change in moss heat content
+            # --- calculate change in moss heat content--
+
+            # gravimetric [g g-1]
+            water_content = (new_water_storage / self.dry_mass)
+            # [m3 m-3]
+            wtot = water_content / WATER_DENSITY * self.bulk_density
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
             # heat conduction between moss and soil [W m-2 K-1]
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+            L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
             # thermal conductance [W m-2 K-1], assume the layers act as two resistors in series
-            g_moss = moss_thermal_conductivity / zm
+            g_moss = L / zm
             g_soil = parameters['soil_thermal_conductivity'] / zs
 
             thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
+            
+            # --- flux components
 
             # [J m-2 s-1 == W m-2]
             ground_heat_flux = thermal_conductance *(temperature - forcing['soil_temperature'])
@@ -595,6 +608,7 @@ class OrganicLayer(object):
                     - ground_heat_flux
                     )   
             
+            # -- initial state [at beqining of subtimestep]
             # liquid and ice content, and dWliq/dTs
             wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
             
@@ -678,6 +692,8 @@ class OrganicLayer(object):
 
                 # advance in time
                 t = t + sub_dt
+            
+            # --- end of subtimestep loop
 
         # water fluxes [kg m-2 s-1]
         pond_recharge_rate = u[0] / dt
@@ -725,20 +741,23 @@ class OrganicLayer(object):
                            - heat_fluxes)
 
         # --- State variables of bryophyte layer
+        # [kg m-2 == mm]
+        liquid_water_storage, ice_storage, _ = frozen_water(temperature, water_storage)
+        
         # [g g-1]
         water_content = (water_storage / self.dry_mass)
-
+        
         # [m3 m-3]
-        volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)
+        theta_liq = liquid_water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
+        theta_ice = ice_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
 
-        # must constrain theta as: theta = max(volumetric_water, pF['theta_r'])
         # [m]
-        matrix_potential = water_retention_curve(self.water_retention, theta=volumetric_water)
+        matrix_potential = water_retention_curve(self.water_retention, theta=theta_liq)
         # [m s-1]
-        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water,)
+        Kliq = hydraulic_conductivity(self.water_retention, theta_liq)
 
         # [W m-1 K-1]
-        Lambda = thermal_conductivity(volumetric_water)
+        L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
         # return fluxes and state variables
         fluxes = {
@@ -758,16 +777,17 @@ class OrganicLayer(object):
             }
 
         states = {
-            'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_water': theta_liq,  # [m3 m-3]
+            'volumetric_ice': theta_ice,  # [m3 m-3]
             'water_potential': matrix_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2] or [mm]
-            'liquid_water_storage': wliq,  # [kg m-2 == mm]
-            'ice_storage': wice,  # [kg m-2 == mm]  # NOT included yet!!!
+            'liquid_water_storage': liquid_water_storage, # [kg m-2] or [mm]
+            'ice_storage': ice_storage, # [kg m-2] or [mm]
             'temperature': temperature,  # [degC]
             'surface_temperature': Ts, # [degC]
             'hydraulic_conductivity': Kliq,  # [m s-1]
-            'thermal_conductivity': Lambda,  # [W m-1 K-1]
+            'thermal_conductivity': L,  # [W m-1 K-1]
             }
 
         return fluxes, states
@@ -810,6 +830,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
@@ -824,6 +845,7 @@ class OrganicLayer(object):
         volumetric_water = self.volumetric_water
 
         wliq, wice, gamma = frozen_water(temperature, water_storage)
+        theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # liquid volumetric [m3 m-3]
 
         zm = 0.5 * self.height
         zs = abs(parameters['soil_depth'])
@@ -852,10 +874,10 @@ class OrganicLayer(object):
 
             #--- capillary rise from underlying soil during subdt [kg m-2]
             # water potential [m]
-            water_potential = water_retention_curve(self.water_retention, volumetric_water)
+            water_potential = water_retention_curve(self.water_retention, theta_liq)
 
             # hydraulic conductivity from soil to moss [m s-1]
-            Km = hydraulic_conductivity(self.water_retention, volumetric_water)
+            Km = hydraulic_conductivity(self.water_retention, theta_liq)
 
             # conductance of layer [s-1]
             g_moss = Km / zm
@@ -876,11 +898,12 @@ class OrganicLayer(object):
 
             #--- compute new state
             water_content = water_storage / self.dry_mass  # [g g-1]
-            volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)  # [m3 m-3]
+            wtot = water_content / WATER_DENSITY * self.bulk_density  # total volumetric [m3 m-3]
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
 
             # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
             # heat conduction between moss and soil [W m-2 K-1]
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+            moss_thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
             # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
             g_moss = moss_thermal_conductivity / zm
@@ -930,8 +953,8 @@ class OrganicLayer(object):
             t = t + sub_dt
         
         # new state
-        water_potential = water_retention_curve(self.water_retention, volumetric_water) # [m]
-        Kliq = hydraulic_conductivity(self.water_retention, volumetric_water) #[m s-1]
+        water_potential = water_retention_curve(self.water_retention, theta_liq) # [m]
+        Kliq = hydraulic_conductivity(self.water_retention, theta_liq) #[m s-1]
 
         # fluxes
         capillary_rise = capillary_rise / dt
@@ -951,6 +974,10 @@ class OrganicLayer(object):
                             - LATENT_HEAT_FREEZING * self.ice_storage)
 
         wliq, wice, _ = frozen_water(temperature, water_storage)
+
+        theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
+        theta_ice = wice / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
+
         heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
                             + SPECIFIC_HEAT_H2O * wliq
                             + SPECIFIC_HEAT_ICE * wice) * temperature
@@ -976,7 +1003,8 @@ class OrganicLayer(object):
         }
 
         states = {
-            'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_water': theta_liq,  # [m3 m-3]
+            'volumetric_ice': theta_ice,  # [m3 m-3]
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
@@ -1028,6 +1056,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
@@ -1135,6 +1164,7 @@ class OrganicLayer(object):
 
         states = {
             'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_ice': 0.0,
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
@@ -1185,6 +1215,7 @@ class OrganicLayer(object):
             - states (dict):
                 - 'temperature'(float): [degC]
                 - 'volumetric_water'(float): [m3 m-3]
+                - 'volumetric_ice'(float): [m3 m-3]
                 - 'water_potential'(float): [m]
                 - 'water_content'(float): [g g-1]
                 - 'water_storage'(float):[kg m-2]
@@ -1283,7 +1314,8 @@ class OrganicLayer(object):
         # --- Heat exchange; no energy balance --> sensible_heat is set to zero and moss assumed to be at air temperature
 
         # heat conduction between moss and soil [W m-2 K-1]
-        moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+        moss_thermal_conductivity = thermal_conductivity(volumetric_water, volumetric_ice=0.0, 
+                                                         porosity=self.porosity)
 
         # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
         g_moss = moss_thermal_conductivity / zm
@@ -1311,9 +1343,12 @@ class OrganicLayer(object):
 
         states = {
             'volumetric_water': volumetric_water,  # [m3 m-3]
+            'volumetric_ice': 0.0,
             'water_potential': water_potential,  # [m]
             'water_content': water_content,  # [g g-1]
             'water_storage': water_storage,  # [kg m-2 == mm]
+            'liquid_water_storage': water_storage, # [kg m-2] or [mm]
+            'ice_storage': 0.0, # [kg m-2] or [mm]
             'hydraulic_conductivity': Kliq,  # [m s-1]
             'thermal_conductivity': moss_thermal_conductivity,  # [W m-1 K-1]
             'temperature': temperature,  # [degC]
@@ -1389,16 +1424,18 @@ def reflectance(water_content: float, max_water_content: float, albedo: Dict) ->
 
         return {'PAR': albedo_par, 'NIR': albedo_nir}
 
-def thermal_conductivity(volumetric_water: float, method: str='odonnel') -> float:
+def thermal_conductivity(volumetric_water: float, volumetric_ice: float=0.0, porosity: float=0.9, 
+                         method: str='porada') -> float:
     r"""
-    Thermal conductivity of bryophyte layer
-
-    By default organic matter heat conductivity is calculated by using equation
-    by O'Donnel et al. (2009, Soil Sci. 174).
+    Thermal conductivity [W m-1 K-1] of organic layer. 
+    Default: Porada et al. 2016. Effects of bryophyte and lichen cover on permafrost
+    soil temperature at large scale. The Cryosphere, 10(5), pp.2291-2315.
 
     Args:
         - volumetric_water (float): vol. water content [m3 m-3]
         - flag (str):
+            - 'ekici': Ekici et al. 2014; Porada et al. 2016
+            - 'geomean': geometric mean of constituents
             - 'odonnel': O'Donnel et al. (2009). Soil Sci. 174
             - 'campbell': Campbell et al. (1985)
             - 'constant': 0.25 [W m-1 K-1]
@@ -1410,28 +1447,36 @@ def thermal_conductivity(volumetric_water: float, method: str='odonnel') -> floa
 
     method = method.lower()
 
-    heat_conductivity = None
-
-    if method == 'odonnel':  # O'Donnell
-        heat_conductivity = np.minimum(0.6,
-                                       3.0e-2 + 5.0e-1 * volumetric_water)
-
-        heat_conductivity = np.maximum(4.0e-2, heat_conductivity)
-
+    L = None
+    
+    if method == 'porada':
+        # Porada et al. 2016 (citing Ekici et al. 2014)
+        Lo = 0.05
+        wtot = volumetric_water + volumetric_ice
+        Ke = wtot / porosity
+        L = np.power(K_ORG, 1.0 - wtot) * np.power(K_WATER, volumetric_water) \
+            * np.power(K_ICE, volumetric_ice) * Ke + (1 - Ke) * Lo
+   
+    elif method == 'odonnel':  # O'Donnell
+        L = np.minimum(0.6, 3.0e-2 + 0.5 * volumetric_water + K_ICE/K_WATER * 0.5* volumetric_ice)
+        L = np.maximum(4.0e-2, L)
+    
+    elif method == 'geomean':
+        volumetric_air = porosity - volumetric_water - volumetric_ice
+        L = np.power(K_ORG, 1.0 - porosity) * np.power(K_WATER, volumetric_water)  \
+            * np.power(K_ICE, volumetric_ice) *np.power(K_AIR, volumetric_air)
+    # no ice effect
     elif method == 'campbell':
-        heat_conductivity = (
-            0.4 + 0.5
-            * volumetric_water(0.4 - 0.06)
-            * np.exp(-(1. * volumetric_water)**4))
+        L = (0.4 + 0.5 * volumetric_water(0.4 - 0.06) * np.exp(-(1. * volumetric_water)**4))
 
     elif method == 'constant':
-        heat_conductivity = 0.25
+        L = 0.25
 
     elif method == 'lauren':
-        heat_conductivity = -0.004 + 0.609 * volumetric_water
+        L = -0.004 + 0.609 * volumetric_water
 
     # [W/(m K)]
-    return heat_conductivity
+    return L
 
 
 def surface_atm_conductance(wind_speed: float, zref: float, dT: float=0.0, zom: float=0.01, b: float=1.1e-3) -> Dict:
@@ -1596,7 +1641,12 @@ def water_retention_curve(pF: Dict, theta: float=None, psi: float=None) -> float
         # x = np.min((x, Ts))
         # x = np.max((x, Tr + 0.001)) # avoids water potential of -1e17
         s = (Ts - Tr) / ((x - Tr) + EPS)
+<<<<<<< HEAD
         Psi = -1e-2 / alfa*(np.maximum(s**(1.0 / m) - 1.0, 0.0))**(1.0 / n)  # m
+=======
+        Psi = -1e-2 / alfa * (np.maximum(s**(1.0 / m) - 1.0, 0.0))**(1.0 / n)  # m
+        #Psi = -1e-2 / alfa*(s**(1.0 / m) - 1.0)**(1.0 / n)  # m
+>>>>>>> origin/main
         # Psi[np.isnan(Psi)] = 0.0
         return Psi,x
 
@@ -1816,583 +1866,3 @@ def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
     return wliq, wice, gamma
 
 # EOF
-
-#%% OLD AND OBSOLETE - BUT POTENTIALLY USEFUL
-
-# def water_heat_tendencies_bulk(self, y, dt, forcing, parameters):
-#     """
-#     Solves coupled water and heat balance over timestep dt.
-#     Returns temperature and water storage tendensies and
-#     water & energy fluxes.
-
-#     Note: solves layer bulk temperature directly from the energy balance!
-
-#     Args:
-#         y (array): initial values: returns derivatives
-#             0. temperature [degC] --> computes (du/dt)
-#             1. water storage [kg m-2] --> (du/dt)
-#             2. pond_recharge
-#             3. capillary_rise
-#             4. interception
-#             5. evaporation/condensation
-#             6. radiative_heat
-#             7. sensible_heat
-#             8. latent_heat
-#             9. conducted_heat
-#             10 advected_heat
-#         dt (float): time step
-#         forcing
-#         parameters
-#     Returns:
-#         derivatives (du/dt) of y.
-
-#     Units:  temperature [K s-1]
-#             water content and water fluxes [kg m-2 s-1 = mm s-1]
-#             energy fluxes [J m-2 s-1 = W m-2]
-#     """
-
-#     dudt = np.zeros(11)
-
-#     if dt == 0.0:
-#         dt = dt + EPS
-
-#     zm = 0.5 * self.height
-#     zs = abs(parameters['soil_depth'])
-#     zref = parameters['reference_height']
-
-#     max_storage = self.max_water_content * self.dry_mass
-#     min_storage = self.min_water_content * self.dry_mass
-
-#     # --- compute water balance ---
-#     # nomenclature:
-#     #   water_content [g g-1], water_storage [kg m-2 s-1 == mm]
-#     #   volumetric water content [-], water potential [m]
-#     #   all fluxes [kg m-2 s-1]
-
-#     # initial state
-
-#     # [kg m-2] or [mm]
-#     water_storage = min(max_storage, y[1])
-#     water_storage = max(min_storage, water_storage)
-
-#     # [g g-1]
-#     water_content = (water_storage / self.dry_mass)
-
-#     # [m m-3]
-#     volumetric_water = (water_content / WATER_DENSITY
-#                         * self.bulk_density)
-
-#     # [m]
-# #        water_potential = convert_hydraulic_parameters(
-# #                volumetric_water,
-# #                self.water_retention,
-# #                'volumetric_water')
-
-#     water_potential = water_retention_curve(self.water_retention,
-#                                             theta=volumetric_water)
-
-#     # --- constraints for recharge & evaporation
-#     max_recharge = max(max_storage - water_storage, 0.0)
-#     max_recharge = min(max_storage, max_recharge)
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     max_recharge_rate = max_recharge / dt
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     max_evaporation_rate = (y[1] - (min_storage + EPS)) / dt
-
-#     if np.isinf(max_evaporation_rate) or max_evaporation_rate < 0.0:
-#         max_evaporation_rate = 0.0
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     max_condensation_rate = -((max_storage - EPS) - y[1]) / dt
-
-#     if np.isinf(max_condensation_rate) or max_condensation_rate > 0.0:
-#         max_condensation_rate = 0.0
-
-#     # --- compute  evaporation/condensation rate [kg m-2 s-1] ---
-
-#     # boundary layer conductances for H2O, heat and CO2  [mol m-2 s-1]
-#     #dT = y[0] - forcing['air_temperature']
-
-#     conductance_to_air = surface_atm_conductance(wind_speed=forcing['wind_speed'],
-#                                                  zref=zref,
-#                                                  #friction_velocity=forcing['friction_velocity'],
-#                                                  zom=self.roughness_height,
-#                                                  dT=0.0)
-
-#     # Relative conductance is from Williams and Flanagan (1996), Oecologia.
-#     relative_conductance = min(1.0,
-#                                (0.1285 * y[1]
-#                                 / self.dry_mass - 0.1285)) #* 0.5
-
-#     # [mol m-2 s-1]
-#     conductance_to_air_h2o = (
-#         conductance_to_air['h2o'] * relative_conductance)
-
-#     # [kg m-2 s-1]
-#     evaporation_demand = (conductance_to_air_h2o
-#                         * (611.0 / forcing['air_pressure']
-#                             * np.exp(17.502 * y[0] / (y[0] + 240.0))
-#                             - forcing['h2o'])
-#                         * MOLAR_MASS_H2O)
-
-#     evaporation_rate = min(evaporation_demand, max_evaporation_rate)
-#     evaporation_rate = max(evaporation_rate, max_condensation_rate)
-
-#     max_recharge_rate = max(max_recharge_rate + evaporation_rate, 0.0)
-#     max_recharge = max_recharge_rate * dt
-
-#     # -- recharge from rainfall interception and/or from pond storage
-#     # interception = min(max_recharge - EPS, forcing['precipitation'] * dt)
-#     # assumptotic function
-#     interception = (max_recharge *
-#                     (1.0 - np.exp(-(1.0 / max_storage)
-#                      * forcing['precipitation'] * dt)))
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     interception_rate = interception / dt
-
-#     # [kg m-2] or [mm]
-#     max_recharge = max(max_recharge - interception, 0.0)
-
-#     pond_recharge = min(max_recharge - EPS, forcing['max_pond_recharge'] * dt)
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     pond_recharge_rate = pond_recharge / dt
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     max_recharge_rate = max(max_recharge - pond_recharge, 0.0) / dt
-
-#     # --- compute capillary rise from soil [ kg m-2 s-1 = mm s-1]
-
-#     # Kh: soil-moss hydraulic conductivity assuming two resistors in series
-#     Km = hydraulic_conductivity(self.water_retention, volumetric_water)
-#     Ks = parameters['soil_hydraulic_conductivity']
-
-#     # conductance of layer [s-1]
-#     g_moss = Km / zm
-#     g_soil = Ks / zs
-
-#     # [m s-1]
-#     Kh = (g_moss * g_soil / (g_moss + g_soil)) * (zm + zs)
-
-#     capillary_rise = WATER_DENSITY * max(0.0, - Kh * ((water_potential - forcing['soil_water_potential'])
-#                                                       / (zm + zs) + 1.0))
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     capillary_rise = min(capillary_rise, max_recharge_rate)
-
-#     # calculate mass balance of water
-
-#     # [kg m-2 s-1] or [mm s-1]
-#     dy_water = (
-#             interception_rate
-#             + pond_recharge_rate
-#             + capillary_rise
-#             - evaporation_rate
-#             )
-
-#     #--- compute energy balance
-#     # take reflectivities from previous timestep
-#     # radiation balance # [J m-2 s-1] or [W m-2]
-
-#     # [-]
-#     #albedo = self.reflectivity(water_content)
-#     #emissivity = self.optical_properties['emissivity']
-
-#     # [J m-2 s-1] or [W m-2]
-#     net_shortwave_radiation = (forcing['par'] * (1.0 - self.albedo['PAR'])
-#                                + forcing['nir'] * (1.0 - self.albedo['NIR'])
-#                               )
-
-
-#     net_longwave_radiation = self.emissivity * (forcing['lw_dn']
-#                             - STEFAN_BOLTZMANN * (y[0] + DEG_TO_KELVIN)**4.0)
-
-
-#     # [J m-2 s-1] or [W m-2]
-#     net_radiation = net_shortwave_radiation + net_longwave_radiation
-
-#     # [J m-2 s-1] or [W m-2]
-#     sensible_heat_flux = (SPECIFIC_HEAT_AIR
-#                           * conductance_to_air['heat']
-#                           * (y[0] - forcing['air_temperature']))
-
-#     # [J m-2 s-1] or [W m-2]
-#     latent_heat_flux = LATENT_HEAT / MOLAR_MASS_H2O * (evaporation_rate + EPS)
-
-#     # heat conduction between moss and soil
-#     # [W m-2 K-1]
-#     moss_thermal_conductivity = thermal_conductivity(volumetric_water)
-
-#     # thermal conductance [W m-2 K-1]
-#     # assume the layers act as two resistors in series
-#     g_moss = moss_thermal_conductivity / zm
-#     g_soil = parameters['soil_thermal_conductivity'] / zs
-
-#     thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
-
-#     # [J m-2 s-1] or [W m-2]
-#     heat_conduction = thermal_conductance *(y[0] - forcing['soil_temperature'])
-
-#     # heat lost or gained with liquid water removing/entering
-
-#     # [J m-2 s-1] or [W m-2]
-#     heat_advection = SPECIFIC_HEAT_H2O * (
-#                     interception_rate * forcing['air_temperature']
-#                     + capillary_rise * forcing['soil_temperature']
-#                     + pond_recharge_rate * forcing['soil_temperature']
-#                     )
-
-#     # heat capacities
-#     # [J K-1]
-#     heat_capacity_old = (SPECIFIC_HEAT_ORGANIC_MATTER
-#                      * self.dry_mass
-#                      + SPECIFIC_HEAT_H2O * y[1])
-
-#     heat_capacity_new = (SPECIFIC_HEAT_ORGANIC_MATTER
-#                          * self.dry_mass
-#                          + SPECIFIC_HEAT_H2O * (y[1] + dy_water * dt))
-
-#     # calculate new temperature from heat balance
-
-#     heat_fluxes = (
-#             net_radiation
-#             - sensible_heat_flux
-#             - latent_heat_flux
-#             - heat_conduction
-#             + heat_advection
-#             )
-
-#     new_temperature = (heat_fluxes * dt + heat_capacity_old * y[0]) / heat_capacity_new
-
-#     # -- tendencies
-#     # [K m-2 s-1]
-#     dudt[0] = (new_temperature - y[0]) / dt
-#     # [kg m-2 s-1] or [mm s-1]
-#     dudt[1] = dy_water
-
-#     # water fluxes
-#     # [kg m-2 s-1] or [mm s-1]
-#     dudt[2] = pond_recharge_rate
-#     dudt[3] = capillary_rise
-#     dudt[4] = interception_rate
-#     dudt[5] = evaporation_rate
-
-#     # energy fluxes
-#     # [J m-2 s-1] or [W m-2]
-#     dudt[6] = net_radiation
-#     dudt[7] = sensible_heat_flux
-#     dudt[8] = latent_heat_flux
-#     dudt[9] = heat_conduction
-#     dudt[10] = heat_advection
-
-#     return dudt
-
-#def bryophyte_shortwave_albedo(water_content, properties=None):
-#    r""" Bryophyte albedo for PAR and NIR regions as function of water content
-#
-#    The effect of water content of spectral properties are based on studies by
-#    Vogelmann and Moss (1993) and Fernandes (1999)on Sphagnum cuspidatum and
-#    Pleurozium schreberi, respectively.
-#
-#    The albedo is scaled specific reflectance for PAR (400-700 nm) or
-#    NIR (750-1400) regions. The scaling coefficient is common for both
-#    PAR and NIR and it is based on relationship between normalized
-#    reflectaces and hydration status. The species specific albedo is
-#    assumed to represent a reflectance when bryophyte is in full hydration.
-#
-#    If bryophyte's properties are not given, estimation is based on generic
-#    fit of water content against reflectances separately for PAR and NIR.
-#    Fits are based on studies by Vogelmann and Moss (1993), and
-#    Fernandes (1999) on Sphagnum cuspidatum and Pleurozium schreberi,
-#    respectively.
-#
-#    References:
-#        Vogelmann and Moss (1993)
-#            Remote Sensing of Environment 45:273-279.
-#        Fernandes (1999)
-#            PhD thesis entitled: 'Scale influences of surface
-#            parametrization on modelled boreal carbon and water budgets'
-#
-#    Args:
-#        water_content (float): [g g\ :sup:`-2`]
-#        max_water_content (float): [g g\ :sup:`-2`]
-#
-#    Returns (dict)
-#    """
-#
-#    if properties is None:
-#
-#        def reflectance(x, a, b):
-#            r""" Describes relationship between water content and reflectance
-#
-#            Args:
-#                x (float): water_content
-#                a (float): fitting parameter
-#                b (float): fitting parameter
-#
-#            Returns:
-#                percentage (float)
-#            """
-#            return np.abs(a * np.power(x, b))
-#
-#        # Original reflectance in percents
-#        if isinstance(water_content, float):
-#            if water_content < 0.3:
-#                albedo_nir = 68.41/100.0
-#            else:
-#                albedo_nir = reflectance(water_content, 47.66, -0.3002) / 100.0
-#            albedo_par = reflectance(water_content, 8.84, -0.1303) / 100.0
-#        else:
-#            albedo_nir = np.empty(np.shape(water_content))
-#            albedo_nir = reflectance(water_content, 47.66, -0.3002) / 100.0
-#            albedo_nir[water_content < 0.3] = 68.41 / 100.0
-#
-#            albedo_par = reflectance(water_content, 8.84, -0.1303) / 100.0
-#
-#        return {'PAR': albedo_par, 'NIR': albedo_nir}
-#
-#    else:
-#        albedo_nir = properties['optical_properties']['albedo_NIR']
-#        albedo_par = properties['optical_properties']['albedo_PAR']
-#        normalized_water_content = water_content / properties['max_water_content']
-#
-#        scaling_coefficient = 1.0 + (4.5 - 1.0) / (1.00 + np.power(10, 4.53 * normalized_water_content))
-#
-#        albedo_par = scaling_coefficient * albedo_par
-#        albedo_nir = scaling_coefficient * albedo_nir
-#
-#        return {'PAR': albedo_par, 'NIR': albedo_nir}
-
-#def convert_hydraulic_parameters(value, water_retention, input_unit):
-#    r""" Converts between volumetric water content and water potential.
-#
-#    Note:
-#        In case of heterogenous poresystem, linear interpolation is used
-#        to convert effective saturation to water potential. Water retention
-#        curve with 500 points with logarithmic spacing in which water potential
-#        is ranging from -1e-6 to -1e2. In case of effective saturation is out
-#        of interpolation bounds, water potential is set to 0.0 m in lower bound
-#        or -1e2 m in upper bound.
-#
-#    For conversion, VanGenuchten-model for water retention is used with
-#    following parameters:
-#            - saturated water content (theta_s, [cm\ :sup:`3` cm\ :sup:`-3`\ ])
-#            - residual water content (theta_r, [cm\ :sup:`3` cm\ :sup:`-3`\ ])
-#            - air entry suction (alpha, [cm\ :sup:`-1`\ ])
-#            - pore size distribution (n, [-])
-#
-#    Volumetric water content is restricted to be between residual water
-#    content and saturated water content.
-#
-#    Water potential is restricted to be between -10000 m and 0.0 m.
-#
-#    Args:
-#        value:
-#            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input is VOLUMETRIC_WATER
-#            * [m] if input is WATER_POTENTIAL
-#        water_retention (dict): water retension parameters of BryoType object
-#        input_unit:
-#                * VOLUMETRIC_WATER
-#                * WATER_POTENTIAL
-#    Returns:
-#        float:
-#            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input was WATER_POTENTIAL
-#            * [m] if input was VOLUMETRIC_WATER
-#    """
-#
-#    if isinstance(input_unit, str):
-#        input_unit.lower()
-#
-#    theta_s = water_retention['theta_s']  # sat. water content [m3m-3]
-#    theta_r = water_retention['theta_r']  # residual water content [m3m-3]
-#
-#    if input_unit == 'water_potential':
-#        eff_sat = effective_saturation(value,
-#                                       water_retention,
-#                                       input_unit)
-#
-#        return eff_sat * (theta_s - theta_r) + theta_r
-#
-#    elif input_unit == 'volumetric_water':
-#
-#        alpha = water_retention['alpha']  # micropore air entry suction [cm-1]
-#        n = water_retention['n']  # micropore shape parameter [-]
-#
-#        eff_sat = effective_saturation(value, water_retention, input_unit)
-#        inv_effs = 1.0 / eff_sat
-#        m = np.divide(n, n - 1.0)
-#
-#        # [m]
-#        psi = 1e-2 * 1.0 / -alpha * (inv_effs ** m - 1.0) ** (1.0 / n)
-#
-#        if isinstance(psi, list):
-#            psi = np.array(list)
-#
-#        if isinstance(psi, np.ndarray):
-#            psi[psi <= -1000.0] = -1000.0
-#            #psi = np.where(psi <= -100.0, -100.0, psi)
-#        else:
-#            if psi <= -1000.0:
-#                return -1000.0
-#
-#        return psi
-#
-#
-#def hydraulic_conductivity(water_potential, water_retention, method=None):
-#    r""" Estimates hydraulic conductivity in porous media.
-#
-#    Hydraulic conductivity is based on Voortman et al. (2014) and
-#    Voortman et al. (2015) for xerophilious mosses.
-#
-#    The implementation is valid for unimodal and multimodal poresystems.
-#    Multimodal Mualem-VanGenuchten is used as introduced by
-#    Priesack and Durner (2006).
-#
-#    09.08.2018 AJK:
-#    At the moment hydraulic conduction used only for micropore
-#    system (capillary pore system) and it is only needed to calculate capillary
-#    rise. Macropore system does not retain water and it is assumed that
-#    macropore system does not restrict hydraulic conduction.
-#
-#    References:
-#        Voortman et al. (2014) Hydrological Processes, 28, 6251-6264
-#        Priesack and Durner (2006) Vadose Zone Journal, 5, 121-124
-#
-#    Lauren:
-#    Estimation is based on Lauren (1999, table 4) and parametrization is valid
-#    from -4 to -80 kPa. Assumption is that in the dry states
-#    (lower than -80 kPa) there are no hydraulic conductivity.
-#
-#    Args:
-#        water_potential: [m]
-#        water_retention (list):
-#            parameters of water retention curve
-#                0. saturated water content (theta_s) [m\ :sup:`3` m :sup:`-3`\ ]
-#                1. residual water content (theta_r) [m\ :sup:`3` m :sup:`-3`\ ]
-#                2. air entry suction (alpha) [cm\ :sup:`-1`]
-#                3. pore size distribution (n) [-]
-#                4. saturated conductivity (K_s) [m s\ :sup:`-1`]
-#                5. pore connectivity (l) [-]
-#
-#    Returns:
-#        float: hydraulic conductivity in [m s\ :sup:`-1`\ ]
-#    """
-#
-#    if isinstance(method, str):
-#        method.lower()
-#
-#    saturated_conductivity = water_retention['saturated_conductivity']
-#
-#    if method == 'lauren':
-#        # kPa (standard gravity 10 m/s2)
-#        saturated_conductivity = water_retention['saturated_conductivity']
-#        water_potential = -10.0 * water_potential
-#
-#        # Assuming that in dry states there is no hydraulic conductivity
-#        if water_potential > 80.0:
-#            return 0.0
-#
-#        if water_potential < 4.0:
-#            water_potential = 4.0
-#
-#        # relative conductivity respect to 4 kPa
-#        conductivity = (
-#            np.power(10.0, 1.0/(-0.62 + 0.26 * np.log10(water_potential)))
-#            / np.power(10.0, 1.0/(-0.62 + 0.26 * np.log10(4)))
-#            )
-#        # [m/s]
-#        return conductivity * saturated_conductivity
-#
-#    else:
-#        # Possibility to add more poresystems
-#
-#        #psi = 100.0 * np.minimum(water_potential, 0.0)
-#        psi = np.minimum(water_potential, 0.0)
-#
-#        micropores = {'alpha': water_retention['alpha'],
-#                      'n': water_retention['n']}
-#
-#        poresystems = [micropores]
-#
-#        coefficients = []
-#        denominators = []
-#        nominators = []
-#
-#        for idx in range(len(poresystems)):
-#            m = 1.0 - np.divide(1.0, poresystems[idx]['n'])
-#            alpha = poresystems[idx]['alpha']
-#
-#            sat_eff = effective_saturation(psi,
-#                                           poresystems[idx],
-#                                           'water_potential')
-#
-#            coefficients.append(sat_eff)
-#
-#            denom = 1.0 - np.power(sat_eff, 1.0 / m)
-#            denom = 1.0 - np.power(denom, m)
-#            denominators.append(alpha * denom)
-#
-#            nominators.append(alpha)
-#
-#        pore_connectivity = water_retention['pore_connectivity']
-#
-#        coefficient = np.power(np.sum(coefficients, axis=0), pore_connectivity)
-#
-#        denominator = np.power(np.sum(denominators, axis=0), 2.0)
-#
-#        nominator = np.power(np.sum(nominators, axis=0), 2.0)
-#
-#        return saturated_conductivity * coefficient * (denominator / nominator)
-
-#def effective_saturation(value, water_retention, input_unit):
-#    r""" Calculates effective saturation from volumetric water
-#    content (theta, [m3 m-3]) or from water potential (psi, [m])
-#
-#    Args:
-#        value (float):
-#            * [m\ :sup:`3` m\ :sup:`-3`\ ] if input is VOLUMETRIC_WATER
-#            * [m] if input is WATER_POTENTIAL
-#        water_retention (dict):
-#            if input_unit == 'water_potential'
-#                'alpha'
-#                'n'
-#            if input_unit == VOLUMETRIC_WATER
-#                'theta_r'
-#                'theta_s'
-#        input_unit (str): VOLUMETRIC_WATER or WATER_POTENTIAL
-#    Returns:
-#        float: [-]
-#    """
-#
-#    options = set(['water_potential', 'volumetric_water'])
-#
-#    if isinstance(input_unit, str):
-#        input_unit = input_unit.lower()
-#    else:
-#        raise ValueError("Input unit has to be string")
-#
-#    if input_unit not in options:
-#        raise ValueError("Input unit options are: ".format(*options))
-#
-#
-#    if input_unit == 'water_potential':
-#        n = water_retention['n']
-#        m = 1.0 - np.divide(1.0, n)
-#        psi = 100.0 * np.minimum(value, 0.0)
-#
-#        eff_sat = (1.0 + (water_retention['alpha'] * abs(psi)) ** n) ** -m
-#
-#    elif input_unit == 'volumetric_water':
-#
-#        theta_r = water_retention['theta_r']
-#        theta_s = water_retention['theta_s']
-#
-#        theta = np.minimum(value, theta_s)
-#        theta = np.maximum(theta, theta_r)
-#
-#        eff_sat = np.divide(((theta - theta_r) + EPS), (theta_s - theta_r) + EPS)
-#
-#    return eff_sat

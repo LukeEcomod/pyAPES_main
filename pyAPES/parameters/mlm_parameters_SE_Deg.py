@@ -37,9 +37,6 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
        'WMA': False,  # assume air-space scalar profiles well-mixed
        'Ebal': True,  # computes leaf and surface temperature by solving energy balance
-       'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-       'seasonal_LAI': False,  # account for seasonal LAI dynamics
-       'pheno_cycle': False  # account for phenological cycle
        }
 
 # site location
@@ -93,7 +90,7 @@ pt1 = {
     'ctr': {
         'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
         'seasonal_LAI': True,  # account for seasonal LAI dynamics
-        'pheno_cycle': False #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
+        'pheno_cycle': None #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
         },
     'LAImax': 0.6, # maximum annual LAI m2m-2
     'lad': lad_constant(z, LAI=1.0, h=0.5),  # leaf-area density m2m-3
@@ -292,19 +289,12 @@ snow = {
     }
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
-#soil_respiration = {
-#    'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
-#    'q10': 2.0, # temperature sensitivity [-]
-#    'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
-#    'beta': 1.0 # exponential decay for potential soil respiration depth profile
-#}
-
 soil_respiration = {
-        'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
-        'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [3.83, 4.43, 1.25, 0.854],  # moisture response; Skopp moisture function param [a ,b, d, g]}
-        'beta': 0.943, # root distribution shape parameter [-]
-        }
+    'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
+    'q10': 2.0, # temperature sensitivity [-]
+    'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
+    'beta': 1.0 # exponential decay for potential soil respiration depth profile
+}
 
 # Note: renewed bryophyte parameters
 
