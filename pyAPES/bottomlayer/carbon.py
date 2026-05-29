@@ -575,19 +575,6 @@ class SoilRespiration(object):
         f = np.sum(self.weights * fT * fm)
         respiration = self.r10 * f
 
-<<<<<<< HEAD
-        M = volumetric_liquid_content / np.maximum(porosity - volumetric_ice_content, EPS)
-        M = np.maximum(0.0, np.minimum(1.0, M))
-
-        f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
-        f = np.minimum(f, 1.0)
-
-        # --- testing without soil water limitation
-        respiration = x * f
-
-        respiration = sum(self.weights * respiration[0:self.Nlayers])
-=======
->>>>>>> origin/main
         return respiration
     
 # class SoilRespiration(object):
