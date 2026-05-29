@@ -397,6 +397,10 @@ class MLM_model(object):
                 forcing=canopy_forcing,
                 parameters=canopy_parameters
             )
+            
+            # extract and store snow depth for use in next day's run_daily
+            if 'snow_depth' in out_ffloor:
+                self.canopy_model.ffloor_snow_depth = out_ffloor['snow_depth']
 
             # --- Soil model  ---
             # compile forcing for Soil: potential infiltration and evaporation are at from ground surface

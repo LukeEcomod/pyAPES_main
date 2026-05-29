@@ -20,6 +20,7 @@ load_dotenv()
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 # model forcing: see Demo_creating_model_forcing_Degero.ipynb
 forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/SE-Deg/SE-Deg_forcing_2021-2023.dat')
+#forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2021-2023.dat')
 
 #**************** PARAMETER DICTIONARIES ****************************
 
@@ -35,7 +36,7 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 
 # --- Model control flags
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
-       'WMA': False,  # assume air-space scalar profiles well-mixed
+       'WMA': True,  # assume air-space scalar profiles well-mixed
        'Ebal': True,  # computes leaf and surface temperature by solving energy balance
        }
 
@@ -98,7 +99,7 @@ pt1 = {
 
     # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
     'laip': {
-        'lai_min': 0.1, # relative to LAImax (0.8)
+        'lai_min': 0.1, # relative to LAImax
         'lai_ini': None,
         'DDsum0': 0.0,
         'Tbase': 5.0,
@@ -355,7 +356,7 @@ cpara = {'loc': loc,
          'radiation': radiation,
          'micromet': micromet,
          'interception': interception,
-         'planttypes': {'sedges': pt1, 'pine': pt2},
+         'planttypes': {'sedges': pt1},
          'forestfloor': forestfloor
          }
 

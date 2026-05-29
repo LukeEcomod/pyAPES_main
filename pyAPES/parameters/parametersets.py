@@ -37,6 +37,10 @@ def get_parameters(scenario):
         from pyAPES.parameters.degero_snow import degero_snow_parameters
         return degero_snow_parameters
 
+    elif scenario.upper() == 'DEGERO_SNOW_FSM2_PHYSICS':
+        from pyAPES.parameters.degero_snow_ensemble import degero_snow_fsm2_physics_parameters
+        return degero_snow_fsm2_physics_parameters
+
     else:
         raise ValueError("Unknown parameterset!")
 
