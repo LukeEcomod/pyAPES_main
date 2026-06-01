@@ -36,7 +36,7 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 
 # --- Model control flags
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
-       'WMA': True,  # assume air-space scalar profiles well-mixed
+       'WMA': False,  # assume air-space scalar profiles well-mixed
        'Ebal': True,  # computes leaf and surface temperature by solving energy balance
        }
 
@@ -47,8 +47,8 @@ loc = {
 }
 
 # grid
-grid = {'zmax': 10.0,  # heigth [m] of grid from ground surface
-        'Nlayers': 20  # number of layers [-]
+grid = {'zmax': 3.0,  # heigth [m] of grid from ground surface
+        'Nlayers': 21  # number of layers [-]
         }
 
 z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
@@ -141,67 +141,6 @@ pt1 = {
         'root_conductance': 5.0e8, # [s]
     }
 }
-
-pt2 = { 'name': 'pine',
-        'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': None,  # account for seasonal Vcmax25, Jmax25 dynamics
-            },
-        'LAImax': 0.1, # maximum annual LAI m2m-2 (0.2)
-        'lad': lad_weibul(z, LAI=1.0, h=5.0, hb=1.0, species='pine'),  # leaf-area density m2m-3
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-        'phenop': {
-            'Xo': 0.0,
-            'fmin': 0.1,
-            'Tbase': -4.67,  # Kolari 2007
-            'tau': 8.33,  # Kolari 2007
-            'smax': 18.0  # Kolari 2014
-            },
-        # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
-        'laip': {
-            'lai_min': 1.0,
-            'lai_ini': None,
-            'DDsum0': 0.0,
-            'Tbase': 5.0,
-            'ddo': 45.0,
-            'ddmat': 250.0,
-            'sdl': 12.0,
-            'sdur': 30.0
-            },
-        # A-gs model: pyAPES.leaf.photo
-        'photop': {
-            'Vcmax': 40.0,
-            'Jmax': 64.0,  
-            'Rd': 0.6,  
-            'tresp': { # temperature response parameters (Kattge and Knorr, 2007)
-                'Vcmax': [78., 200., 649.],
-                'Jmax': [56., 200., 646.],
-                'Rd': [33.0]
-                },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
-            'theta': 0.7,   # curvature parameter [-]
-            'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
-            'kn': 0.5,      # nitrogen attenuation coefficient [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters
-            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
-            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
-            },
-        'leafp': {
-            'lt': 0.02,     # leaf length scale [m]
-            },
-        # root zone: pyAPES.planttype.rootzone.RootUptake
-        'rootp': {
-            'root_depth': 0.5, # rooting depth [m]
-            'beta': 0.943, # root distribution shape parameter [-]
-            'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
-            'root_radius': 2.0e-3, # [m]
-            'root_conductance': 5.0e8, # [s]
-            }
-        }
 
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
@@ -356,7 +295,7 @@ cpara = {'loc': loc,
          'radiation': radiation,
          'micromet': micromet,
          'interception': interception,
-         'planttypes': {'sedges': pt1},
+         'planttypes': {'sedges': pt1},#, 'pine': pt2},
          'forestfloor': forestfloor
          }
 
