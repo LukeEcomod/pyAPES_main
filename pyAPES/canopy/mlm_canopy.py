@@ -203,26 +203,21 @@ class CanopyModel(object):
         self.lad = sum([pt.lad for pt in self.planttypes])
         
         # Apply snow masking to LAD in canopy layers.
-        # Hard-coded options: 'scale' or 'zero_reached'.
-        snow_lad_mask_method = 'zero_reached' # 'zero_reached' / 'scale'
         if self.ffloor_snow_depth > 0.05:
             lower_bound = self.z[:-1]
             upper_bound = self.z[1:]
+            # Scale LAD by snow-free fraction in each layer.
+            snow_free_fraction = np.ones_like(self.lad)
+            snow_per_layer = np.clip(
+                np.minimum(upper_bound, self.ffloor_snow_depth) - lower_bound,
+                0.0,
+                upper_bound - lower_bound
+            )
+            snow_free_fraction[1:] = 1.0 - snow_per_layer / (upper_bound - lower_bound)
+            # Avoid tiny residual LAD values that can cause numerical issues.
+            snow_free_fraction[1:][snow_free_fraction[1:] < 0.1] = 0.0
+            self.lad = self.lad * snow_free_fraction
 
-            if snow_lad_mask_method == 'zero_reached':
-                # Zero LAD in any layer interval that snow reaches.
-                reached_by_snow = self.ffloor_snow_depth > lower_bound
-                self.lad[1:][reached_by_snow] = 0.0
-            else:
-                # Default: scale LAD by snow-free fraction in each layer.
-                snow_free_fraction = np.ones_like(self.lad)
-                snow_per_layer = np.clip(
-                    np.minimum(upper_bound, self.ffloor_snow_depth) - lower_bound,
-                    0.0,
-                    upper_bound - lower_bound
-                )
-                snow_free_fraction[1:] = 1.0 - snow_per_layer / (upper_bound - lower_bound)
-                self.lad = self.lad * snow_free_fraction
         
         # layerwise mean leaf characteristic dimension [m]
         self.leaf_length = sum(
