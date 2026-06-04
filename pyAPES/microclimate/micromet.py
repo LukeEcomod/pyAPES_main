@@ -462,15 +462,27 @@ def e_sat(T: float) -> Tuple:
     
     Returns:
         (tuple):
-            esa (float|array): [Pa], saturation vapor pressure over water film
+            esa (float|array): [Pa], saturation vapor pressure over water or ice film
             s (float|array): [Pa K-1], slope of saturation vapor pressure curve
 
     """
+    T_arr = np.asarray(T)
 
-    esa = 611.0 * np.exp((17.502 * T) / (T + 240.97))  # Pa
-    s = 17.502 * 240.97 * esa / ((240.97 + T)**2)
+    # Over water at T >= 0 C, over ice at T < 0 C.
+    esa_w = 611.0 * np.exp((17.502 * T_arr) / (T_arr + 240.97))  # Pa
+    s_w = 17.502 * 240.97 * esa_w / ((240.97 + T_arr)**2)
 
+    esa_i = 611.0 * np.exp((21.87 * T_arr) / (265.5 + T_arr))  # Pa
+    s_i = 21.87 * 265.5 * esa_i / ((265.5 + T_arr)**2)
+
+    esa = np.where(T_arr >= 0.0, esa_w, esa_i)
+    s = np.where(T_arr >= 0.0, s_w, s_i)
+
+    if np.isscalar(T):
+        return float(esa), float(s)
+    
     return esa, s
+
 
 def latent_heat(T: float) -> float:
     """
