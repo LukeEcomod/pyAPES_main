@@ -47,7 +47,7 @@ params = {
 
 resultfile, Model = driver(parameters=params,
                            create_ncf=True,
-                           result_file= 'ran_22_debug15.nc' # 
+                           result_file= 'ran_22_debug17.nc' # 
                           )
 
 # resultfile  = f'{pyAPES_main_folder}\\results\\ran_22_debug1.nc'

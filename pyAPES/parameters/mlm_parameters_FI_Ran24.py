@@ -9,7 +9,7 @@ Define pyAPES_MLM parameters and forcing file here.
 Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 
 """
-
+# increased laimax for spruce, decid, shrubs. decid ddmat 600. plant h still same. SS 5 june 26
 import numpy as np
 from pathlib import Path
 from pyAPES.utils.utilities import lad_weibul, lad_constant
@@ -21,9 +21,9 @@ _repo_root = Path(__file__).parent.parent.parent
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
         #  'start_time' : "2022-06-20",  # start time of simulation [yyyy-mm-dd]
         #  'end_time' : "2022-06-30",  # end time of simulation [yyyy-mm-dd]
-         'start_time' : "2022-05-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2022-09-30",  # end time of simulation [yyyy-mm-dd]
-         'start_doy': 90,  # start doy (for computing initial thermal profile)
+         'start_time' : "2024-05-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2024-09-30",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 152,  # start doy (for computing initial thermal profile) # säädä tää!!!!!!!
          'forc_filename' : r'forcing/FI-Ran/FI-Ran_forcing_2022_2025.dat', # forcing data file
          'results_directory':'results/',
          'logging_directory': 'logs/',
@@ -96,7 +96,7 @@ pt1 = { 'name': 'spruce',
             'seasonal_LAI': False,  # account for seasonal LAI dynamics
             'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.1, # maximum annual LAI m2m-2
+        'LAImax': 0.15, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density m2m-3
         #lad[:,1],  # leaf-area density m2m-3
 
@@ -158,7 +158,7 @@ pt2 = { 'name': 'decid',
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
             'pheno_cycle': None, #'decid',  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.3, # maximum annual LAI m2m-2
+        'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_weibul(z, LAI=1.0, h=1.0, hb=0.2, species='generic_deciduous'),  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic capacity: pyAPES.planttype.phenology.Photo_cycle_decid
         # Three-phase exponential model following Wilson et al. (2001) PCE Fig. 4.
@@ -178,9 +178,9 @@ pt2 = { 'name': 'decid',
             'DDsum0': 0.0, # initial degree-day sum [degC]
             'Tbase': 5.0, # base temperature for degree-day sy
             'ddo': 45.0, # degree-days at bud burst [days]
-            'ddmat': 800, #degreedays at full maturation [days]
-            'sdl': 12.0, # day length [h] for starting autumn senecence
-            'sdur': 30.0 # duration [d] of senescence
+            'ddmat': 600.0, #degreedays at full maturation [days]
+            'sdl': 14.0, # day length [h] for starting autumn senecence
+            'sdur': 40.0 # duration [d] of senescence
             },
         # A-gs model: pyAPES.leaf.photo
         'photop': {
@@ -221,7 +221,7 @@ pt3 = { 'name': 'shrubs',
             'seasonal_LAI': True,  # account for seasonal LAI dynamics
             'pheno_cycle': None,  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.3, # maximum annual LAI m2m-2
+        'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         # 'phenop': {
@@ -238,7 +238,7 @@ pt3 = { 'name': 'shrubs',
             'DDsum0': 0.0, # initial degree-day sum [degC]
             'Tbase': 5.0, # base temperature for degree-day sy
             'ddo': 45.0, # degree-days at bud burst [days]
-            'ddmat': 900, #degreedays at full maturation [days]
+            'ddmat': 250.0, #degreedays at full maturation [days]
             'sdl': 12.0, # day length [h] for starting autumn senecence
             'sdur': 30.0 # duration [d] of senescence
             },
