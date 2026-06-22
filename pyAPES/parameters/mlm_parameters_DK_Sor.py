@@ -230,6 +230,7 @@ pt2 = { 'name': 'conifers',
 
 # --- pyAPES.snow.snowpack.DegreeDaySnow
 snowpack = {
+        'snow_model': 'DegreeDay',
         'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
         'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
         'retention': 0.2,  # max fraction of liquid water in snow [-]

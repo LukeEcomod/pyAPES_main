@@ -19,14 +19,14 @@ from dotenv import load_dotenv
 load_dotenv()
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 # model forcing: see Demo_creating_model_forcing_Degero.ipynb
-forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2014-2016.dat')
+forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/SE-Deg/SE-Deg_forcing_2021-2023.dat')
 
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2016-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2016-06-30",  # end time of simulation [yyyy-mm-dd]
-         'start_doy': 150,
+         'start_time' : "2021-09-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2022-09-01",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 244,
          'forc_filename' : forcing_file,  # forcing data file
          'results_directory': 'results/',  # This is given relative to pyAPES main folder or if not in .env then current working directory
          'logging_directory': 'logs/',  # This is also given similar to results_directory
@@ -98,7 +98,7 @@ pt1 = {
 
     # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
     'laip': {
-        'lai_min': 0.8,
+        'lai_min': 0.1, # relative to LAImax (0.8)
         'lai_ini': None,
         'DDsum0': 0.0,
         'Tbase': 5.0,
@@ -145,9 +145,9 @@ pt2 = { 'name': 'pine',
         'ctr': {
             'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
             'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
+            'pheno_cycle': None,  # account for seasonal Vcmax25, Jmax25 dynamics
             },
-        'LAImax': 0.2, # maximum annual LAI m2m-2
+        'LAImax': 0.1, # maximum annual LAI m2m-2 (0.2)
         'lad': lad_weibul(z, LAI=1.0, h=5.0, hb=1.0, species='pine'),  # leaf-area density m2m-3
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
         'phenop': {
@@ -159,7 +159,7 @@ pt2 = { 'name': 'pine',
             },
         # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
         'laip': {
-            'lai_min': 0.8,
+            'lai_min': 1.0,
             'lai_ini': None,
             'DDsum0': 0.0,
             'Tbase': 5.0,
