@@ -14,14 +14,15 @@ References:
     Juang, J.-Y., Katul, G.G., Siqueira, M.B., Stoy, P.C., McCarthy, H.R., 2008.
     Investigating a hierarchy of Eulerian closure models for scalar transfer inside
     forested canopies. Boundary-Layer Meteorology 128, 1–32.
-    
-    Campbell, S.C., and J.M. Norman. 1998. An introduction to Environmental Biophysics, 
+
+    Campbell, S.C., and J.M. Norman. 1998. An introduction to Environmental Biophysics,
     Springer, 2nd edition.
 
 """
 import numpy as np
-from typing import Dict, List, Tuple
 import logging
+from typing import Dict, List, Tuple
+from scipy.linalg import solve_banded
 
 from pyAPES.utils.utilities import central_diff, forward_diff, tridiag, smooth, spatial_average
 from pyAPES.utils.constants import EPS, VON_KARMAN, GRAVITY, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
@@ -36,7 +37,7 @@ class Micromet(object):
     """
 
     def __init__(self, z: np.ndarray, lad: np.ndarray, hc: float, p: Dict):
-        """ 
+        """
         Args:
             z (array): canopy model nodes, equidistance, height from soil surface (= 0.0) [m]
             lad (array): leaf area density [m2 m-3]
@@ -63,12 +64,31 @@ class Micromet(object):
         self.Ubot = p['Ubot']  # lower boundary
         self.Sc = p['Sc']  # turbulent Schmidt numbers
         self.dz = z[1] - z[0]
-
+        self.U_solver = p.get('U_solver')  # method for solving the flow field
+        if self.U_solver is None:
+            self.U_solver = 'fdm'  # default method for solving the flow field
+        if self.U_solver not in ['fdm', 'fvm']:
+            raise ValueError("U_solver must be either 'fdm' or 'fvm'")
         # initialize state variables
-        self.tau, self.U_n, self.Km_n, _, _, _ = closure_1_model_U(
-            z, self.Cd, lad, hc, self.Utop + EPS, self.Ubot, dPdx=self.dPdx)
+        self.tau, self.U_n, self.Km_n, self.l_mix, self.d, self.zo, self.g_tau = \
+            self._solve_U(z, lad, hc, self.Utop + EPS)
 
-    def normalized_flow_stats(self, z: np.ndarray, lad: np.ndarray, hc: float, Utop: float = None) -> None:
+    def _solve_U(self, z, lad, hc, Utop, U_ini=None):
+      """
+      Dispatches to the momentum solver selected by U_solver, normalizing the two
+      solvers' return values to one signature: (tau, U, Km, l_mix, d, zo, g_tau).
+      g_tau is None for 'fdm', which has no surface-conductance boundary condition.
+      """
+      if self.U_solver == 'fvm':
+          tau, U, Km, l_mix, d, zo, g_tau = closure_1_model_U_fvm(
+              z, self.Cd, lad, hc, Utop, z0=self.zos, dPdx=self.dPdx)
+      elif self.U_solver == 'fdm':
+          tau, U, Km, l_mix, d, zo = closure_1_model_U(
+              z, self.Cd, lad, hc, Utop, self.Ubot, dPdx=self.dPdx, U_ini=U_ini)
+          g_tau = None
+      return tau, U, Km, l_mix, d, zo, g_tau
+
+    def normalized_flow_stats(self, z: np.ndarray, lad: np.ndarray, hc: float, Utop: float = None, z0=None) -> None:
         """
         Computes normalized mean velocity, shear stress and eddy diffusivity profiles within and above 
         horizontally homogenous plant canopies using 1st order closure schemes.
@@ -78,21 +98,27 @@ class Micromet(object):
             lad (array): leaf area density [m2 m-3]
             hc (float): canopy heigth [m]
             Utop (float): U/ustar [-], if None, set to self.Utop
+            z0 (float): surface roughness length [m]
         Returns:
             (none): updates self.U, self.Km_n, self.tau
 
         """
         if Utop is None:
             Utop = self.Utop
-
-        tau, U_n, Km_n, _, _, _ = closure_1_model_U(
-            z, self.Cd, lad, hc, Utop + EPS, self.Ubot, dPdx=self.dPdx, U_ini=self.U_n)
+        if z0 is not None:
+            self.zos = z0
+        tau, U_n, Km_n, l_mix, d, zo, g_tau = self._solve_U(
+            z, lad, hc, Utop + EPS, U_ini=self.U_n)
 
         if any(U_n < 0.0):
             logger.debug('Negative U_n, set to previous profile.')
         else:
             self.U_n = U_n.copy()
             self.Km_n = Km_n.copy()
+            self.l_mix = l_mix.copy()
+            self.d = d
+            self.zo = zo
+            self.g_tau = g_tau
             self.tau = tau.copy()
 
     def update_state(self, ustaro: float) -> Tuple:
@@ -108,10 +134,11 @@ class Micromet(object):
         """
 
         U = self.U_n * ustaro + EPS
-        U[0] = U[1]
-
         Km = self.Km_n * ustaro + EPS
-        Km[0] = Km[1]
+        if self.U_solver == 'fdm':
+            # Old boundary condition for 'fdm' solver
+            U[0] = U[1]
+            Km[0] = Km[1]
         self.Km = Km
 
         ustar = np.sqrt(abs(self.tau)) * ustaro
@@ -320,9 +347,8 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
         if iter_no == iter_max:
             logger.debug('Maximum number of iterations reached: U_n = %.2f, err = %.2f',
                          np.mean(U), err)
-    y_orig = y
+
     # ---- return values
-    tau_orig = tau
     tau = tau / tau[-1]  # normalized shear stress
     zo = (z[-1] - d)*np.exp(-0.4*U[-1])  # roughness length
 
@@ -337,7 +363,158 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
 #    plt.subplot(223); plt.plot(l_mix, z, 'r-'); plt.title('l mix')
 #    plt.subplot(224); plt.plot(Km, z, 'r-', Kmr, z, 'b-'); plt.title('Km')
 
-    return tau, U, Km, l_mix, d, zo, tau_orig, y_orig
+    return tau, U, Km, l_mix, d, zo
+
+
+def closure_1_model_U_fvm(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float, Utop: float, Ubot: float = 0.01,
+                          z0: float = 0.01, dPdx: float = 0.0, lbc: str = 'conductance', gamma: float = 0.5,
+                          l_min: float = None, max_iter: int = 200):
+    """ 
+    Mean velocity profile, shear stress and eddy diffusivity within and above 
+    horizontally homogenous plant canopies using 1st order closure. Accounts 
+    for horizontal pressure gradient force dPdx, assumes neutral diabatic stability.
+    Solves displacement height as centroid of drag force. Uses finite volume method.
+    Best used for open canopies with relatively low leaf area density but works for
+    canopy with higher leaf area density as well.
+
+    Args:
+        z (np.ndarray): height [m], constant increments
+        Cd (float): drag coefficient (typical range 0.1 - 0.3) [-]
+        lad (np.ndarray): plant area density, 2-sided [m2 m-3]
+        hc (float): canopy height [m]
+        Utop (float): U /u* [-] upper boundary
+        Ubot (float, optional): U /u* [-] at ground. Defaults to 0.01.
+        z0 (float, optional): surface roughness length. Defaults to 0.01.
+        dPdx (float, optional): u* -normalized horizontal pressure gradient. Defaults to 0.0.
+        lbc (str, optional): lower boundary condition type. Defaults to 'conductance'.
+        gamma (float, optional): weighting factor for iterative solution. Defaults to 0.5.
+        l_min (float, optional): minimum mixing length. Defaults to None.
+        max_iter (int, optional): maximum number of iterations. Defaults to 200.
+
+    Raises:
+        NotImplementedError: only lbc='conductance' is implemented. If lbc='flux' or other types are used, this error will be raised.
+        lbc='Dirichlet' user closure_1_model_U.
+
+    Returns:
+        (tuple):
+            tau (array): u* -normalized momentum flux
+            U (array): u* normalized mean wind speed [-]
+            Km (array): u* normalized eddy diffusivity for momentum [m]
+            l_mix (array): mixing length [m]
+            d (float): zero-plane displacement height [m]
+            zo (float): roughness lenght for momentum [m]
+    """
+    z_faces = z.copy()  # z input is faces, e.g., 0,dz,2*dz...
+    # z_midpoint has shape (N-1,).
+    z_midpoint = 0.5 * (z_faces[:-1] + z_faces[1:])
+
+    lad_faces = 0.5 * np.asarray(lad, dtype=float)
+    lad = 0.5 * (lad_faces[:-1] + lad_faces[1:])
+    dz = z_midpoint[1] - z_midpoint[0]
+
+    N = len(z_midpoint)
+
+    if l_min is None:
+        l_min = VON_KARMAN * z0
+
+    if lbc == 'conductance':
+        if z0 >= 0.5*dz:
+            raise ValueError(
+                "Surface roughness length z0 is too large compared to the grid spacing dz.")
+        else:
+            g_tau = (VON_KARMAN / np.log(z_midpoint[0] / z0)) ** 2
+    else:
+        raise NotImplementedError(
+            "only lbc='conductance' is implemented, use closure_1_model_U")
+
+    # Initial guess for U profile
+    U = np.linspace(max(Ubot, EPS), Utop, N)
+    err = 1e6
+    iter_no = 0
+
+    # Define RHS of the matrix equation outside iteration loop as this never changes
+    # This needs to be minus if we have vertical pressure gradient. In OPT notes we only deal with system where dP/dx=0
+    rhs = np.full(N, -1.0*dPdx)
+    rhs[-1] = Utop
+    while err > 1e-6 and iter_no < max_iter:
+        iter_no += 1
+
+        Fd = Cd * lad * U ** 2  # drag force from last iteration
+        # displacement height as centroid of drag force
+        d = np.sum(z_midpoint * Fd) / (np.sum(Fd) + EPS)
+        # mixing length at cell faces (not midpoints since flux is at faces)
+        l_mix = mixing_length_fvm(z_faces[1:-1], z0, hc, d, l_min=l_min)
+
+        # calculate dUdz at elements which have element upwards and downwards from them
+        dUdz = (U[1:] - U[:-1]) / dz
+        # dUdz[0] = (U[0]) / dz0 # calculate dUdz at the bottom flux. Here we assume U(z0) = 0
+        # dUdz[-1] = (Utop - U[-1]) / dz # calculate dUdz at the top flux
+        Km = l_mix ** 2 * np.abs(dUdz)
+
+        # Check OPT notes from 25.8.2026 for naming of these matrix elements, shape (N-2,)
+        A_plus = Km[1:] / dz ** 2
+        A_minus = Km[:-1] / dz ** 2  # shape (N-2,)
+        B = -A_plus - A_minus - Cd*lad[1:-1]*U[1:-1]  # shape (N-2)
+        C = -Km[0]/dz**2 - g_tau/dz*U[0]-Cd*lad[0]*U[0]  # shape (1,)
+
+        # Build tridiagonal matrix for solve_banded
+        ab = np.zeros((3, N))
+        ab[0, 2:] = A_plus  # upper diagonal
+        ab[0, 1] = Km[0]/dz**2  # upper element for the conductance BC
+        ab[1, 1:-1] = B  # main diagonal
+        ab[1, 0] = C  # conductance BC at bottom
+        ab[1, -1] = 1  # Dirichlet BC at top
+        ab[2, :-2] = A_minus  # lower diagonal
+
+        # update RHS[-1] with Utop computed at z_midpoint[-1]
+        # Utop is given at z_faces[-1] and here we calculate
+        # U(z_midpoint[-1]) = Utop - (Utop - U(z_midpoint[-1]))
+        # and use u* normalized log profile to estimate Utop and U(z_midpoint[-1])
+        rhs[-1] = Utop - np.log((z_faces[-1]-d) /
+                                (z_midpoint[-1]-d)) / VON_KARMAN
+
+        U_new = solve_banded((1, 1), ab, rhs)
+        err = np.max(np.abs(U_new - U))
+        U = gamma * U_new + (1.0 - gamma) * U
+        if iter_no == max_iter:
+            logger.debug('Maximum number of iterations reached: U_n = %.2f, err = %.2f',
+                         np.mean(U), err)
+
+    l_mix = mixing_length_fvm(z_faces[1:-1], z0, hc, d, l_min=l_min)
+    dUdz = (U[1:] - U[:-1]) / dz
+    Km_int = l_mix ** 2 * np.abs(dUdz)  # Km at interior faces
+
+    # Create face arrays at original z which is what we want to return
+    tau_f = np.zeros(N+1)
+    Km_f = np.zeros_like(tau_f)
+    U_f = np.zeros_like(tau_f)
+    lmix_f = np.zeros_like(tau_f)
+
+    tau_f[1:-1] = Km_int * dUdz
+    Km_f[1:-1] = Km_int
+    U_f[1:-1] = 0.5*(U[1:] + U[:-1])  # mean between two adjacent cell centers
+    lmix_f[1:-1] = l_mix  # assign interior mixing lengths
+
+    # ground face: the conductance carries the whole unresolved layer from z0 to z[0]
+    # Km_f[0] is the diffusivity that reprocudes tau_0 in this layer
+    # since Km_f[0] (U[0]-0)/dz0 = g_tau U[0]**2 <=> Km_f[0] = g_tau U[0] dz0
+    dz0 = z_midpoint[0] - z0
+    tau_f[0] = g_tau*U[0]**2
+    Km_f[0] = g_tau*U[0]*dz0
+    U_f[0] = 0.0  # U(z0) = 0, here we approzimate that U(z=0) = U(z0) = 0
+    lmix_f[0] = VON_KARMAN*z0
+
+    # top face: Assign last interior values to the top face
+    tau_f[-1] = tau_f[-2]
+    Km_f[-1] = Km_f[-2]
+    lmix_f[-1] = lmix_f[-2]
+    U_f[-1] = Utop  # For U use Dirichlet BC at top
+
+    zo = _compute_zo(z_faces, U_f, d)  # roughness sublayer height
+
+    # Normalize tau profile for ustar scaling
+    tau_n = tau_f/(tau_f[-2] + EPS)
+    return tau_n, U_f, Km_f, lmix_f, d, zo, g_tau
 
 
 def _compute_zo(z: np.ndarray, U: np.ndarray, d: float, n_fit: int = 10) -> float:
@@ -355,114 +532,11 @@ def _compute_zo(z: np.ndarray, U: np.ndarray, d: float, n_fit: int = 10) -> floa
     return zo if zo > 0.0 else float((z[-1] - d) * np.exp(-VON_KARMAN * U[-1]))
 
 
-def closure_1_model_U_fdm(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
-                           Utop: float, Ubot: float, dPdx: float = 0.0,
-                           lbc_flux: bool = None, U_ini: np.ndarray = None,
-                           l_min: float = None) -> Tuple:
-    """
-    Mean velocity profile, shear stress and eddy diffusivity — improved FDM.
-
-    Improvements over closure_1_model_U:
-        - lbc_flux checked with identity test (is None) instead of bool cast
-        - l_min forwarded to mixing_length; pass zos for open surfaces
-        - tau normalisation guarded against near-zero tau[-1]
-        - zo estimated by multi-point log-profile fit (_compute_zo)
-
-    Args:
-        z        : height grid [m], uniform spacing, increasing upward
-        Cd       : drag coefficient [-]
-        lad      : one-sided plant area density [m2 m-3]
-        hc       : canopy height [m]
-        Utop     : U/u* at upper boundary [-]
-        Ubot     : U/u* at lower boundary [-]  (used when lbc_flux is None)
-        dPdx     : u*-normalised horizontal pressure gradient [-]
-        lbc_flux : if not None, apply zero-flux Neumann BC at lower boundary
-        U_ini    : initial guess; linear profile used if None
-        l_min    : minimum mixing length [m]; pass zos for open surfaces
-
-    Returns:
-        tau      : u*-normalised momentum flux [-]
-        U        : u*-normalised mean wind speed [-]
-        Km       : eddy diffusivity [m2 s-1] (smoothed)
-        l_mix    : mixing length [m]
-        d        : zero-plane displacement height [m]
-        zo       : aerodynamic roughness length [m]
-        tau_orig : unsmoothed, unnormalised shear stress
-    """
-    lad = 0.5 * lad
-    dz = z[1] - z[0]
-    N = len(z)
-
-    U = np.linspace(Ubot, Utop, N) if U_ini is None else U_ini.copy()
-
-    nn1 = max(2, int(np.floor(N / 20)))
-    iter_max = 200
-    eps1 = 0.5
-    iter_no = 0
-    err = 999.9
-
-    while err > 0.001 and iter_no < iter_max:
-        iter_no += 1
-        Fd = Cd * lad * U ** 2
-        d = np.sum(z * Fd) / (np.sum(Fd) + EPS)
-        l_mix = mixing_length(z, hc, d, l_min=l_min)
-
-        y = central_diff(U, dz)
-        Km = l_mix ** 2 * np.abs(y)
-        tau = -Km * y
-
-        a1 = -Km
-        a2 = central_diff(-Km, dz)
-        a3 = Cd * lad * U
-
-        upd = a1 / dz ** 2 + a2 / (2 * dz)
-        dia = -a1 * 2 / dz ** 2 + a3
-        lod = a1 / dz ** 2 - a2 / (2 * dz)
-        rhs = np.full(N, dPdx)
-
-        upd[-1] = 0.0
-        dia[-1] = 1.0
-        lod[-1] = 0.0
-        rhs[-1] = Utop
-
-        if lbc_flux is None:
-            upd[0] = 0.0
-            dia[0] = 1.0
-            lod[0] = 0.0
-            rhs[0] = Ubot
-        else:
-            upd[0] = -1.0
-            dia[0] = 1.0
-            lod[0] = 0.0
-            rhs[0] = 0.0
-
-        Un = tridiag(lod, dia, upd, rhs)
-        err = np.max(np.abs(Un - U))
-        U = eps1 * Un + (1.0 - eps1) * U
-
-        if iter_no == iter_max:
-            logger.debug('Maximum iterations reached: U_n = %.2f, err = %.2f', np.mean(U), err)
-
-    tau_orig = tau
-    tau_top = tau[-1]
-    if np.abs(tau_top) > EPS:
-        tau = tau / tau_top
-    else:
-        logger.warning('tau[-1] near zero; normalisation skipped.')
-
-    zo = _compute_zo(z, U, d)
-
-    y = central_diff(U, dz)
-    Kmr = l_mix ** 2 * np.abs(y)
-    Km = smooth(Kmr, nn1)
-
-    return tau, U, Km, l_mix, d, zo, tau_orig
-
-
 def closure_1_model_scalar(dz: float, Ks: np.ndarray, source: np.ndarray, ubc: float, lbc: float,
                            scalar: str, T: float = 20.0, P: float = 101300.0, lbc_dirchlet=False) -> np.ndarray:
     r""" 
-    Solves stedy-state scalar profiles in 1-D grid using 1st order closure
+    Solves stedy-state scalar profiles in 1-D grid using 1st order closure.
+    OPT changed to use solve_banded 09/2026.
 
     Note: assumes constant dz and Dirchlet upper boundary condition
 
@@ -497,7 +571,10 @@ def closure_1_model_scalar(dz: float, Ks: np.ndarray, source: np.ndarray, ubc: f
     CF = rho_a / MOLAR_MASS_AIR  # [mol m-3], molar conc. of air
 
     Ks = spatial_average(Ks, method='arithmetic')  # length N+1
-
+    # Take harmonic mean of the first two faces since
+    # closure_1_model_U_fvm returns Km[0] as conductance between z0 and dz/2
+    # instead of arithmetic mean we want conductors in series (= harmonic mean)
+    Ks[1] = 2.0*Ks[0]*Ks[1]/(Ks[0] + Ks[1] + EPS)
     if scalar.upper() == 'CO2':  # [umol] -> [mol]
         ubc = 1e-6 * ubc
         source = 1e-6 * source
@@ -507,281 +584,97 @@ def closure_1_model_scalar(dz: float, Ks: np.ndarray, source: np.ndarray, ubc: f
         # [J m-3 K-1], volumetric heat capacity of air
         CF = CF * SPECIFIC_HEAT_AIR
 
-    # --- Set elements of tridiagonal matrix ---
-    a = np.zeros(N)  # sub diagonal
-    b = np.zeros(N)  # diagonal
-    g = np.zeros(N)  # super diag
-    f = np.zeros(N)  # rhs
+    # --- Set elements of tridiagonal matrix --
+    ab = np.zeros((3, N))  # tridiagonal matrix for solve_banded
+    rhs = np.zeros(N)
 
-    # intermediate nodes
-    a[1:-1] = Ks[1:-2]
-    b[1:-1] = - (Ks[1:-2] + Ks[2:-1])
-    g[1:-1] = Ks[2:-1]
-    f[1:-1] = - source[1:-1] / CF * dz**2
+    # interior nodes
+    ab[2, 0:N-2] = Ks[1:-2]
+    ab[1, 1:-1] = - (Ks[1:-2] + Ks[2:-1])
+    ab[0, 2:] = Ks[2:-1]
+    rhs[1:-1] = - source[1:-1] / CF * dz**2
 
     # uppermost node, Dirchlet boundary
-    a[-1] = 0.0
-    b[-1] = 1.0
-    g[-1] = 0.0
-    f[-1] = ubc
-
+    ab[1, -1] = 1.0
+    rhs[-1] = ubc
     # lowermost node
     if not lbc_dirchlet:  # flux-based
-        a[0] = 0.0
-        b[0] = 1.
-        g[0] = -1.
-        f[0] = (lbc / CF)*dz / (Ks[1] + EPS)
+        ab[1, 0] = -Ks[1]
+        ab[0, 1] = Ks[1]
+        rhs[0] = -(lbc*dz / CF) - source[0] * dz**2 / (2*CF)
 
     else:  # fixed concentration/temperature
-        a[0] = 0.0
-        b[0] = 1.
-        g[0] = 0.0
-        f[0] = lbc
+        ab[1, 0] = 1.0
+        rhs[0] = lbc
 
-    x = tridiag(a, b, g, f)
+    x = solve_banded((1, 1), ab, rhs)
 
     if scalar.upper() == 'CO2':  # [mol] -> [umol]
         x = 1e6*x
 
     return x
 
-def mixing_length(z: np.ndarray, h: float, d: float,
-                  l_min: float = None) -> np.ndarray:
+
+def mixing_length(z: np.ndarray, h: float, d: float, l_min: float = None) -> np.ndarray:
     """
-    Turbulent mixing length.
- 
-    Linear above canopy (von Karman), constant within canopy, linear near
-    ground.  Open land (h < dz) handled explicitly to avoid grid dependence.
- 
-    References:
-        Juang et al. (2008) Boundary-Layer Meteorology 128, 1-32.
- 
-    Args:
-        z:     height grid [m], constant increment, increasing upward
-        h:     canopy height [m]
-        d:     zero-plane displacement height [m]
-        l_min: minimum mixing length [m]; defaults to dz/2 unless h < dz
- 
-    Returns:
-        l_mix: turbulent mixing length [m]
+    computes turbulend mixing length. The l_mix is assumed linear above the canopy, constant within and
+    decreases linearly close the ground (below z< alpha*h/VON_KARMAN)
+
+    references:
+        juang, j.-y., katul, g.g., siqueira, M.B., Stoy, P.C., McCarthy, H.R., 2008.
+        investigating a hierarchy of Eulerian closure models for scalar transfer inside
+        forested canopies. boundary-layer Meteorology 128, 1–32.    
+    args:
+        z (array): [m], computation grid, constant increment
+        h (float): [m], canopy height
+        d (float): [m], displacement height
+        l_min (float): [m], set to finite value at ground
+
+    returns:
+        (np.ndarray):
+            lmix (array): [m], turbulent mixing length
+
     """
     dz = z[1] - z[0]
- 
-    if l_min is None:           
+
+    if not l_min:
         l_min = dz / 2.0
- 
-    # --- open land: bypass canopy logic entirely ---
-    if h < dz:
-        l_mix = VON_KARMAN * (z - d)
-        # use a physically meaningful minimum instead of grid-dependent dz/2
-        l_mix = np.maximum(l_mix, VON_KARMAN * l_min)
-        return l_mix
- 
-    # --- canopy case ---
-    alpha = (h - d) * VON_KARMAN / (h + EPS)
- 
-    # step function: 0 inside canopy, 1 above
-    above = (np.sign(z - h) + 1.0) / 2.0
- 
-    l_mix = alpha * h * (1.0 - above) + above * VON_KARMAN * (z - d)
- 
-    # near-ground ramp: below z < alpha*h/kappa
-    sc = alpha * h / VON_KARMAN
-    near_ground = z < sc
-    l_mix[near_ground] = VON_KARMAN * (z[near_ground] + dz / 2.0)
- 
-    l_mix += l_min
+
+    alpha = (h - d)*VON_KARMAN / (h + EPS)
+    i_f = np.sign(z - h) + 1.0
+    l_mix = alpha*h*(1 - i_f / 2) + (i_f / 2) * (VON_KARMAN*(z - d))
+
+    sc = (alpha*h) / VON_KARMAN
+    ix = np.where(z < sc)
+    l_mix[ix] = VON_KARMAN*(z[ix] + dz / 2)
+    l_mix = l_mix + l_min
+#    l_mix[ix] = von_karman*z[ix]
+#    l_mix = np.maximum(l_mix, l_min)
+
     return l_mix
 
-def _km_faces(Km_cell: np.ndarray) -> np.ndarray:
-    """
-    Interpolate cell-centre Km to N+1 cell faces using arithmetic mean.
- 
-    Face layout:
-        face 0        : lower boundary (z = z[0] - dz/2)
-        face i        : between cell i-1 and cell i   (i = 1 … N-1)
-        face N        : upper boundary (z = z[-1] + dz/2)
- 
-    Returns:
-        Km_f: shape (N+1,)
-    """
-    Km_f = np.empty(len(Km_cell) + 1)
-    Km_f[1:-1] = 0.5 * (Km_cell[:-1] + Km_cell[1:])
-    Km_f[0] = Km_cell[0]       # ghost extrapolation at lower boundary
-    Km_f[-1] = Km_cell[-1]     # ghost extrapolation at upper boundary
-    return Km_f
 
-def closure_1_model_U_fvm(
-    z: np.ndarray,
-    Cd: float,
-    lad: np.ndarray,
-    hc: float,
-    Utop: float,
-    Ubot: float,
-    dPdx: float = 0.0,
-    lbc_flux: bool = None,
-    U_ini: np.ndarray = None,
-    l_min: float = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, float]:
-    """
-    Mean velocity profile, shear stress and eddy diffusivity within and above
-    horizontally homogeneous plant canopies — FVM formulation.
- 
-    Solves:
-        d/dz [ Km * dU/dz ] - Cd * a(z) * U^2 = -dPdx
- 
-    The diffusion term is discretised with Km evaluated at cell faces
-    (i ± 1/2), guaranteeing local flux conservation without post-hoc
-    smoothing.  The drag term is linearised as (Cd * a * U^(n)) * U^(n+1)
-    and the nonlinear system is solved by Picard iteration.
- 
-    Args:
-        z        : height grid [m], uniform spacing, increasing upward
-        Cd       : drag coefficient [-]
-        lad      : one-sided plant area density [m2 m-3]
-        hc       : canopy height [m]
-        Utop     : U/u* at upper boundary [-]
-        Ubot     : U/u* at lower boundary [-]  (used when lbc_flux is None)
-        dPdx     : u*-normalised horizontal pressure gradient [-]
-        lbc_flux : if True, apply zero-flux (Neumann) BC at lower boundary;
-                   if None, apply Dirichlet BC = Ubot
-        U_ini    : initial guess for U; linear profile used if None
-        l_min    : minimum mixing length [m]; pass zos for open surfaces
+def mixing_length_fvm(z, z0, hc, d, dz=None, l_min=None):
 
-    Returns:
-        tau    : u*-normalised momentum flux (shear stress) [-]
-        U      : u*-normalised mean wind speed [-]
-        Km     : eddy diffusivity for momentum [m2 s-1]
-        l_mix  : mixing length [m]
-        d      : zero-plane displacement height [m]
-        zo     : aerodynamic roughness length [m]
-    """
-    # frontal area density is half of one-sided
-    lad = 0.5 * lad
- 
-    dz = z[1] - z[0]        # fixed: was z[1] - z[2]
-    N = len(z)
- 
-    # --- initial guess ---
-    U = np.linspace(Ubot, Utop, N) if U_ini is None else U_ini.copy()
- 
-    iter_max = 50
-    eps_relax = 0.5
-    conv_tol = 0.01
- 
-    for iter_no in range(1, iter_max + 1):
- 
-        # --- drag and displacement height ---
-        Fd = Cd * lad * U ** 2
-        d = np.sum(z * Fd) / (np.sum(Fd) + EPS)
- 
-        # --- mixing length and cell-centre Km ---
-        l_mix = mixing_length(z, hc, d, l_min=l_min)
-        dUdz = forward_diff(U, dz)
-        Km_cell = l_mix ** 2 * np.abs(dUdz)
- 
-        # --- face Km (FVM key step) ---
-        Km_f = _km_faces(Km_cell)
-        Kp = Km_f[1:]    # K at face i+1/2,  shape (N,)
-        Km_ = Km_f[:-1]  # K at face i-1/2,  shape (N,)
- 
-        # --- assemble tridiagonal system ---
-        #
-        # FVM balance for cell i:
-        #   [Km_{i+1/2} (U_{i+1} - U_i) - Km_{i-1/2} (U_i - U_{i-1})] / dz^2
-        #   - Cd * a_i * U_i * U_i^(n+1) = -dPdx
-        #
-        lod = -Km_ / dz ** 2                        # coefficient of U_{i-1}
-        dia = (Km_ + Kp) / dz ** 2 + Cd * lad * U  # coefficient of U_i
-        upd = -Kp / dz ** 2                         # coefficient of U_{i+1}
-        rhs = np.full(N, dPdx)
- 
-        # --- boundary conditions ---
-        # upper: Dirichlet U = Utop
-        upd[-1] = 0.0
-        dia[-1] = 1.0
-        lod[-1] = 0.0
-        rhs[-1] = Utop
- 
-        # lower
-        if lbc_flux is None:        # fixed: was `if not lbc_flux`
-            # Dirichlet U = Ubot
-            upd[0] = 0.0
-            dia[0] = 1.0
-            lod[0] = 0.0
-            rhs[0] = Ubot
-        else:
-            # Neumann: zero flux  →  U[0] = U[1]  →  dU/dz = 0
-            upd[0] = -1.0
-            dia[0] = 1.0
-            lod[0] = 0.0
-            rhs[0] = 0.0
- 
-        # --- solve ---
-        Un = tridiag(lod, dia, upd, rhs)
- 
-        err = np.max(np.abs(Un - U))
-        U = eps_relax * Un + (1.0 - eps_relax) * U
- 
-        if err < conv_tol:
-            break
-    else:
-        logger.debug(
-            "Maximum iterations reached: mean(U) = %.3f, err = %.4f",
-            np.mean(U), err,
-        )
- 
-    # --- diagnostics ---
-    # shear stress from face fluxes (conservative)
-    tau = -Km_f[:-1] * central_diff(U, dz)   # at cell centres, shape (N,)
-    tau_orig = tau
-    tau_top = tau[-1]
-    if np.abs(tau_top) > EPS:
-        tau = tau / tau_top
-    else:
-        logger.warning("tau[-1] near zero; normalisation skipped.")
- 
-    zo = _compute_zo(z, U, d)
+    dz = z[1] - z[0] if dz is None else dz
 
-    return tau, U, Km_cell, l_mix, d, zo, tau_orig
+    if l_min is None:
+        l_min = VON_KARMAN * z0
 
-# def mixing_length(z: np.ndarray, h: float, d: float, l_min: float = None) -> np.ndarray:
-#     """
-#     Computes turbulend mixing length. The l_mix is assumed linear above the canopy, constant within and
-#     decreases linearly close the ground (below z< alpha*h/VON_KARMAN)
+    l_ground = VON_KARMAN * z
 
-#     References:
-#         Juang, J.-Y., Katul, G.G., Siqueira, M.B., Stoy, P.C., McCarthy, H.R., 2008.
-#         Investigating a hierarchy of Eulerian closure models for scalar transfer inside
-#         forested canopies. Boundary-Layer Meteorology 128, 1–32.    
-#     Args:
-#         z (array): [m], computation grid, constant increment
-#         h (float): [m], canopy height
-#         d (float): [m], displacement height
-#         l_min (float): [m], set to finite value at ground
+    if hc < 3 * dz:   # canopy not resolved by the grid -> open-ground branch
+        return np.maximum(l_ground, l_min)
 
-#     Returns:
-#         (np.ndarray):
-#             lmix (array): [m], turbulent mixing length
+    alpha = (hc - d) * VON_KARMAN / (hc + EPS)
+    I_F = np.sign(z - hc) + 1.0
+    l_mix = alpha * hc * (1 - I_F / 2) + (I_F / 2) * (VON_KARMAN * (z - d))
 
-#     """
-#     dz = z[1] - z[0]
-    
-#     if not l_min:
-#         l_min = dz / 2.0
+    sc = (alpha * hc) / VON_KARMAN
+    ix = np.where(z < sc)
+    l_mix[ix] = l_ground[ix]
 
-#     alpha = (h - d)*VON_KARMAN / (h + EPS)
-#     I_F = np.sign(z - h) + 1.0
-#     l_mix = alpha*h*(1 - I_F / 2) + (I_F / 2) * (VON_KARMAN*(z - d))
-
-#     sc = (alpha*h) / VON_KARMAN
-#     ix = np.where(z < sc)
-#     l_mix[ix] = VON_KARMAN*(z[ix] + dz / 2)
-#     l_mix = l_mix + l_min
-# #    l_mix[ix] = VON_KARMAN*z[ix]
-# #    l_mix = np.maximum(l_mix, l_min)
-
-#     return l_mix
+    return np.maximum(l_mix, l_min)
 
 
 def e_sat(T: float) -> Tuple:
