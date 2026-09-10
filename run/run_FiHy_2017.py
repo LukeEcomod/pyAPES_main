@@ -29,4 +29,4 @@ params = {
 
 resultfile, _ = driver(parameters=params,
                        create_ncf=True,
-                       result_file='FiHy_2018.nc')
+                       result_file='FiHy_2018_new_U_fvm_fsm2.nc')

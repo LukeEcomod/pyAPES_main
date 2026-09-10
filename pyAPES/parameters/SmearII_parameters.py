@@ -58,14 +58,14 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'Cd': 0.15,  # drag coefficient [-]
             'Utop': 5.0,  # ensemble U/ustar [-]
             'Ubot': 0.01,  # flow at lower boundary [m s-1 or -], not used if U_solver='fvm'
-            'U_solver': 'fdm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
+            'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
             # turbulent Schmidt numbers in canopy flow
             'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}
             }
             
 # --- pyAPES.snow
 snow = {
-    'snow_model': 'degreeday', # snow model being used - 'degreeday' or 'fsm2'
+    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
     # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
     'degreeday': {
             'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
