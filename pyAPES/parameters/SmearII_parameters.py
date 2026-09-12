@@ -58,7 +58,7 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'Cd': 0.15,  # drag coefficient [-]
             'Utop': 5.0,  # ensemble U/ustar [-]
             'Ubot': 0.01,  # flow at lower boundary [m s-1 or -], not used if U_solver='fvm'
-            'U_solver': 'fdm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
+            'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
             # turbulent Schmidt numbers in canopy flow
             'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}
             }
