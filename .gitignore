@@ -118,6 +118,9 @@ old_obsolete/
 # Example demos
 Examples/results/*.*
 
+# debug/tl-convergence-isolation: captured Picard-loop state snapshots (regeneratable, large binary pickles)
+Examples/debug_captures/
+
 # datasets --> put in separate storage
 /data/*.*
 

@@ -498,7 +498,9 @@ class PlantType(object):
             itermax = 20
             err = 999.0
             iter_no = 0
-
+            gamma = 1.0 # starting relaxation factor
+            gamma_floor = 0.05 # lowest possible gamma
+            osc_check_after = 5 # after how many iterations check is there oscillation
             while err > 0.01 and iter_no < itermax:
                 iter_no += 1
                 Told = Tl.copy()
@@ -525,9 +527,23 @@ class PlantType(object):
                 # solve leaf temperature from energy balance
                 Tl[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - Lv[ic]*geff_v[ic]*Dleaf[ic]
                           + Lv[ic]*s[ic]*geff_v[ic]*Told[ic]) / (SPECIFIC_HEAT_AIR*(gr[ic] + gb_h[ic]) + Lv[ic]*s[ic]*geff_v[ic])
-                err = np.nanmax(abs(Tl - Told))
 
-                if (err < 0.01 or iter_no == itermax) and abs(np.mean(T) - np.mean(Tl)) > 20.0:
+                # relaxation: take only gamma fraction of new solutions.
+                Tl[ic] = gamma*Tl[ic] + (1-gamma)*Told[ic]
+                err = np.nanmax(np.abs(Tl - Told))
+
+                # Oscillation check. If solution starts to oscillate try smaller gamma and take mean
+                # of Tl and Told
+
+                if iter_no > osc_check_after and err > err_prev:
+                    Tl[ic] = 0.5* (Told[ic] + Tl[ic])
+                    err = np.nanmax(np.abs(Tl-Told))
+                    gamma = np.maximum(gamma/2, gamma_floor)
+
+                # No need to define err_prev earlier since iter_no > osc_check_after fails when iter_no=1
+                err_prev = err
+
+                if (err < 0.01 or iter_no == itermax) and np.abs(np.mean(T) - np.mean(Tl)) > 20.0:
                     logger.debug(logger_info + ' Unrealistic leaf temperature %.2f set to air temperature %.2f, %.2f, %.2f, %.2f, %.2f',
                                  np.mean(Tl), np.mean(T),
                                  np.mean(LWnet), np.mean(Tl_ave), np.mean(Tl_ini), np.mean(H2O))

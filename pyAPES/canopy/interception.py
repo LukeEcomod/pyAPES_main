@@ -141,6 +141,7 @@ class Interception(object):
 
         # initial guess for wet leaf temperature
         Tl_wet = self.Tl_wet.copy()
+        Tl_wet_new = self.Tl_wet.copy()
         Told = Tl_wet.copy()
 
         # latent heat of vaporization/sublimation at temperature T [J/mol]
@@ -176,7 +177,11 @@ class Interception(object):
         """ --- solve wet Leaf temperature from energy balance--- """
         itermax = 30
         err = 999.0
+        prev_err = 999.0
         iterNo = 0
+        gamma = 0.75
+        gamma_floor = 0.01
+        osc_check_after = 5
         while err > 0.01 and iterNo < itermax:
             iterNo += 1
 
@@ -187,9 +192,16 @@ class Interception(object):
 
             if Ebal:
                 # solve leaf temperature [degC]
-                Tl_wet[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - L[ic]*gb_v[ic]*Dleaf[ic]
+                Tl_wet_new[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - L[ic]*gb_v[ic]*Dleaf[ic]
                   + L[ic]*s[ic]*gb_v[ic]*Told[ic]) / (SPECIFIC_HEAT_AIR*(gr[ic] + gb_h[ic]) + L[ic]*s[ic]*gb_v[ic])
+                Tl_wet[ic] = gamma * Tl_wet_new[ic] + (1-gamma)*Told[ic]
                 err = np.nanmax(abs(Tl_wet - Told))
+
+                if gamma_floor is not None and iterNo > osc_check_after:
+                    if prev_err is not None and err > prev_err:
+                        # Oscillation in the solution. Take mean of old and new Tl and half the relaxation factor gamma
+                        Tl_wet[ic] = 0.5 * (Told[ic] + Tl_wet[ic])
+                        gam = max(gam / 2, gamma_floor)
 
                 if (err < 0.01 or iterNo == itermax) and abs(np.mean(T) - np.mean(Tl_wet)) > 20.0:
                     logger.debug(controls['logger_info'] + ',%s Unrealistic wet leaf temperature %.2f set to air temperature %.2f, %.2f, %.2f, %.2f',
