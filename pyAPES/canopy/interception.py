@@ -197,12 +197,12 @@ class Interception(object):
                 Tl_wet[ic] = gamma * Tl_wet_new[ic] + (1-gamma)*Told[ic]
                 err = np.nanmax(abs(Tl_wet - Told))
 
-                if gamma_floor is not None and iterNo > osc_check_after:
-                    if prev_err is not None and err > prev_err:
+                if iterNo > osc_check_after and err > prev_err:
                         # Oscillation in the solution. Take mean of old and new Tl and half the relaxation factor gamma
                         Tl_wet[ic] = 0.5 * (Told[ic] + Tl_wet[ic])
-                        gam = max(gam / 2, gamma_floor)
-
+                        err = np.nanmax(np.abs(Tl_wet - Told))
+                        gamma = np.maximum(gamma / 2, gamma_floor)
+                prev_err = err
                 if (err < 0.01 or iterNo == itermax) and abs(np.mean(T) - np.mean(Tl_wet)) > 20.0:
                     logger.debug(controls['logger_info'] + ',%s Unrealistic wet leaf temperature %.2f set to air temperature %.2f, %.2f, %.2f, %.2f',
                          iterNo,
