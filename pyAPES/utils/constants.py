@@ -12,6 +12,8 @@ import numpy as np
 
 #: machine epsilon
 EPS = np.finfo(float).eps
+#: minimum LAI to avoid division with small number in radiation
+LAI_MIN = 1e-6
 
 #: [J mol-1], latent heat of vaporization at 20 degC
 LATENT_HEAT = 44100.0
