@@ -499,7 +499,7 @@ class PlantType(object):
             err = 999.0
             iter_no = 0
             gamma = 1.0 # starting relaxation factor
-            gamma_floor = 0.05 # lowest possible gamma
+            gamma_floor = 0.01 # lowest possible gamma
             osc_check_after = 5 # after how many iterations check is there oscillation
             while err > 0.01 and iter_no < itermax:
                 iter_no += 1
