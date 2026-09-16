@@ -14,6 +14,7 @@ References:
 
 """
 
+import copy
 import logging
 import numpy as np
 from typing import List, Dict, Tuple
@@ -153,7 +154,6 @@ class CanopyModel(object):
         # self.forestfloor = ForestFloor(cpara['forestfloor'],
         #                                respiration_profile=self.root_distr)
 
-        cpara['forestfloor']['Ebal'] = self.Switch_Ebal
         self.forestfloor = ForestFloor(cpara['forestfloor'],
                                        z_soil=-np.cumsum(dz_soil))
 
@@ -304,6 +304,7 @@ class CanopyModel(object):
         max_err = 0.01  # maximum relative error
         max_iter = 25  # maximum iterations
         gam = 0.5  # weight for new value in iterations
+        gam_floor = 0.01
         err_t, err_h2o, err_co2, err_Tl, err_Ts = 999., 999., 999., 999., 999.
         Switch_WMA = self.Switch_WMA
 
@@ -389,6 +390,7 @@ class CanopyModel(object):
                     'lw_radiative_conductance': radiation_profiles['lw']['radiative_conductance'],
                     'net_lw_leaf': radiation_profiles['lw']['net_leaf'],
                 })
+
 
             # --- solve interception model
             wetleaf_fluxes = self.interception.run(
@@ -561,7 +563,7 @@ class CanopyModel(object):
                 # to recognize oscillation
                 if iter_no > 5 and np.mean((T_prev - T)**2) > np.mean((T_prev2 - T)**2):
                     T = (T_prev + T) / 2
-                    gam = max(gam / 2, 0.25)
+                    gam = max(gam / 2, gam_floor)
 
                 if (iter_no == max_iter or any(np.isnan(T)) or
                         any(np.isnan(H2O)) or any(np.isnan(CO2))):
