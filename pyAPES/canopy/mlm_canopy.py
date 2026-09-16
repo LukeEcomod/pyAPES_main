@@ -26,7 +26,6 @@ from pyAPES.planttype.planttype import PlantType
 
 from pyAPES.canopy.interception import Interception
 from pyAPES.canopy.forestfloor import ForestFloor
-from pyAPES.utils import debug_capture
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +304,7 @@ class CanopyModel(object):
         max_err = 0.01  # maximum relative error
         max_iter = 25  # maximum iterations
         gam = 0.5  # weight for new value in iterations
+        gam_floor = 0.01
         err_t, err_h2o, err_co2, err_Tl, err_Ts = 999., 999., 999., 999., 999.
         Switch_WMA = self.Switch_WMA
 
@@ -317,21 +317,6 @@ class CanopyModel(object):
             'latent_heat': None,  # [W m-3]
             'fr': None  # [W m-3]
         }
-
-        # debug/tl-convergence-isolation: snapshot state entering this timestep so a
-        # non-convergent case can be replayed standalone (see pyAPES.utils.debug_capture)
-        if debug_capture.enabled():
-            self_snapshot = copy.deepcopy(self)
-            trajectory = []
-
-        # debug/tl-convergence-isolation: record forcing inputs for every timestep
-        # (not just non-convergent ones) so their distributions can be compared
-        # against the converged/tolerable/switched_to_wma outcome later.
-        if debug_capture.forcing_enabled():
-            _fc_canopy = debug_capture.snapshot_dict(forcing)
-            _fc_interception = None
-            _fc_planttype = None
-            _fc_outcome = 'converged'
 
         iter_no = 0
         while (err_t > max_err or err_h2o > max_err or
@@ -406,12 +391,6 @@ class CanopyModel(object):
                     'net_lw_leaf': radiation_profiles['lw']['net_leaf'],
                 })
 
-            # debug/tl-convergence-isolation: capture forcing entering interception at
-            # iter_no==2 (i.e. after one full Picard iteration) rather than iter_no==1,
-            # since at iter_no==1 Tleaf_prev/Tleaf_wet etc. are still the raw _restore()
-            # guess and not representative of what the loop actually converges around
-            if debug_capture.forcing_enabled() and iter_no == 2:
-                _fc_interception = debug_capture.snapshot_dict(interception_forcing)
 
             # --- solve interception model
             wetleaf_fluxes = self.interception.run(
@@ -461,11 +440,6 @@ class CanopyModel(object):
                     iter_no
                 )
             }
-
-            # debug/tl-convergence-isolation: capture forcing entering the planttype
-            # loop at iter_no==2 -- see matching comment above at the interception capture
-            if debug_capture.forcing_enabled() and iter_no == 2:
-                _fc_planttype = debug_capture.snapshot_dict(forcing_pt)
 
             pt_stats = []
             pt_layerwise = []
@@ -589,17 +563,7 @@ class CanopyModel(object):
                 # to recognize oscillation
                 if iter_no > 5 and np.mean((T_prev - T)**2) > np.mean((T_prev2 - T)**2):
                     T = (T_prev + T) / 2
-                    gam = max(gam / 2, 0.01)
-
-                # debug/tl-convergence-isolation: record per-iteration state
-                if debug_capture.enabled():
-                    trajectory.append({
-                        'iter_no': iter_no, 'gam': gam,
-                        'T': T.copy(), 'H2O': H2O.copy(), 'CO2': CO2.copy(),
-                        'Tleaf': Tleaf.copy(), 'Tsurf': Tsurf,
-                        'err_t': err_t, 'err_h2o': err_h2o, 'err_co2': err_co2,
-                        'err_Tl': err_Tl, 'err_Ts': err_Ts,
-                    })
+                    gam = max(gam / 2, gam_floor)
 
                 if (iter_no == max_iter or any(np.isnan(T)) or
                         any(np.isnan(H2O)) or any(np.isnan(CO2))):
@@ -612,16 +576,6 @@ class CanopyModel(object):
                         if max(err_t, err_h2o, err_co2, err_Tl, err_Ts) > 0.01:
                             logger.debug('%s Maximum iterations reached but error tolerable < 0.05',
                                          parameters['date'])
-                            if debug_capture.enabled():
-                                debug_capture.capture('mlm_canopy', parameters['date'], {
-                                    'self_snapshot': self_snapshot,
-                                    'forcing': forcing,
-                                    'parameters': parameters,
-                                    'trajectory': trajectory,
-                                    'outcome': 'tolerable',
-                                })
-                            if debug_capture.forcing_enabled():
-                                _fc_outcome = 'tolerable'
                         break
 
                     Switch_WMA = True  # if no convergence, re-compute with WMA -assumption
@@ -629,17 +583,6 @@ class CanopyModel(object):
                     logger.debug('%s Switched to WMA assumption: err_T %.4f, err_H2O %.4f, err_CO2 %.4f, err_Tl %.4f, err_Ts %.4f',
                                  parameters['date'],
                                  err_t, err_h2o, err_co2, err_Tl, err_Ts)
-
-                    if debug_capture.enabled():
-                        debug_capture.capture('mlm_canopy', parameters['date'], {
-                            'self_snapshot': self_snapshot,
-                            'forcing': forcing,
-                            'parameters': parameters,
-                            'trajectory': trajectory,
-                            'outcome': 'switched_to_wma',
-                        })
-                    if debug_capture.forcing_enabled():
-                        _fc_outcome = 'switched_to_wma'
 
                     # reset values
                     iter_no = 0
@@ -649,13 +592,6 @@ class CanopyModel(object):
                 err_h2o, err_co2, err_t = 0.0, 0.0, 0.0
 
         # --- end of iterative solution of timestep
-
-        # debug/tl-convergence-isolation: record this timestep's forcing inputs and
-        # outcome, regardless of whether the Picard loop converged
-        if debug_capture.forcing_enabled():
-            debug_capture.record_forcing('mlm_canopy', parameters['date'], _fc_outcome, _fc_canopy)
-            debug_capture.record_forcing('interception', parameters['date'], _fc_outcome, _fc_interception)
-            debug_capture.record_forcing('planttype', parameters['date'], _fc_outcome, _fc_planttype)
 
         # --- update state variables
         self.interception.update()
