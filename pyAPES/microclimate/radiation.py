@@ -35,7 +35,7 @@ from typing import List, Dict, Tuple
 from scipy.linalg import solve_banded
 
 from pyAPES.utils.utilities import tridiag
-from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS
+from pyAPES.utils.constants import DEG_TO_RAD, DEG_TO_KELVIN, STEFAN_BOLTZMANN, SPECIFIC_HEAT_AIR, EPS, LAI_MIN
 logger = logging.getLogger(__name__)
 
 
@@ -602,6 +602,11 @@ def canopy_sw_ZhaoQualls(LAIz: np.ndarray, Clump: float, x: float, Zen: float,
     # beam; per unit truly sunlit LAIz
     aDiro = abs_beam / np.maximum(f_slo_true * LAIz, EPS)
 
+    # set cells where LAI < LAI_MIN to zero absorbed radiation
+    # fixes cases where total_abs and abs_beam are non-zero but LAIz is effectively zero
+    aDiffo[LAIz < LAI_MIN] = 0.0
+    aDiro[LAIz < LAI_MIN] = 0.0
+    
     # --- Sunlit / shaded split, energy-conserving ---
     # f_slo_true = Clump * exp(-Kb * Clump * LAI_cum) is the truly sunlit fraction.
     # Shaded pool = within-clump self-shaded [(1-Clump)*f_slo] + canopy-shaded [1-f_slo].

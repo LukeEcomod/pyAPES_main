@@ -35,7 +35,7 @@ class CanopyModel(object):
     multi-layer, multi-species plant canopies and forest floor.
     """
 
-    def __init__(self, cpara: Dict, dz_soil: np.ndarray, DDsum: float=0.0, X:float=0.0):
+    def __init__(self, cpara: Dict, dz_soil: np.ndarray, DDsum: float = 0.0, X: float = 0.0):
         r""" Initializes canopy object and submodel objects using given parameters.
 
         Args:
@@ -100,11 +100,11 @@ class CanopyModel(object):
         ptnames.sort()
         for pt in ptnames:
             # SL 17.3. changing call here. ctr parameters are now part of planttype parameters
-            #ptypes.append(PlantType(
+            # ptypes.append(PlantType(
             #    self.z, cpara['planttypes'][pt], dz_soil, ctr=cpara['ctr'], loc=cpara['loc']))
             ptypes.append(PlantType(
                 self.z, cpara['planttypes'][pt], dz_soil, loc=cpara['loc'], DDsum=DDsum, X=X))
- 
+
         self.planttypes = ptypes
 
         # --- stand characteristics: sum over planttypes---
@@ -178,7 +178,7 @@ class CanopyModel(object):
         for pt in self.planttypes:
             if pt.LAImax > 0.0:
                 PsiL = (pt.Roots.h_root - self.z) / 100.0  # MPa
-                
+
                 # effective REW: relative root area density weighted average over root zone layers
                 if not isinstance(Rew, float):
                     # compensated effective REW: g_sr-weighted, so wet layers with high conductance
@@ -187,11 +187,11 @@ class CanopyModel(object):
 
                     # alternatives (uncomment to switch):
                     # uncompensated root-density-weighted average:
-                    #rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)
-                    #rew_pt = float(np.clip(np.sum(rel_rad * np.maximum(0.0, Rew[pt.Roots.ix])), 0.0, 1.0))
+                    # rel_rad = pt.Roots.rad * pt.Roots.dz / (pt.Roots.RAI + EPS)
+                    # rew_pt = float(np.clip(np.sum(rel_rad * np.maximum(0.0, Rew[pt.Roots.ix])), 0.0, 1.0))
                 else:
                     rew_pt = Rew
-                    
+
                 # updates pt properties
                 pt.update_daily(doy, Ta, PsiL=PsiL, Rew=rew_pt)
 
@@ -291,7 +291,8 @@ class CanopyModel(object):
 
             # absorbed radiation by leafs [W m-2(leaf)]
             radiation_profiles['sw_absorbed'] = (
-                radiation_profiles['par']['sunlit']['absorbed'] * sunlit_fraction
+                radiation_profiles['par']['sunlit']['absorbed'] *
+                sunlit_fraction
                 + radiation_profiles['nir']['sunlit']['absorbed'] * sunlit_fraction
                 + radiation_profiles['par']['shaded']['absorbed'] *
                 (1. - sunlit_fraction)
@@ -463,16 +464,17 @@ class CanopyModel(object):
                 Tleaf += layer_stats_i['leaf_temperature'] * df * pt.lad
 
                 # leaf growth respiration per planttype, non-zero only when dLAI/dt > 0.
-                
+
                 if pt.LAImax > 0.0:
-                    rg_tot, rg_layer = pt.growth_respiration(Ta=forcing['air_temperature'])
+                    rg_tot, rg_layer = pt.growth_respiration(
+                        Ta=forcing['air_temperature'])
                     pt_stats_i['total_growth_respiration'] = rg_tot
                     Rg_total += rg_tot
                     sources['co2'] += rg_layer
-                
+
                 # append results
                 pt_stats.append(pt_stats_i)
-            
+
                 # set pt.lad=0 to np.NaN
                 layer_stats_i['leaf_temperature'] *= pt.mask
                 pt_layerwise.append(layer_stats_i)
@@ -594,8 +596,7 @@ class CanopyModel(object):
         # --- update state variables
         self.interception.update()
         self.forestfloor.update()
-        
-  
+
         # --- Compile outputs
 
         # --- integrate to ecosystem fluxes (per m-2 ground) ---
@@ -604,7 +605,8 @@ class CanopyModel(object):
         flux_latent_heat = (np.cumsum(
             sources['latent_heat']) * self.dz + ff_fluxes['latent_heat'])  # [W m-2]
         flux_sensible_heat = (np.cumsum(
-            sources['sensible_heat']) * self.dz + ff_fluxes['sensible_heat'])  # [W m-2]
+            # [W m-2]
+            sources['sensible_heat']) * self.dz + ff_fluxes['sensible_heat'])
 
         # net ecosystem exchange [umol m-2 (ground) s-1]
         NEE = flux_co2[-1]
@@ -645,60 +647,62 @@ class CanopyModel(object):
 
         outputs_canopy = {
 
-                # canopy state
-                'LAI': self.LAI, # m2 m-2
-                'lad': self.lad, # m2 m-3
-                'IterWMA': iter_no,
-                'WMA_assumption': 1.0*Switch_WMA,
-                'phenostate': sum([pt.LAI * pt.pheno_state for pt in self.planttypes])/(self.LAI + EPS),
+            # canopy state
+            'LAI': self.LAI,  # m2 m-2
+            'lad': self.lad,  # m2 m-3
+            'IterWMA': iter_no,
+            'WMA_assumption': 1.0*Switch_WMA,
+            'phenostate': sum([pt.LAI * pt.pheno_state for pt in self.planttypes])/(self.LAI + EPS),
 
-                # micromet profiles
-                'wind_speed': U,    # [m s-1]
-                'friction_velocity': ustar, # [m s-1]
-                'h2o': H2O, # [mol mol-1]
-                'co2': CO2, # [ppm]
-                'temperature': T, # [degC]
+            # micromet profiles
+            'wind_speed': U,    # [m s-1]
+            'friction_velocity': ustar,  # [m s-1]
+            'h2o': H2O,  # [mol mol-1]
+            'co2': CO2,  # [ppm]
+            'temperature': T,  # [degC]
 
-                # radiation profiles
-                'sunlit_fraction': sunlit_fraction, # [-]
-                'par_down': radiation_profiles['par']['down'], # [W m-2]
-                'par_up': radiation_profiles['par']['up'], # [W m-2]
-                'par_absorbed_sunlit': radiation_profiles['par']['sunlit']['absorbed'], #  [W m-2 (leaf)]
-                'par_absorbed_shaded': radiation_profiles['par']['shaded']['absorbed'],
-                'par_incident_sunlit': radiation_profiles['par']['sunlit']['incident'],
-                'par_incident_shaded': radiation_profiles['par']['shaded']['incident'],
-                
-                # CHECK UNITS!!
-                # total fluxes from interception model [kg m-2 s-1 = mm s-1], divide with WATER_DENSITY to get [kg m-2 s-1 = mm s-1]
-                'interception_storage': sum(self.interception.W),
-                'throughfall': wetleaf_fluxes['throughfall'],
-                'interception': wetleaf_fluxes['interception'],
-                'evaporation': wetleaf_fluxes['evaporation'],
-                'condensation': wetleaf_fluxes['condensation'],
-                'condensation_drip': wetleaf_fluxes['condensation_drip'],
-                'water_closure': wetleaf_fluxes['water_closure'],
+            # radiation profiles
+            'sunlit_fraction': sunlit_fraction,  # [-]
+            'par_down': radiation_profiles['par']['down'],  # [W m-2]
+            'par_up': radiation_profiles['par']['up'],  # [W m-2]
+            # [W m-2 (leaf)]
+            'par_absorbed_sunlit': radiation_profiles['par']['sunlit']['absorbed'],
+            'par_absorbed_shaded': radiation_profiles['par']['shaded']['absorbed'],
+            'par_incident_sunlit': radiation_profiles['par']['sunlit']['incident'],
+            'par_incident_shaded': radiation_profiles['par']['shaded']['incident'],
 
-                # vertical water flux profiles from interception model [kg m-2 s-1 = mm s-1]
-                'evaporation_ml': wetleaf_fluxes['evaporation_ml'],
-                'throughfall_ml': wetleaf_fluxes['throughfall_ml'],
-                'condensation_drip_ml': wetleaf_fluxes['condensation_drip_ml'],
+            # CHECK UNITS!!
+            # total fluxes from interception model [kg m-2 s-1 = mm s-1], divide with WATER_DENSITY to get [kg m-2 s-1 = mm s-1]
+            'interception_storage': sum(self.interception.W),
+            'interception_storage_ml': self.interception.W, #[kg m-2 (leaf) layer-1]
+            'throughfall': wetleaf_fluxes['throughfall'],
+            'interception': wetleaf_fluxes['interception'],
+            'evaporation': wetleaf_fluxes['evaporation'],
+            'condensation': wetleaf_fluxes['condensation'],
+            'condensation_drip': wetleaf_fluxes['condensation_drip'],
+            'water_closure': wetleaf_fluxes['water_closure'],
 
-                # ecosystem fluxes (per m2 ground)
-                'SH': flux_sensible_heat[-1], # W m-2
-                'LE': flux_latent_heat[-1], # W m-2
-                'NEE': NEE, # net ecosystem exchange [umol m-2 s-1]
-                'GPP': GPP, # gross-primary productivity [umol m-2 s-1]
-                'Reco': Reco, # ecosystem respiration [umol m-2 s-1]
-                'transpiration': Tr, # transpiration of all planttypes [m s-1]
+            # vertical water flux profiles from interception model [kg m-2 s-1 = mm s-1]
+            'evaporation_ml': wetleaf_fluxes['evaporation_ml'],
+            'throughfall_ml': wetleaf_fluxes['throughfall_ml'],
+            'condensation_drip_ml': wetleaf_fluxes['condensation_drip_ml'],
 
-                # flux profiles; integrating these with respect to z gives NEE, LE, SH
-                'co2_flux': flux_co2,  # [umol m-2 s-1]
-                'latent_heat_flux': flux_latent_heat,  # [W m-2]
-                'sensible_heat_flux': flux_sensible_heat,  # [W m-2]
+            # ecosystem fluxes (per m2 ground)
+            'SH': flux_sensible_heat[-1],  # W m-2
+            'LE': flux_latent_heat[-1],  # W m-2
+            'NEE': NEE,  # net ecosystem exchange [umol m-2 s-1]
+            'GPP': GPP,  # gross-primary productivity [umol m-2 s-1]
+            'Reco': Reco,  # ecosystem respiration [umol m-2 s-1]
+            'transpiration': Tr,  # transpiration of all planttypes [m s-1]
 
-                # root sink profile for Soil-model
-                'root_sink' : rootsink, # [m s-1]
-                }
+            # flux profiles; integrating these with respect to z gives NEE, LE, SH
+            'co2_flux': flux_co2,  # [umol m-2 s-1]
+            'latent_heat_flux': flux_latent_heat,  # [W m-2]
+            'sensible_heat_flux': flux_sensible_heat,  # [W m-2]
+
+            # root sink profile for Soil-model
+            'root_sink': rootsink,  # [m s-1]
+        }
 
         if self.Switch_Ebal:
             # layer - averaged leaf temperature; average over all plant-types
@@ -723,21 +727,31 @@ class CanopyModel(object):
                      [-1] - radiation_profiles['lw']['up'][-1])
 
             outputs_canopy.update({
-                    'sensible_heat_flux': flux_sensible_heat,  # [W m-2 (layer)]
-                    'energy_closure': energy_closure, # energy balance closure error [W m-2]
-                    'SWnet': SWnet, # [W m-2 (ground)]
-                    'LWnet': LWnet, # [W m-2 (ground)]
-                    'Rnet': SWnet + LWnet, # [W m-2 (ground)]
-                    'fr_source': sum(sources['fr'] * self.dz), # [W m-2], should be EQUAL TO energy_closure; corresponds to the error caused by linearizing sigma*ef*T^4)
+                'sensible_heat_flux': flux_sensible_heat,  # [W m-2 (layer)]
+                # energy balance closure error [W m-2]
+                'energy_closure': energy_closure,
+                'SWnet': SWnet,  # [W m-2 (ground)]
+                'LWnet': LWnet,  # [W m-2 (ground)]
+                'Rnet': SWnet + LWnet,  # [W m-2 (ground)]
+                # [W m-2], should be EQUAL TO energy_closure; corresponds to the error caused by linearizing sigma*ef*T^4)
+                'fr_source': sum(sources['fr'] * self.dz),
 
-                    # outputs from radiation-model
-                    'leaf_net_SW': radiation_profiles['sw_absorbed'], # [W m-2 leaf]
-                    'leaf_net_LW': radiation_profiles['lw']['net_leaf'], # [W m-2 leaf]
-                    'nir_down': radiation_profiles['nir']['down'], # [W m-2 ground]
-                    'nir_up': radiation_profiles['nir']['up'],
-                    'lw_down': radiation_profiles['lw']['down'],
-                    'lw_up': radiation_profiles['lw']['up'],
-                    })
+                # outputs from radiation-model
+                # [W m-2 leaf]
+                'leaf_net_SW': radiation_profiles['sw_absorbed'],
+                # [W m-2 leaf]
+                'leaf_net_LW': radiation_profiles['lw']['net_leaf'],
+                # [W m-2 ground]
+                'nir_down': radiation_profiles['nir']['down'],
+                'nir_up': radiation_profiles['nir']['up'],
+                'lw_down': radiation_profiles['lw']['down'],
+                'lw_up': radiation_profiles['lw']['up'],
+                # [W m-2 (leaf)]
+                'nir_absorbed_sunlit': radiation_profiles['nir']['sunlit']['absorbed'],
+                'nir_absorbed_shaded': radiation_profiles['nir']['shaded']['absorbed'],
+                'nir_incident_sunlit': radiation_profiles['nir']['sunlit']['incident'],
+                'nir_incident_shaded': radiation_profiles['nir']['shaded']['incident'],
+            })
 
         # plant-type specific results: this is dictionary of lists where each planttype value is element in list
         # integrated values over planttype

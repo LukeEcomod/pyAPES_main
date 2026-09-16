@@ -327,6 +327,7 @@ class ForestFloor(object):
             'capillary_rise': 0.0,  # [kg m-2 s-1]
             'pond_recharge': 0.0, # [kg m-2 s-1]
             'water_closure': 0.0, # [kg m-2 s-1]
+            'interception': 0.0,  # [kg m-2]
 
             'net_co2': 0.0, # [umol m-2(ground) s-1]
             'photosynthesis': 0.0,  # [umol m-2(ground) s-1]

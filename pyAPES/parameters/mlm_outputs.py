@@ -60,7 +60,6 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['canopy_par_incident_shaded', 'incident PAR of shaded leaves [W m-2]', ('date','simulation','canopy')],
       ['canopy_nir_incident_sunlit', 'incident NIR of sunlit leaves [W m-2]', ('date','simulation','canopy')],
       ['canopy_nir_incident_shaded', 'incident NIR of shaded leaves [W m-2]', ('date','simulation','canopy')],
-      ['canopy_leaf_incident_par', 'leaf incident par [W m-2]', ('date', 'simulation', 'canopy')],
 
       # vertical profiles, per m-2 ground
       ['canopy_par_down', 'downward PAR [W m-2]', ('date', 'simulation', 'canopy')],
