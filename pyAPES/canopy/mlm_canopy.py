@@ -217,6 +217,8 @@ class CanopyModel(object):
             # Avoid tiny residual LAD values that can cause numerical issues.
             snow_free_fraction[1:][snow_free_fraction[1:] < 0.1] = 0.0
             self.lad = self.lad * snow_free_fraction
+            if np.nansum(self.lad) == 0.0:
+                self.hc = 0.
 
         
         # layerwise mean leaf characteristic dimension [m]

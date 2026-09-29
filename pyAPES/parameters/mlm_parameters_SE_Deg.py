@@ -25,9 +25,9 @@ forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/SE-Deg/SE-Deg_forcin
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2021-09-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2022-09-01",  # end time of simulation [yyyy-mm-dd]
-         'start_doy': 244,
+         'start_time' : "2021-01-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2023-12-31",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 1,
          'forc_filename' : forcing_file,  # forcing data file
          'results_directory': 'results/',  # This is given relative to pyAPES main folder or if not in .env then current working directory
          'logging_directory': 'logs/',  # This is also given similar to results_directory
@@ -93,13 +93,13 @@ pt1 = {
         'seasonal_LAI': True,  # account for seasonal LAI dynamics
         'pheno_cycle': None #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
         },
-    'LAImax': 0.6, # maximum annual LAI m2m-2
-    'lad': lad_constant(z, LAI=1.0, h=0.5),  # leaf-area density m2m-3
+    'LAImax': 0.5, # maximum annual LAI m2m-2
+    'lad': lad_constant(z, LAI=1.0, h=0.3),  # leaf-area density m2m-3
     # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
 
     # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
     'laip': {
-        'lai_min': 0.1, # relative to LAImax
+        'lai_min': 0.01, # relative to LAImax
         'lai_ini': None,
         'DDsum0': 0.0,
         'Tbase': 5.0,
@@ -235,9 +235,6 @@ soil_respiration = {
     'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
     'beta': 1.0 # exponential decay for potential soil respiration depth profile
 }
-
-# Note: renewed bryophyte parameters
-
 
 # this is general Sphagnum parametrisation based on literature review
 Sphagnum = {
