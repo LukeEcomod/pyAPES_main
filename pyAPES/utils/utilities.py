@@ -45,9 +45,15 @@ def central_diff(y, dx) -> np.ndarray:
     # -- use central difference for estimating derivatives
     dydx[1:-1] = (y[2:] - y[0:-2]) / (2 * dx)
     # -- use forward difference at lower boundary
-    dydx[0] = (y[1] - y[0]) / dx
+    #dydx[0] = (y[1] - y[0]) / dx
+    # -- Fix 2026: Forward difference breaks when LAD is near ground and low
+    # Use three point forward and backward difference instead
+    # Three point forward difference at the lower boundary
+    dydx[0] = (-3*y[0] + 4*y[1] - y[2]) / (2 * dx)
     # -- use backward difference at upper boundary
-    dydx[-1] = (y[-1] - y[-2]) / dx
+    #dydx[-1] = (y[-1] - y[-2]) / dx
+    # Three point backward difference at the upper boundary
+    dydx[-1] = (3*y[-1] - 4*y[-2] + y[-3]) / (2 * dx)
 
     return dydx
 
