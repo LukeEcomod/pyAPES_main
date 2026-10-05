@@ -42,12 +42,14 @@ grid = {'zmax': 25.0,  # heigth of grid from ground surface. Corresponds to heig
 
 z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
 
+
 # --- Turbulent flow & scalar transport in air-space: pyAPES.microclimate.micromet.Micromet
 micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'dPdx': 0.0,  # horizontal pressure gradient [units]
             'Cd': 0.15,  # drag coefficient [-]
             'Utop': 5.0,  # ensemble U/ustar [-]
-            'Ubot': 0.01,  # flow at lower boundary [m s-1 or -]
+            'Ubot': 0.01,  # flow at lower boundary [m s-1 or -], not used if U_solver='fvm'
+            'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
             'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}  # turbulent Schmidt numbers in canopy flow
             }
 
@@ -192,6 +194,7 @@ snow = {
             'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
             'retention': 0.2,  # max fraction of liquid water in snow [-]
             'Tmelt': 273.15,  # temperature when melting starts [K]
+            'zos': 0.001, # snow surface roughness length [m]
             'optical_properties': {
                     'emissivity': 0.97,
                     'albedo': {'PAR': 0.8, 'NIR': 0.8}
