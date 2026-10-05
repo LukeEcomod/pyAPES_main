@@ -235,7 +235,7 @@ class OrganicLayer(object):
         if controls['energy_balance']:
             # calculate moss / litter energy and water balance
             if forcing['snow_water_equivalent'] > 0. and self.snow_model == 'fsm2': # snow covers the litter -> compute only water exchange
-                fluxes, states = self.water_exchange_under_snow(
+                fluxes, states = self.heat_and_water_exchange_under_snow(
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
@@ -795,8 +795,8 @@ class OrganicLayer(object):
     def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0) -> Tuple:
         """
         Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
-        This is currently not used due to instability. Check iterative solution of temperature need
-        when freezing/thawing is happening. Implemented in heat_and_water_exchange()
+        Moss temperature follows from the heat flux from snow, conduction to soil and heat advected
+        with water; freezing/thawing is solved iteratively as in heat_and_water_exchange().
         Args:
             - dt (float): timestep [s]
             - forcing (dict):
@@ -837,40 +837,46 @@ class OrganicLayer(object):
                 - 'hydraulic_conductivity'(float): [m s-1]
                 - 'thermal_conductivity' (float): [K m-1 s-1]
         """
-        # --- Water exchange --- (no evaporation because under snow)
+        # --- Water and heat exchange --- (no evaporation because under snow)
         # [kg m-2] or [mm]
         water_storage = self.water_storage
         max_storage = self.max_water_content * self.dry_mass
         temperature = self.temperature
-        volumetric_water = self.volumetric_water
-
-        wliq, wice, gamma = frozen_water(temperature, water_storage)
-        theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # liquid volumetric [m3 m-3]
 
         zm = 0.5 * self.height
         zs = abs(parameters['soil_depth'])
 
+        # cumulative over dt: water [kg m-2], heat [J m-2]
         capillary_rise = 0.0
-        interception = 0.0 
+        interception = 0.0
         pond_recharge = 0.0
         ground_heat_flux = 0.0
         heat_advection = 0.0
 
-        # -- time loop
+        # specifications for iterative solution
+        Conv_crit1 = 1.0e-3  # degC
+        Conv_crit2 = 1.0e-5  # ice content m3/m3
+
+        # -- time loop broken into subtimesteps
         t = 0.0
         while t < dt:
+            REDO = False
+
+            # --- state at the beginning of subtimestep
+            wtot = water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density  # total volumetric [m3 m-3]
+            theta_liq, _, _ = frozen_water(temperature, wtot)
+            wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
+
             #--- interception of rainfall and recharge from ponding water during subdt [kg m-2 == mm]
             # use assumptotic function
             sub_interception = ((max_storage - water_storage) *
                             (1.0 - np.exp(-(1.0 / max_storage)
                             * forcing['precipitation'] * sub_dt)))
-            water_storage += sub_interception
-            interception += sub_interception
+            new_water_storage = water_storage + sub_interception
 
-            sub_pond_recharge = min(max_storage - water_storage,
+            sub_pond_recharge = min(max_storage - new_water_storage,
                                 forcing['max_pond_recharge'] * sub_dt)
-            water_storage += sub_pond_recharge
-            pond_recharge += sub_pond_recharge
+            new_water_storage += sub_pond_recharge
 
             #--- capillary rise from underlying soil during subdt [kg m-2]
             # water potential [m]
@@ -891,18 +897,15 @@ class OrganicLayer(object):
                 (water_potential - forcing['soil_water_potential'])
                 / (zm + zs) + 1.0)) * WATER_DENSITY * sub_dt)
 
-            sub_capillary_rise = min(max_storage - water_storage,
+            sub_capillary_rise = min(max_storage - new_water_storage,
                                 sub_capillary_rise)
-            water_storage += sub_capillary_rise
-            capillary_rise += sub_capillary_rise
-
-            #--- compute new state
-            water_content = water_storage / self.dry_mass  # [g g-1]
-            wtot = water_content / WATER_DENSITY * self.bulk_density  # total volumetric [m3 m-3]
-            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
+            new_water_storage += sub_capillary_rise
 
             # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
-            # heat conduction between moss and soil [W m-2 K-1]
+            wtot = new_water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
+
+            # heat conduction between moss and soil [W m-1 K-1]
             moss_thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
             # thermal conductance [W m-2 K-1]; assume the layers act as two resistors in series
@@ -912,49 +915,87 @@ class OrganicLayer(object):
             thermal_conductance = (g_moss * g_soil) / (g_moss + g_soil)
 
             # [J m-2 s-1 == W m-2]
-            sub_ground_heat_flux = thermal_conductance *(self.temperature - forcing['soil_temperature'])
-            ground_heat_flux += sub_ground_heat_flux * sub_dt
+            sub_ground_heat_flux = thermal_conductance * (temperature - forcing['soil_temperature'])
 
-            # heat lost or gained with liquid water removing/entering [J m-2 s-1 == W m-2]
+            # heat gained with liquid water entering from soil and pond; melt water assumed to be at 0 degC [W m-2]
             sub_heat_advection = SPECIFIC_HEAT_H2O * (
-                            sub_interception * 0.0  # melt water is always zero?
-                            + sub_capillary_rise * forcing['soil_temperature']
-                            + sub_pond_recharge * forcing['soil_temperature']
+                            (sub_capillary_rise + sub_pond_recharge) / sub_dt * forcing['soil_temperature']
                             )
-            heat_advection += sub_heat_advection * sub_dt
 
-            # heat capacities [J K-1 m-2]  - air content?
-            apparent_heat_capacity_old = (
-                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-                + SPECIFIC_HEAT_H2O * wliq
-                + SPECIFIC_HEAT_ICE * wice
-                + LATENT_HEAT_FREEZING * gamma)
-            
-            # liquid and ice content, and dWliq/dTs - based on old temperature (causes error to energy balance closure - but do we want iterative solution?)!
-            wliq, wice, gamma = frozen_water(temperature, water_storage)
-
-            apparent_heat_capacity_new = (
-                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
-                + SPECIFIC_HEAT_H2O * wliq
-                + SPECIFIC_HEAT_ICE * wice
-                + LATENT_HEAT_FREEZING * gamma)
-
-            # calculate new temperature from heat balance
-            sub_heat_fluxes = (
+            heat_fluxes = (
                     + forcing['snow_heat_flux']
                     + sub_heat_advection
                     - sub_ground_heat_flux
                     )
 
-            # new temperature
-            temperature = (sub_heat_fluxes * sub_dt + apparent_heat_capacity_old * temperature) / apparent_heat_capacity_new
-            
-            # advance in time
-            t = t + sub_dt
-        
-        # new state
-        water_potential = water_retention_curve(self.water_retention, theta_liq) # [m]
-        Kliq = hydraulic_conductivity(self.water_retention, theta_liq) #[m s-1]
+            # heat capacity at beginning of subtimestep [J K-1 m-2]
+            heat_capacity_old = (
+                SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                + SPECIFIC_HEAT_H2O * wliq_old
+                + SPECIFIC_HEAT_ICE * wice_old)
+
+            T_old = temperature
+
+            # changes during iteration
+            T_iter = temperature
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+
+            err1 = 999.0
+            err2 = 999.0
+            iterNo = 0
+
+            """ iterative solution """
+            while err1 > Conv_crit1 or err2 > Conv_crit2:
+
+                iterNo += 1
+
+                heat_capacity = (
+                    SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
+                    + SPECIFIC_HEAT_H2O * wliq_iter
+                    + SPECIFIC_HEAT_ICE * wice_iter)
+                A = LATENT_HEAT_FREEZING * gamma
+
+                # save old iteration values
+                T_iterold = T_iter
+                wice_iterold = wice_iter
+
+                # solved as in soil
+                T_iter = (heat_fluxes * sub_dt + heat_capacity_old * T_old
+                        + A * T_iter + LATENT_HEAT_FREEZING * (wice_iter - wice_old)) / (heat_capacity + A)
+
+                if (T_iter > 0.) and (T_old > 0.) and (iterNo == 1):
+                    break
+
+                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+
+                err1 = abs(T_iter - T_iterold)
+                err2 = abs(wice_iter - wice_iterold)
+
+                if iterNo == 20:
+                    logger.debug('moss under snow: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
+                                 sub_dt, err1, err2)
+                    break
+
+                # adapt time step and restart
+                if (iterNo >= 5) and (sub_dt > 100):
+                    sub_dt = sub_dt / 2
+                    REDO = True
+                    break
+
+            if REDO == False:
+                temperature = T_iter
+                water_storage = new_water_storage
+
+                interception += sub_interception
+                pond_recharge += sub_pond_recharge
+                capillary_rise += sub_capillary_rise
+                ground_heat_flux += sub_ground_heat_flux * sub_dt
+                heat_advection += sub_heat_advection * sub_dt
+
+                # advance in time
+                t = t + sub_dt
+
+        # --- end of subtimestep loop
 
         # fluxes
         capillary_rise = capillary_rise / dt
@@ -964,8 +1005,8 @@ class OrganicLayer(object):
         heat_advection = heat_advection / dt
 
         # water balance closure [kg m-2 s-1] or [mm s-1]
-        water_closure = (water_storage - self.water_storage 
-                        - capillary_rise - interception - pond_recharge) / dt
+        water_closure = ((water_storage - self.water_storage) / dt
+                         - (capillary_rise + interception + pond_recharge))
 
         # energy closure
         heat_content_old = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
@@ -973,16 +1014,22 @@ class OrganicLayer(object):
                             + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
                             - LATENT_HEAT_FREEZING * self.ice_storage)
 
+        # new state
         wliq, wice, _ = frozen_water(temperature, water_storage)
 
+        water_content = water_storage / self.dry_mass  # [g g-1]
         theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
         theta_ice = wice / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
+
+        water_potential = water_retention_curve(self.water_retention, theta_liq) # [m]
+        Kliq = hydraulic_conductivity(self.water_retention, theta_liq) #[m s-1]
+        moss_thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
 
         heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
                             + SPECIFIC_HEAT_H2O * wliq
                             + SPECIFIC_HEAT_ICE * wice) * temperature
                             - LATENT_HEAT_FREEZING * wice)
-        
+
         energy_closure =  ((heat_conten_new - heat_content_old) / dt
                            - forcing['snow_heat_flux'] - heat_advection + ground_heat_flux)
 
@@ -1125,7 +1172,8 @@ class OrganicLayer(object):
             volumetric_water = (water_content / WATER_DENSITY * self.bulk_density)  # [m3 m-3]
 
             # heat conductivity between moss and soil [W m-2 K-1]
-            moss_thermal_conductivity = thermal_conductivity(volumetric_water)
+            moss_thermal_conductivity = thermal_conductivity(volumetric_water, volumetric_ice=0.0,
+                                                             porosity=self.porosity)
             
             # liquid and ice content, and dWliq/dTs - based on old temperature (causes error to energy balance closure - but do we want iterative solution?)!
             wliq, wice, gamma = frozen_water(temperature, water_storage)
@@ -1453,9 +1501,11 @@ def thermal_conductivity(volumetric_water: float, volumetric_ice: float=0.0, por
         # Porada et al. 2016 (citing Ekici et al. 2014)
         Lo = 0.05
         wtot = volumetric_water + volumetric_ice
-        Ke = wtot / porosity
-        L = np.power(K_ORG, 1.0 - wtot) * np.power(K_WATER, volumetric_water) \
-            * np.power(K_ICE, volumetric_ice) * Ke + (1 - Ke) * Lo
+        Ke = np.clip(wtot / porosity, 0.0, 1.0)  # degree of saturation
+        # saturated conductivity as in soil.heat.thermal_conductivity
+        Lsat = np.power(K_ORG, 1.0 - porosity) * np.power(K_WATER, porosity - volumetric_ice) \
+            * np.power(K_ICE, volumetric_ice)
+        L = (Lsat - Lo) * Ke + Lo
    
     elif method == 'odonnel':  # O'Donnell
         L = np.minimum(0.6, 3.0e-2 + 0.5 * volumetric_water + K_ICE/K_WATER * 0.5* volumetric_ice)
