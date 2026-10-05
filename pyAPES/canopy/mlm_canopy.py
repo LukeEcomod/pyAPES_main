@@ -324,7 +324,7 @@ class CanopyModel(object):
         # --- start iterative solution of H2O, CO2, T, Tleaf and Tsurf ---
 
         max_err = 0.01  # maximum relative error
-        max_iter = 25  # maximum iterations
+        max_iter = 50  # maximum iterations
         gam = 0.5  # weight for new value in iterations
         gam_floor = 0.01
         err_t, err_h2o, err_co2, err_Tl, err_Ts = 999., 999., 999., 999., 999.
@@ -509,7 +509,7 @@ class CanopyModel(object):
             # mean leaf temperature of canopy layer
             Tleaf = Tleaf / (self.lad + EPS)
 
-            err_Tl = max(abs(Tleaf - Tleaf_prev))
+            err_Tl = max(max(abs(Tleaf - Tleaf_prev), self.interception.err_raw, *[err for pt in self.planttypes for err in pt.err_raw.values()]))
 
             # --- solve forest floor water & heat balance & carbon exchange ---
 

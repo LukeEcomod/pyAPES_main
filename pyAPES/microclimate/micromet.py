@@ -179,59 +179,58 @@ class Micromet(object):
         T_prev = T.copy()
 
         # --- H2O ---
-        H2O = closure_1_model_scalar(dz=self.dz,
+        H2O_new = closure_1_model_scalar(dz=self.dz,
                                      Ks=self.Km * self.Sc['H2O'],
                                      source=source['h2o'],
                                      ubc=H2O[-1],
                                      lbc=lbc['H2O'],
                                      scalar='H2O',
                                      T=T[-1], P=P)
+        # relative error
+        err_h2o = max(abs((H2O_new - H2O_prev) / H2O_prev))
         # new H2O
-        H2O = (1 - gam) * H2O_prev + gam * H2O
+        H2O = (1 - gam) * H2O_prev + gam * H2O_new
         # limit change to +/- 10%
         if all(~np.isnan(H2O)):
             H2O[H2O > H2O_prev] = np.minimum(H2O_prev[H2O > H2O_prev] * 1.1, H2O[H2O > H2O_prev])
             H2O[H2O < H2O_prev] = np.maximum(H2O_prev[H2O < H2O_prev] * 0.9, H2O[H2O < H2O_prev])
         
-        # relative error
-        err_h2o = max(abs((H2O - H2O_prev) / H2O_prev))
-
         # --- CO2 ---
-        CO2 = closure_1_model_scalar(dz=self.dz,
+        CO2_new = closure_1_model_scalar(dz=self.dz,
                                      Ks=self.Km * self.Sc['CO2'],
                                      source=source['co2'],
                                      ubc=CO2[-1],
                                      lbc=lbc['CO2'],
                                      scalar='CO2',
                                      T=T[-1], P=P)
+        # relative error
+        err_co2 = max(abs((CO2_new - CO2_prev) / CO2_prev))
         # new CO2
-        CO2 = (1 - gam) * CO2_prev + gam * CO2
+        CO2 = (1 - gam) * CO2_prev + gam * CO2_new
         # limit change to +/- 10%
         if all(~np.isnan(CO2)):
             CO2[CO2 > CO2_prev] = np.minimum(CO2_prev[CO2 > CO2_prev] * 1.1, CO2[CO2 > CO2_prev])
             CO2[CO2 < CO2_prev] = np.maximum(CO2_prev[CO2 < CO2_prev] * 0.9, CO2[CO2 < CO2_prev])
-        
-        # relative error
-        err_co2 = max(abs((CO2 - CO2_prev) / CO2_prev))
-
+ 
         if Ebal:
             # --- T ---
-            T = closure_1_model_scalar(dz=self.dz,
+            T_new = closure_1_model_scalar(dz=self.dz,
                                        Ks=self.Km * self.Sc['T'],
                                        source=source['sensible_heat'],
                                        ubc=T[-1],
                                        lbc=lbc['T'],
                                        scalar='T',
                                        T=T[-1], P=P)
+            # absolute error
+            err_t = max(abs(T_new - T_prev))
             # new T
-            T = (1 - gam) * T_prev + gam * T
+            T = (1 - gam) * T_prev + gam * T_new
             # limit change to T_prev +/- 2degC
             if all(~np.isnan(T)):
                 T[T > T_prev] = np.minimum(T_prev[T > T_prev] + 2.0, T[T > T_prev])
                 T[T < T_prev] = np.maximum(T_prev[T < T_prev] - 2.0, T[T < T_prev])
 
-            # absolute error
-            err_t = max(abs(T - T_prev))
+
         else:
             err_t = 0.0
 

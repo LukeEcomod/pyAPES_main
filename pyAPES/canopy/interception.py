@@ -175,7 +175,7 @@ class Interception(object):
         s = s / P  # [mol mol-1 K-1]
 
         """ --- solve wet Leaf temperature from energy balance--- """
-        itermax = 30
+        itermax = 50
         err = 999.0
         prev_err = 999.0
         iterNo = 0
@@ -194,13 +194,15 @@ class Interception(object):
                 # solve leaf temperature [degC]
                 Tl_wet_new[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - L[ic]*gb_v[ic]*Dleaf[ic]
                   + L[ic]*s[ic]*gb_v[ic]*Told[ic]) / (SPECIFIC_HEAT_AIR*(gr[ic] + gb_h[ic]) + L[ic]*s[ic]*gb_v[ic])
-                Tl_wet[ic] = gamma * Tl_wet_new[ic] + (1-gamma)*Told[ic]
-                err = np.nanmax(abs(Tl_wet - Told))
+                
+                err = np.nanmax(abs(Tl_wet_new - Told)) # calculate error before relaxation
+
+                Tl_wet[ic] = gamma * Tl_wet_new[ic] + (1-gamma)*Told[ic] # relaxation
+                
 
                 if iterNo > osc_check_after and err > prev_err:
                         # Oscillation in the solution. Take mean of old and new Tl and half the relaxation factor gamma
                         Tl_wet[ic] = 0.5 * (Told[ic] + Tl_wet[ic])
-                        err = np.nanmax(np.abs(Tl_wet - Told))
                         gamma = np.maximum(gamma / 2, gamma_floor)
                 prev_err = err
                 if (err < 0.01 or iterNo == itermax) and abs(np.mean(T) - np.mean(Tl_wet)) > 20.0:
@@ -220,7 +222,7 @@ class Interception(object):
 
             else:
                 err = 0.0
-
+        self.err_raw = err
         # --- energy and water fluxes for wet leaf ---
 
         # sensible heat flux [W m-2(wet leaf)]

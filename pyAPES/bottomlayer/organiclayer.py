@@ -1537,7 +1537,9 @@ def evaporation_through_organic_layer(forcing: Dict, boundary_layer_conductance:
     Estimates soil evaporation rate through the organic layer.
 
     Evaporation is limited either by atmospheric demand
-    and transport or supply of water.
+    and transport or supply of water. Transport of water (supply) is calculated
+    from the 1st soil node to the boundary of soil and atmosphere. Hence, relative
+    humidity of air is calculated with respect to the 1st soil node temperature.
 
     Water vapor flow from soil to air must overcome two resistances
     in series: 1) molecular diffusion through porous organic layer, 2) molecular
@@ -1591,10 +1593,10 @@ def evaporation_through_organic_layer(forcing: Dict, boundary_layer_conductance:
                             )
 
     #  soil supply
-    rh_air = min(1.0, h2o / saturation_vapor_pressure(Ta))
+    rh_air = min(1.0, h2o / saturation_vapor_pressure(Ts))
 
     # [m], in equilibrium with atmospheric relative humidity
-    atm_hydraulic_head = (GAS_CONSTANT * (Ta + DEG_TO_KELVIN) * np.log(rh_air)
+    atm_hydraulic_head = (GAS_CONSTANT * (Ts + DEG_TO_KELVIN) * np.log(rh_air)
                         / (MOLAR_MASS_H2O * GRAVITY))
 
     # E = -Kh * [(ha - hs) / zs + 1.0]
