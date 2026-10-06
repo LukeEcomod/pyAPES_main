@@ -138,6 +138,7 @@ def driver(parameters,
             tasks[k].Ncanopy_nodes,
             tasks[k].Nplant_types,
             tasks[k].Nground_types,
+            tasks[k].Nsnow_layers,
             time_index=time_index,
             filepath=gpara['results_directory'],
             filename=ncf_filename)
@@ -233,6 +234,9 @@ class MLM_model(object):
         self.Nplant_types = len(self.canopy_model.planttypes)
         self.Nground_types = len(
             self.canopy_model.forestfloor.bottomlayer_types)
+        # Nsmax if using fsm2 snow model, else default to 1 (degreeday model has no layers)
+        self.Nsnow_layers = getattr(
+            self.canopy_model.forestfloor.snowpack.model, 'Nsmax', 1)
 
         # initialize temorary structure to save results
         # stored so that _run_chunked can allocate per-chunk result buffers
@@ -243,7 +247,8 @@ class MLM_model(object):
                                            self.Nsoil_nodes,
                                            self.Ncanopy_nodes,
                                            self.Nplant_types,
-                                           self.Nground_types)
+                                           self.Nground_types,
+                                           self.Nsnow_layers)
 
     def run(self, write_interval=None):
         """
@@ -511,7 +516,8 @@ class MLM_model(object):
             chunk_results = _initialize_results(
                 self.outputs, chunk_len,
                 self.Nsoil_nodes, self.Ncanopy_nodes,
-                self.Nplant_types, self.Nground_types)
+                self.Nplant_types, self.Nground_types,
+                self.Nsnow_layers)
 
             # Run steps for this interval; local indices start at 0 in chunk_results
             self._run_steps(t_start, t_end, chunk_results, index_offset=t_start)
@@ -535,7 +541,8 @@ def _initialize_results(variables: Dict,
                         Nsoil_nodes: int,
                         Ncanopy_nodes: int,
                         Nplant_types: int,
-                        Nground_types: int):
+                        Nground_types: int,
+                        Nsnow_layers: int = 1):
     """
     Creates temporary dictionary to accumulate simulation results
     Args:
@@ -577,6 +584,9 @@ def _initialize_results(variables: Dict,
                 var_shape = [Nground_types]
             else:
                 var_shape = [Nstep, Nground_types]
+
+        elif 'snowpack' in dimensions:
+            var_shape = [Nstep, Nsnow_layers]
 
         else:
             var_shape = [Nstep]

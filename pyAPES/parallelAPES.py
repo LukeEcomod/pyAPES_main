@@ -190,6 +190,7 @@ def driver(tasks,
         canopy_nodes=ncf_params['Ncanopy_nodes'],
         planttypes=ncf_params['Nplant_types'],
         groundtypes=ncf_params['Nground_types'],
+        snow_layers=ncf_params['Nsnow_layers'],
         time_index=ncf_params['time_index'],
         filepath=ncf_params['filepath'],
         filename=ncf_params['filename'])
@@ -283,6 +284,8 @@ if __name__ == '__main__':
         'Ncanopy_nodes': tasks[0]['canopy']['grid']['Nlayers'],
         'Nplant_types': len(tasks[0]['canopy']['planttypes']),
         'Nground_types': 1,  # This is tricky if it varies between simulations!!!!!
+        'Nsnow_layers': tasks[0]['canopy']['forestfloor']['snowpack'].get(
+            'fsm2', {}).get('layers', {}).get('Nsmax', 1),
         'time_index': tasks[0]['forcing'].index,
         'filename': time.strftime('%Y%m%d%H%M_') + scen + '_pyAPES_results.nc',
         'filepath': tasks[0]['general']['results_directory'],
