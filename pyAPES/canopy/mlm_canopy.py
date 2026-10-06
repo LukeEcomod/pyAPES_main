@@ -509,7 +509,7 @@ class CanopyModel(object):
             # mean leaf temperature of canopy layer
             Tleaf = Tleaf / (self.lad + EPS)
 
-            err_Tl = max(max(abs(Tleaf - Tleaf_prev), self.interception.err_raw, *[err for pt in self.planttypes for err in pt.err_raw.values()]))
+            err_Tl = max(max(abs(Tleaf - Tleaf_prev)), self.interception.err_raw, *[err for pt in self.planttypes for err in pt.err_raw.values()])
 
             # --- solve forest floor water & heat balance & carbon exchange ---
 
