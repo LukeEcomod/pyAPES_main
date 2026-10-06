@@ -14,6 +14,7 @@ import numpy as np
 import os
 import pathlib
 from pyAPES.utils.utilities import lad_weibul, lad_constant
+from pyAPES.soil.heat import sinusoidal_soil_temperature
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -25,7 +26,7 @@ forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/SE-Deg/SE-Deg_forcin
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2021-01-01",  # start time of simulation [yyyy-mm-dd]
+         'start_time' : "2020-01-01",  # start time of simulation [yyyy-mm-dd]
          'end_time' : "2023-12-31",  # end time of simulation [yyyy-mm-dd]
          'start_doy': 1,
          'forc_filename' : forcing_file,  # forcing data file
@@ -168,7 +169,7 @@ snow = {
     # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
     'fsm2': {'physics_options': {
                 'DENSTY': 1,
-                'HYDRL': 1,
+                'HYDRL':  1,
                 'CONDCT': 1,
                 'ZOFFST': 0,
                 'EXCHNG': 0,
@@ -301,29 +302,29 @@ cpara = {'loc': loc,
 # --- Soil water & heat: pyAPES.soil.Soil
 
 # grid and soil properties: pF and conductivity values for Degerö Stormyr peat profile
-soil_grid = {  # thickness of computational layers [m]: 0.01 m until 0.1m, 0.02m until 0.3m, 0.05m until 1.0m, 0.1m until 2m depth
-            'dz': [0.01] * 10 + [0.02] * 10 + [0.05] * 14 + [0.1] * 10,
+soil_grid = {  # thickness of computational layers [m]: 0.01 m until 0.1m, 0.02m until 0.3m, 0.05m until 1.0m, 0.1m until 5m depth
+            'dz': [0.01] * 10 + [0.02] * 10 + [0.05] * 14 + [0.1] * 40,
             # bottom depth of layers with different characteristics [m]
-            'zh': [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1., -1.5, -2.0]
+            'zh': [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1., -1.5, -2.0, -5.0]
             }
 
 soil_properties = {
     'pF': {  # vanGenuchten water retention parameters
-           'ThetaS': [0.945, 0.945, 0.945, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918],  # [m3m-3]
-           'ThetaR': [0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098],  # [m3m-3]
-           'alpha': [0.338, 0.338, 0.338, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072],  # [cm-1]
-           'n': [1.402, 1.402, 1.402, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371]  # [-]
+            'ThetaS': [0.945, 0.945, 0.945, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918],  # [m3m-3]
+            'ThetaR': [0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098],  # [m3m-3]
+            'alpha': [0.338, 0.338, 0.338, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072],  # [cm-1]
+            'n': [1.402, 1.402, 1.402, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371]  # [-]
     },
-    'saturated_conductivity_vertical': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
-    'saturated_conductivity_horizontal': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_vertical': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_horizontal': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
     'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
     'solid_composition': {  # fraction of solids
-        'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        'sand':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'silt':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'clay':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        'sand':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'silt':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'clay':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    'freezing_curve': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # freezing curve parameter
+    'freezing_curve': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # freezing curve parameter
     'bedrock': {
         'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
         'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -333,7 +334,7 @@ soil_properties = {
 # --- water model: pyAPES.soil.water.Water
 water_model = {'solve': True,
                'type': 'Equilibrium',  # solution approach 'Richards' | 'Equilibrium'
-               'pond_storage_max': 0.002,  #  maximum pond depth [m]
+               'pond_storage_max': 0.0,  #  maximum pond depth [m]
                'initial_condition': {
                        'ground_water_level': -0.05,  # groundwater depth [m], <=0
                        'pond_storage': 0.0  # pond depth at surface [m]
@@ -341,7 +342,7 @@ water_model = {'solve': True,
                'lower_boundary': {
                        'type': 'impermeable',
                        'value': None,
-                       'depth': -2.0
+                   'depth': -5.0
                        },
                'drainage_equation': {
                        'type': 'Hooghoudt',
@@ -353,13 +354,14 @@ water_model = {'solve': True,
 
 # --- heat model: pyAPES.soil.heat.Heat
 T_ini = 2.0
+
 heat_model = {'solve': True,
               'initial_condition': {
                       'temperature': T_ini,  # initial soil temperature [degC], assumed constant with depth - can also be array of correct length
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',
-                      'value': 2.0
+                      'value': 5.0
                       },
               }
 
