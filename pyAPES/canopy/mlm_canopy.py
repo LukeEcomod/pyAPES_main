@@ -14,6 +14,7 @@ References:
 
 """
 
+import copy
 import logging
 import numpy as np
 from typing import List, Dict, Tuple
@@ -323,8 +324,9 @@ class CanopyModel(object):
         # --- start iterative solution of H2O, CO2, T, Tleaf and Tsurf ---
 
         max_err = 0.01  # maximum relative error
-        max_iter = 25  # maximum iterations
+        max_iter = 50  # maximum iterations
         gam = 0.5  # weight for new value in iterations
+        gam_floor = 0.01
         err_t, err_h2o, err_co2, err_Tl, err_Ts = 999., 999., 999., 999., 999.
         Switch_WMA = self.Switch_WMA
 
@@ -410,6 +412,7 @@ class CanopyModel(object):
                     'lw_radiative_conductance': radiation_profiles['lw']['radiative_conductance'],
                     'net_lw_leaf': radiation_profiles['lw']['net_leaf'],
                 })
+
 
             # --- solve interception model
             wetleaf_fluxes = self.interception.run(
@@ -506,7 +509,7 @@ class CanopyModel(object):
             # mean leaf temperature of canopy layer
             Tleaf = Tleaf / (self.lad + EPS)
 
-            err_Tl = max(abs(Tleaf - Tleaf_prev))
+            err_Tl = max(max(abs(Tleaf - Tleaf_prev)), self.interception.err_raw, *[err for pt in self.planttypes for err in pt.err_raw.values()])
 
             # --- solve forest floor water & heat balance & carbon exchange ---
 
@@ -583,7 +586,7 @@ class CanopyModel(object):
                 # to recognize oscillation
                 if iter_no > 5 and np.mean((T_prev - T)**2) > np.mean((T_prev2 - T)**2):
                     T = (T_prev + T) / 2
-                    gam = max(gam / 2, 0.25)
+                    gam = max(gam / 2, gam_floor)
 
                 if (iter_no == max_iter or any(np.isnan(T)) or
                         any(np.isnan(H2O)) or any(np.isnan(CO2))):

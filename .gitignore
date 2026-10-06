@@ -177,3 +177,10 @@ notebooks/
 
 # plans
 plans/
+
+#debug
+debug/
+debug_captures/
+
+# Claude
+.claude
