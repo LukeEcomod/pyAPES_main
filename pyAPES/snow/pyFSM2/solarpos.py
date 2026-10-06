@@ -45,7 +45,7 @@ class SolarPos():
         lat = forcing['lat']
         noon = forcing['noon']
 
-        DoY = (7*year)/4 - 7*(year+(month+9)/12)/4 + (275*month)/9 + day - 30
+        DoY = (7*year)//4 - 7*(year+(month+9)//12)//4 + (275*month)//9 + day - 30
 
         dangle = 2*PI*(DoY - 1)/365
 
