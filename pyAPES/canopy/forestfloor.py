@@ -373,11 +373,11 @@ class ForestFloor(object):
                 'Ta': forcing['air_temperature'] + DEG_TO_KELVIN,
                 'Ua': forcing['wind_speed'],
                 'reference_height': parameters['reference_height'],
-                'Dzsoil': parameters['soil_depth'], # soil_depth [m] of first soil calculation node
-                'Dzbt': self.height, # organic layer depth [m]
-                'Tsoil': forcing['soil_temperature'][0] + DEG_TO_KELVIN, # soil_temperature [K] of first soil calculation node
+                'Dzsoil': self.height, # moss is the lower layer of the snow model; thickness [m]
+                'Dzbt': 0.0, # organic layer is not stacked on top of the lower layer
+                'Tsoil': self.temperature + DEG_TO_KELVIN, # moss temperature [K]
                 'Tbt': self.bt_surface_temperature + DEG_TO_KELVIN, # organic layer surface temperature [K]
-                'ksoil': parameters['soil_thermal_conductivity'], # soil_thermal_conductivity [W m-1 K-1]
+                'ksoil': self.thermal_conductivity, # moss thermal conductivity [W m-1 K-1]
                 'kbt': self.thermal_conductivity, # organic layer thermal conductivity [W m-1 K-1]
                 'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
                 'alb0': self.bt_albedo['PAR'], # snow-free surface albedo
