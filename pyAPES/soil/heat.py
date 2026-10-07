@@ -356,6 +356,9 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
 
             # solve new temperature and ice content
             T_iter = thomas(a, b, g, f)
+            # under-relax to damp 2-cycles around the freezing point (gamma is discontinuous at To)
+            if iterNo > 5:
+                T_iter = 0.5 * (T_iter + T_iterold)
             Wliq_iter, Wice_iter, gamma = frozen_water(T_iter, Wtot, fp=fp, To=FREEZING_POINT_H2O)
 
             # if problems reaching convergence devide time step and retry
@@ -600,6 +603,9 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     L = (wliq*kw + f_gas*wair*kg + f_min*f_solid*ks + f_ice*wice*ki) \
         / (wliq + f_gas*wair + f_min*f_solid + f_ice*wice)
 
+    # in fully organic layer, use o'Donnell et al. 2009
+    #L[f_org >= 0.9] = 0.032 + 5e-1 * wliq[f_org >= 0.9]
+
     # organic layers:
     ix = f_org > 0.5 # OM content > 30% of mass
     # o'Donnell et al. 2009, extended for ice;
@@ -610,8 +616,11 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     # Porada et al. 2016 (citing Ekici et al. 2014)
     Lo = 0.05
     wtot = wliq + wice
-    Ke = wtot / poros
-    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * Ke[ix] + (1- Ke[ix]) * Lo
+    Ke = np.clip(wtot / poros, 0.0, 1.0)  # Kersten number (degree of saturation)
+    # saturated conductivity: geometric mean over solids, water and ice
+    Lsat = (np.power(K_ORG, 1.0 - poros[ix]) * np.power(K_WATER, poros[ix] - wice[ix])
+            * np.power(K_ICE, wice[ix]))
+    L[ix] = (Lsat - Lo) * Ke[ix] + Lo
     
     # geometric mean
     #L[ix] = np.power(K_ORG, f_solid[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * np.power(K_AIR, wair[ix])
