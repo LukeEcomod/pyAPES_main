@@ -13,8 +13,7 @@ Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 import numpy as np
 import os
 import pathlib
-from pyAPES.utils.utilities import lad_weibul, lad_constant
-from pyAPES.soil.heat import sinusoidal_soil_temperature
+from pyAPES.utils.utilities import lad_constant
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -193,7 +192,7 @@ snow = {
                 'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
                 'Talb': -2,             # Snow albedo decay temperature threshold (C)
                 'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
-                'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+                'tmlt': 7.2e5,          # Melting snow albedo decay time scale (s)
                 'trho': 200*3600,       # Snow compaction timescale (s)
                 'Wirr': 0.03,           # Irreducible liquid water content of snow
                 'z0sf': 0.1,           # Snow-free surface roughness length (m)
@@ -245,7 +244,7 @@ Sphagnum = {
     'layer_type': 'bryophyte',
     'coverage': 1.0,
     'height': 0.06, # [0.044, 0.076]
-    'roughness_height': 0.02,
+    'roughness_height': 0.005,
     'bulk_density': 35.1,  # [9.28, 46.7]
     'max_water_content': 17.8,  # [15.6, 24.4]
     'water_content_ratio': 0.43,  # max_symplast_water_content:max_water_content -ratio
@@ -264,12 +263,12 @@ Sphagnum = {
     },
     'optical_properties': { # moisture responses are hard-coded
         'emissivity': 0.98,
-        'albedo': {'PAR': 0.10, 'NIR': 0.27} # albedos when fully hydrated [-]
+        'albedo': {'PAR': 0.06, 'NIR': 0.20} # albedos when fully hydrated [-]
     },
     'water_retention': {
         'alpha': 0.381,  # based on fitted value
         'n': 1.781,  # based on fitted value
-        'saturated_conductivity': 2.88e-4,  # [m s-1], based on fitted value
+        'saturated_conductivity': 3e-5,  # [m s-1], based on fitted value
         'pore_connectivity': -2.27  # based on fitted value
     },
     'initial_conditions': {
@@ -315,8 +314,8 @@ soil_properties = {
             'alpha': [0.338, 0.338, 0.338, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072],  # [cm-1]
             'n': [1.402, 1.402, 1.402, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371]  # [-]
     },
-        'saturated_conductivity_vertical': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
-        'saturated_conductivity_horizontal': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_vertical': [3E-5, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_horizontal': [3E-5, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
     'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
     'solid_composition': {  # fraction of solids
         'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
@@ -324,7 +323,7 @@ soil_properties = {
         'silt':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         'clay':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    'freezing_curve': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # freezing curve parameter
+    'freezing_curve': [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # freezing curve parameter
     'bedrock': {
         'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
         'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -346,7 +345,7 @@ water_model = {'solve': True,
                        },
                'drainage_equation': {
                        'type': 'Hooghoudt',
-                       'depth': 0.1,  # drain depth [m]
+                       'depth': 0.05,  # drain depth [m]
                        'spacing': 100.0,  # drain spacing [m]
                        'width': 1.0,  # drain width [m]
                        }
@@ -361,7 +360,7 @@ heat_model = {'solve': True,
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',
-                      'value': 5.0
+                      'value': 5.59
                       },
               }
 
