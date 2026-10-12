@@ -652,18 +652,28 @@ class OrganicLayer(object):
                 
                 if (T_iter > 0.) and (T_old> 0.) and (iterNo == 1):
                     break
-                
+
+                # convergence check uses the undamped update
+                T_undamped = T_iter
+
+                # damp the iteration to suppress cycles around 0 degC
+                if (iterNo > 5) and (T_iter > -0.1) and (T_iter < 0.1):
+                    T_iter = 0.5 * (T_iter + T_iterold)
+
                 wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
-                                    
-                err1 = abs(T_iter - T_iterold)
+
+                err1 = abs(T_undamped - T_iterold)
                 err2 = abs(wice_iter - wice_iterold)     
 
                 if iterNo == 20:
-                    print("not converging", sub_dt, err1, err2, wice_iter, T_iter)  # to logger?
+                    logger.debug('moss: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
+                                 sub_dt, err1, err2)
+                    if err1 > 0.01:
+                        T_iter = T_old
                     break
                 
                 # adapt time step and restart
-                if (iterNo >= 5) and (sub_dt > 100):
+                if (iterNo >= 5) and (sub_dt > 100) and (err1 > Conv_crit1 or err2 > Conv_crit2):
                     sub_dt = sub_dt / 2
                     REDO = True
                     break
@@ -853,10 +863,6 @@ class OrganicLayer(object):
         ground_heat_flux = 0.0
         heat_advection = 0.0
 
-        # specifications for iterative solution
-        Conv_crit1 = 1.0e-3  # degC
-        Conv_crit2 = 1.0e-5  # ice content m3/m3
-
         # -- time loop broken into subtimesteps
         t = 0.0
         while t < dt:
@@ -940,6 +946,9 @@ class OrganicLayer(object):
             T_iter = temperature
             wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
 
+            # specifications for iterative solution
+            Conv_crit1 = 1.0e-3  # degC
+            Conv_crit2 = 1.0e-5  # ice content m3/m3
             err1 = 999.0
             err2 = 999.0
             iterNo = 0
@@ -966,18 +975,27 @@ class OrganicLayer(object):
                 if (T_iter > 0.) and (T_old > 0.) and (iterNo == 1):
                     break
 
+                # convergence check uses the undamped update
+                T_undamped = T_iter
+
+                # damp the iteration to suppress cycles around 0 degC
+                if (iterNo > 5) and (T_iter > -0.1) and (T_iter < 0.1):
+                    T_iter = 0.5 * (T_iter + T_iterold)
+
                 wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
 
-                err1 = abs(T_iter - T_iterold)
+                err1 = abs(T_undamped - T_iterold)
                 err2 = abs(wice_iter - wice_iterold)
 
                 if iterNo == 20:
                     logger.debug('moss under snow: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
                                  sub_dt, err1, err2)
+                    if err1 > 0.01:
+                        T_iter = T_old
                     break
 
                 # adapt time step and restart
-                if (iterNo >= 5) and (sub_dt > 100):
+                if (iterNo >= 5) and (sub_dt > 100) and (err1 > Conv_crit1 or err2 > Conv_crit2):
                     sub_dt = sub_dt / 2
                     REDO = True
                     break
@@ -1405,7 +1423,7 @@ class OrganicLayer(object):
 
         return fluxes, states
 
-def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
+def frozen_water(T: float, wtot: float, fp: float=0.1, To: float=0.0) -> Tuple:
     r""" 
     Approximates ice content from soil temperature and total water content.
 
@@ -1558,7 +1576,6 @@ def surface_atm_conductance(wind_speed: float, zref: float, dT: float=0.0, zom: 
     Pr = AIR_VISCOSITY / THERMAL_DIFFUSIVITY_AIR
     kv = 0.4  # von Karman constant (-)
     d = 0.0 # displacement height
-
     friction_velocity = wind_speed * kv / np.log((zref - d) / zom)
 
     delta = MOLECULAR_DIFFUSIVITY_H2O / (kv*friction_velocity + EPS)
@@ -1881,7 +1898,7 @@ def soil_boundary_layer_conductance(u: float, z: float, zo: float,
 
     return gb_h, gb_c, gb_v
 
-def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
+def frozen_water(T: float, wtot: float, fp: float=0.1, To: float=0.0) -> Tuple: # !!
     r""" 
     Approximates ice content from soil temperature and total water content.
     References:

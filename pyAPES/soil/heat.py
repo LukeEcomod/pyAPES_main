@@ -356,8 +356,10 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
 
             # solve new temperature and ice content
             T_iter = thomas(a, b, g, f)
-            # under-relax to damp 2-cycles around the freezing point (gamma is discontinuous at To)
-            if iterNo > 5:
+            # convergence check uses the undamped solution
+            T_undamped = T_iter
+            # damp the iteration to suppress cycles around 0 degC
+            if (iterNo > 5) and np.any((T_iter > -0.1) & (T_iter < 0.1)):
                 T_iter = 0.5 * (T_iter + T_iterold)
             Wliq_iter, Wice_iter, gamma = frozen_water(T_iter, Wtot, fp=fp, To=FREEZING_POINT_H2O)
 
@@ -397,7 +399,7 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
                     break
 
             # errors for determining convergence
-            err1 = np.max(abs(T_iter - T_iterold))
+            err1 = np.max(abs(T_undamped - T_iterold))
             err2 = np.max(abs(Wice_iter - Wice_iterold))
 
         """ iteration loop ends """
