@@ -58,6 +58,12 @@ target/
 .ipynb_checkpoints
 /*.ipynb
 
+# sandboxes
+sand*.py
+sand*.ipynb
+*playground*.ipynb
+*playground*.py
+
 # pyenv
 .python-version
 
@@ -83,9 +89,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-sand*.py
-sand*.ipynb
-
 # ipython:
 /__pycache__
 .ipynb_checkpoints
@@ -106,20 +109,25 @@ docs/.DS_Store
 
 figures/
 results/
-data/
+/data/
 old_obsolete/
+input_parameters/
 
 # Example demos
 Examples/results/*.*
 
 # datasets --> put in separate storage
-data/*.*
+/data/*.*
 
 # logs
 *.log
 
 # shell scripts
 *.sh
+
+# Allow repo hooks
+!hooks/
+!hooks/**
 
 # nc files
 *.nc
@@ -138,6 +146,9 @@ data/*.*
 
 # Text files
 *.txt
+
+#PDF files
+*.pdf
 
 # Allow requirements
 !requirements.txt
@@ -160,3 +171,9 @@ inputs/
 *.md
 # Allow readme
 !README.md
+
+# notebooks
+notebooks/
+
+# plans
+plans/

@@ -10,6 +10,7 @@
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import Dict, Tuple, List
 
 from pyAPES.utils.constants import EPS
@@ -538,47 +539,41 @@ class SoilRespiration(object):
             dz[0:-1] = z_soil[1:] - z_soil[0:-1]
             dz[-1] = dz[-2]
             weights = np.exp(para['beta'] * z_soil)
+            
+            #ensure all respiration is from top 1m of the profile
+            weights[z_soil <-1.0] = 0.0
             self.weights = weights * dz / sum(weights * dz) 
+
         else:
             self.weights = np.ones(len(z_soil))
 
         self.Nlayers = len(self.weights)
 
-    def respiration(self, soil_temperature: np.array, volumetric_liquid_content: np.array, volumetric_ice_content: np.array, volumetric_air_content) -> float:
+    def respiration(self, T: np.array, vol_water: np.array, porosity: np.array) -> float:
         """ Soil respiration
 
-        Moisture response following Moyano et al. 2012 BG, https://doi.org/10.5194/bg-9-1173-2012
-        f = np.minimum(r_min, p[0] + p[1]*Sat + p[2]*Sat)
-        for low bulk density soils, p = [ -0.28, 4.325, -3.65] (fit to data in Fig.3k )
-        for high bulk density soils, p = [-0-38, 3.09, -1.83]
-
+        Moisture response following Moyano et al. 2013 Soil Biogeochem. Eq. 1 "generic soil"
+    
         Args:
-            soil_temperature (float|array) [degC]
-            volumetric_liquid (float|array) [m3 m-3]
-            volumetric_ice (float|array) [m3 m-3]
-            volumetric_air float|array) [m3 m-3]
+            T (float|array) [degC]
+            vol_water (float|array) [m3 m-3]
+            porosity (float|array) [m3 m-3]
         Returns:
             soil respiration rate (float): [umol m-2 (ground) s-1]
         """
 
         # unrestricted respiration rate
-        x = self.r10 * np.power(self.q10, (soil_temperature - 10.0) / 10.0)
+        fT = np.power(self.q10, (T - 10.0) / 10.0)
+        
+        # generic eq. 4 from Moyano et al. 2013 Soil. Biochem. Cycl. f = 3.11 * S + 2.42 * S^2
+        S = vol_water / porosity # relative liquid water content
+        S = np.maximum(0.0, np.minimum(1.0, S))
 
-        # moisture response (Skopp et al., substrate diffusion, oxygen limitation)
-        # f = np.minimum(self.moisture_coeff[0] * volumetric_water**self.moisture_coeff[2],
-        #                self.moisture_coeff[1] * volumetric_air**self.moisture_coeff[3])
-        porosity = volumetric_liquid_content + volumetric_ice_content + volumetric_air_content
-
-        M = volumetric_liquid_content / (porosity - volumetric_ice_content)
-        M = np.maximum(0.0, np.minimum(1.0, M))
-
-        f = np.maximum(self.moisture_coeff[3], self.moisture_coeff[0] + self.moisture_coeff[1]*M + self.moisture_coeff[2])
-        f = np.minimum(f, 1.0)
-
-        # --- testing without soil water limitation
-        respiration = x * f
-
-        respiration = sum(self.weights * respiration[0:self.Nlayers])
+        fm = self.moisture_coeff[0] * S + self.moisture_coeff[1] * np.power(S, 2)
+        fm = np.minimum(fm, 1.0)
+        
+        f = np.sum(self.weights * fT * fm)
+        respiration = self.r10 * f
 
         return respiration
     

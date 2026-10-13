@@ -15,6 +15,8 @@ import pandas as pd
 import os
 import pathlib
 from pyAPES.utils.utilities import lad_constant
+from pyAPES.soil.heat import sinusoidal_soil_temperature
+
 from dotenv import load_dotenv
 load_dotenv()
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
@@ -26,8 +28,9 @@ lad_file = pathlib.Path(f'{pyAPES_main_folder}/forcing/US-Prr/BlackSpruce_relati
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2012-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2012-06-07",  # end time of simulation [yyyy-mm-dd]
+         'start_time' : "2012-05-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2012-07-01",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 100,
          'forc_filename' : forcing_file, # forcing data file
          'results_directory': 'results/', # This is given relative to pyAPES main folder or if not in .env then current working directory 
          'logging_directory': 'logs/',  # This is also given similar to results_directory
@@ -38,10 +41,7 @@ gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
 # --- Model control flags
 ctr = {'Eflow': True,  # use ensemble flow statistics; i.e fixed ratio of Utop/ustar.
        'WMA': False,  # assume air-space scalar profiles well-mixed
-       'Ebal': True,  # computes leaf temperature by solving energy balance
-       'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-       'seasonal_LAI': True,  # account for seasonal LAI dynamics
-       'pheno_cycle': True  # account for phenological cycle
+       'Ebal': True,  # computes leaf and surface temperature by solving energy balance
        }
 
 # site location
@@ -62,11 +62,14 @@ micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'Cd': 0.15,  # drag coefficient [-]
             'Utop': 5.0,  # ensemble U/ustar [-]
             'Ubot': 0.01,  # flow at lower boundary [m s-1 or -]
+            'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
             'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}  # turbulent Schmidt numbers in canopy flow
             }
 
 # --- Short- and long-wave radiation: pyAPES.microclimate.radiation.Radiation
-radiation = {'clump': 0.7,  # clumping index [-]
+radiation = {'SWmodel': 'ZHAOQUALLS',
+             'LWmodel': 'ZHAOQUALLS',
+             'clump': 0.7,  # clumping index [-]
              'leaf_angle': 1.0,  # leaf-angle distribution [-]
              'Par_alb': 0.12,  # shoot Par-albedo [-]
              'Nir_alb': 0.55,  # shoot NIR-albedo [-]
@@ -93,6 +96,11 @@ lad_sp1 = np.interp(z, z0, spruce_lad['large_spruce'].values)
 lad_sp2 = np.interp(z, z0, spruce_lad['small_spruce'].values)
 
 pt1 = { 'name': 'Spruce large',
+       'ctr': {
+            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
+            'seasonal_LAI': True,  # account for seasonal LAI dynamics
+            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
+            },
         'LAImax': 0.4, # maximum annual LAI m2m-2
         'lad': lad_sp1, # normalized leaf area density profile [m2m-3] (sum(lad) * dz = 1)       
         
@@ -120,23 +128,38 @@ pt1 = { 'name': 'Spruce large',
             'sdur': 30.0 # duration [d] of senescence
             },
         # A-gs model: pyAPES.leaf.photo
+
+        # Ueyama et al. 2018: Black spruce (picea mariana) leaf N 0.7 - 1.1 g m-2.
+        # using global relationship Vcmax25(Nleaf) from Kattge et al. gives Vcmax~40
+        # Ueyama et al. 2018: locally in Alaska ~30 - 40 umol m-2 s-1
+        # Assume Jmax25 = 1.6 x Vcmax25
+        # for C3 plants, maximum quantum efficiency of electron transport: 
+        # phi_max = 0.20-0.25 mol e- mol photons absorbed
+        # As we use incident PAR at sunlit/shaded leaves, effective quantum yield [mol e- mol photons incident]:
+        # alpha = leaf_absorptivity x phi_max. 
+        # leaf / needle effective PAR absorptivity is: 0.75 - 0.85 (conifers, shoot scattering), 0.85-0.92 (deciduous) in boreal
+        # gives alpha ~ 0.15 - 0.21 (conifers); 0.17 - 0.23 (deciduous)
+        # but - remember that Jmax and alpha co-vary when estimated from leaf gas-exchange
         'photop': {
             'Vcmax': 35.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 60.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
-            'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 56.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC 1.6*Vcmax (Kattge and Knorr, 2007)
+            'Rd': 0.6, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC: 0.015 * Vcmax
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
                                  #             entropy factor [kJ mol-1]]
                 'Jmax': [56., 200., 646.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.15,   # effective quantum yield (leaf PAR absorptivity * quantum efficiency) [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
+            'g1': 1.5,      # USO-model stomatal slope kPa^(0.5); ~we assume this is lower than in scots pine
+            'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
+            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
+            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -153,6 +176,11 @@ pt1 = { 'name': 'Spruce large',
         }
 
 pt2 = { 'name': 'Spruce small',
+       'ctr': {
+            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
+            'seasonal_LAI': True,  # account for seasonal LAI dynamics
+            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
+            },
         'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_sp2, # normalized leaf area density profile [m2m-3] (sum(lad) * dz = 1)       
         # lad_weibul provides species lad-profiles from Teske & Thistle
@@ -180,21 +208,24 @@ pt2 = { 'name': 'Spruce small',
         # A-gs model: pyAPES.leaf.photo
         'photop': {
             'Vcmax': 35.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 60.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
-            'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 56.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC1.97*Vcmax (Kattge and Knorr, 2007)
+            'Rd': 0.6, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
                                  #             entropy factor [kJ mol-1]]
                 'Jmax': [56., 200., 646.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.15,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
+            'g1': 1.5,      # USO-model stomatal slope kPa^(0.5)
+            'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters.
+            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
+            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -211,6 +242,11 @@ pt2 = { 'name': 'Spruce small',
         }
 
 pt3 = { 'name': 'Understory',
+       'ctr': {
+            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
+            'seasonal_LAI': True,  # account for seasonal LAI dynamics
+            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
+            },
         'LAImax': 0.8, # maximum annual LAI m2m-2
         'lad': lad_constant(z, LAI=1.0, h=0.6, hb=0.0),  # leaf-area density [m2 m-3]
         # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
@@ -234,22 +270,25 @@ pt3 = { 'name': 'Understory',
             },
         # A-gs model: pyAPES.leaf.photo
         'photop': {
-            'Vcmax': 50.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
-            'Jmax': 85.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC
-            'Rd': 0.8, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
+            'Vcmax': 35.0, # maximum carboxylation rate [umol m-2 (leaf) s-1] at 25 degC
+            'Jmax': 56.0,  # maximum electron transport rate[umol m-2 (leaf) s-1] at 25 degC
+            'Rd': 0.6, # dark respiration rate [umol m-2 (leaf) s-1] at 25 degC
             'tresp': { # temperature response (Kattge and Knorr, 2007)
                 'Vcmax': [78., 200., 649.], # [activation energy [kJ mol-1], deactivation energy [kJ mol-1]
                                  #             entropy factor [kJ mol-1]]
                 'Jmax': [56., 200., 646.],
                 'Rd': [33.0]
                 },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
+            'alpha': 0.18,   # quantum efficiency parameter [-]
             'theta': 0.7,   # curvature parameter [-]
             'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.3,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 5.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
+            'g1': 2.0,      # USO-model stomatal slope kPa^(0.5)
+            'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
             'kn': 0.5,      # nitrogen attenuation coefficient; affects Vcmax, Jmax, Rd profile in PlantType [-]
-            'drp': [0.39, 0.83, 0.31, 3.0] # Rew-based drought response parameters.
+            'drp': [0.4, 0.8, 0.3, 3.0], # Rew-based drought response parameters.
+            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
+            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
+            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
             },
         'leafp': {
             'lt': 0.02,     # leaf length scale [m]
@@ -267,27 +306,96 @@ pt3 = { 'name': 'Understory',
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
-# --- pyAPES.snow.snowpack.DegreeDaySnow
-snowpack = {
-        'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
-        'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
-        'retention': 0.2,  # max fraction of liquid water in snow [-]
-        'Tmelt': 0.0,  # temperature when melting starts [degC]
-        'optical_properties': {
-                'emissivity': 0.97,
-                'albedo': {'PAR': 0.8, 'NIR': 0.8}
-                },
-        'initial_conditions': {'temperature': 0.0,
-                               'snow_water_equivalent': 0.0}
+# --- pyAPES.snow
+snow = {
+    'snow_model': 'fsm2', # snow model being used - 'degreeday' or 'fsm2'
+    # --- pyAPES.snow.degreeday.degreeday.DegreeDaySnow
+    'degreeday': {
+            'kmelt': 2.31e-5,  # Melting coefficient [kg m-2 s-1 degC-1]; (= 2.0 mm degC d-1)
+            'kfreeze': 5.79e-6,  # Freezing  coefficient [kg m-2 s-1 degC-1] (=0.5 mm degC d-1)
+            'retention': 0.2,  # max fraction of liquid water in snow [-]
+            'Tmelt': 273.15,  # temperature when melting starts [K]
+            'zos': 0.001, # snow surface roughness length [m]
+            'optical_properties': {
+                    'emissivity': 0.97,
+                    'albedo': {'PAR': 0.8, 'NIR': 0.8}
+                    },
+            'initial_conditions': {'temperature': 273.15,
+                                'snow_water_equivalent': 0.0,
+                                }
+            },
+
+    # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
+    'fsm2': {'physics_options': {
+                'DENSTY': 1,
+                'HYDRL': 1,
+                'CONDCT': 1,
+                'ZOFFST': 0,
+                'EXCHNG': 1,
+                'ALBEDO': 2,
+                'SNFRAC': 0,
+                'SWPART': 0,
+            },
+            'params': {
+                'asmn': 0.5,            # Minimum albedo for melting snow
+                'asmx': 0.85,           # Maximum albedo for fresh snow
+                'eta0': 3.7e7,          # Reference snow viscosity (Pa s)
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+                'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
+                'rcld': 300,            # Maximum density for cold snow (kg/m^3)
+                'rfix': 300,            # Fixed snow density (kg/m^3)
+                'rgr0': 5e-5,           # Fresh snow grain radius (m)
+                'rhof': 100,            # Fresh snow density (kg/m^3)
+                'rhow': 300,            # Wind-packed snow density (kg/m^3)
+                'rmlt': 500,            # Maximum density for melting snow (kg/m^3)
+                'Salb': 10,             # Snowfall to refresh albedo (kg/m^2)
+                'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
+                'Talb': -2,             # Snow albedo decay temperature threshold (C)
+                'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
+                'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+                'trho': 200*3600,       # Snow compaction timescale (s)
+                'Wirr': 0.03,           # Irreducible liquid water content of snow
+                'z0sf': 0.1,           # Snow-free surface roughness length (m)
+                'z0sn': 0.001,          # Snow roughness length (m)
+                'zT': 2.,              # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
+                'zU': 3.,              # Wind measurement height with offset (m) ! only in fsm2_standalone
+                'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+            },
+            'layers': {
+                'Nsmax': 3,                 # Maximum number of snow layers
+                'Dzsnow': np.array([0.1, 0.2, 0.4]),  # Minimum snow layer thicknesses (m)
+                'Nsoil': 4,                 # Soil layers
+                'Dzsoil': np.array([0.1, 0.2, 0.4, 0.8]), # Soil layer thicknesses
+            },
+            'initial_conditions': {
+                'Nsnow': 0,             # Number of snow layers
+                'Dsnw': np.array([0.0, 0.0, 0.0]),      # Snow layer thicknesses (m)
+                'Rgrn': np.array([5e-5, 5e-5, 5e-5]),      # Snow layer grain radius (m)
+                'Sice': np.array([0.0, 0.0, 0.0]),      # Ice content of snow layers (kg/m^2)
+                'Sliq': np.array([0.0, 0.0, 0.0]),      # Liquid content of snow layers (kg/m^2)
+                'Tsnow': np.array([273.15, 273.15, 273.15]),   # Snow layer temperatures (K)
+                'Tsoil': np.array([285., 285., 285., 285.]),   # Soil layer temperatures (K)
+                'Wflx': np.array([0.0, 0.0, 0.0]),      # Water flux into snow layer (kg/m^2/s)
+                'Tsrf': 285.,         # Snow/ground surface temperature (K)
+                'fsnow': 0.0,           # Snow cover fraction
+                'Vsmc': np.array([0.3, 0.3, 0.3, 0.3])  # Volumetric water content in soil, only for fsm soil module
+            },
+            'soilprops': { # only for fsm soil module
+                'fcly': 0.3,    # Fraction of clay
+                'fsnd': 0.6,    # Fraction of sand
+                'gsat': 0.01,   # Surface conductance for saturated soil (m/s)
+                'z0sf': 0.1,    # Surface roughness length
+                'alb0': 0.2     # Snow-free surface albedo
+            }
         }
+    }
 
 # --- pyAPES.bottomlayer.carbon.SoilRespiration
 soil_respiration = {
         'r10': 2.5, # base rate (bulk heterotrophic + autotrophic) [umol m-2 (ground) s-1]
         'q10': 2.0, # temperature sensitivity [-]
-        'moisture_coeff': [0.1, -0.28, 4.325, -3.65], # [minimum_relative_respiration,  p[0], p[1], p[2]]. Moyano et al. 2012 data f = p[0] + p[1]*Sat + p[2]*Sat**2
-        #'moisture_coeff': [3.83, 4.43, 1.25, 0.854]  # moisture response; Skopp moisture function param [a ,b, d, g]}
-        'beta': 6.0 # expontential decay factor for potential soil respiration. f = np.exp(beta*z). With beta=3.0, ca 80% of respiration is from top 50cm 
+        'moisture_coeff': [3.11, 2.42],  # moisture response; Moyano et al. 2013 Eq. 1 "generic"
+        'beta': 2.0 # expontential decay factor for potential soil respiration. f = np.exp(beta*z). With beta=3.0, ca 80% of respiration is from top 50cm 
         }
 
 # --- pyAPES.bottomlayer.OrganicLayer
@@ -331,7 +439,7 @@ Forest_moss = {
     },
 
     'initial_conditions': {
-        'temperature': 10.0, # degC
+        'temperature': 1.0, # degC
         'water_content': 10.0 # g H2O g-1 DM
     }
 }
@@ -372,7 +480,7 @@ Sphagnum = {
         'pore_connectivity': -2.1  # [-]
     },
     'initial_conditions': {
-        'temperature': 10.0, # degC
+        'temperature': 1.0, # degC
         'water_content': 20.0 # g g-1 DM
     }
 }
@@ -496,9 +604,18 @@ water_model = {'solve': True,
                 }
 
 # --- heat model: pyAPES.soil.heat.Heat
+
+# initial temperature profile
+#doy0 = gpara['start_doy']
+#zz = -np.cumsum(soil_grid['dz'])
+#T_ini = sinusoidal_soil_temperature(z=zz, doy=doy0, 
+#                                              T_mean=-2.8, T_amplitude=15.0, 
+#                                              thermal_diffusivity=3e-7
+#                                    )
+T_ini=-1.0
 heat_model = {'solve': True,
               'initial_condition': {
-                      'temperature': -2.0,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
+                      'temperature': T_ini,  # initial soil temperature [degC], assumed constant with dept - can also be array of correct length.
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',

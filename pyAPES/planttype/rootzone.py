@@ -48,7 +48,10 @@ class RootUptake(object):
         self.dz = dz_soil[self.ix]
 
         # state variables
-        self.h_root = 0.0
+        self.h_root = 0.0 # root water potential [m]
+        self.g_sr = np.ones(len(self.dz))       # soil-to-xylem conductance [s-1]; updated each wateruptake call
+        self.rootsink = np.ones(len(self.dz))   # root water uptake per layer [m s-1]; updated each wateruptake call
+        self.Rew = 1.0 # effective rootzone REW
 
     def wateruptake(self, transpiration_rate: float, h_soil: np.ndarray, kh_soil: np.ndarray) -> np.ndarray:
         r""" 
@@ -72,14 +75,38 @@ class RootUptake(object):
 
         # soil to xylem conductance [s-1]
         g_sr = ks * kr / (ks + kr + EPS)
+        self.g_sr = g_sr  # store for use in effective_rew()
 
         # assume total root uptake equals transpiration rate and solve uniform root pressure [m]
         self.h_root = -(transpiration_rate - sum(g_sr * h_soil[self.ix])) / sum(g_sr)
 
         # root uptake [m s-1]
         rootsink = g_sr * (h_soil[self.ix] - self.h_root)
+        self.rootsink = rootsink  # store for use in effective_rew()
 
         return rootsink
+
+    def effective_rew(self, Rew: np.ndarray) -> float:
+        r"""
+        Computes compensated root-zone effective relatively extractable water (REW) using previous 
+        rootsink profile as weights. Thus, wet layers with high soil-to-root conductance compensate 
+        for dry layers; the plant only experiences stress when the whole accessible root zone is dry.
+
+        REW_eff = Σ(rootsink_i · REW_i) / Σ(rootsink_i + ε)
+
+        A wet deep layer with high rootsink compensates for a dry shallow layer.
+        Stress is only felt when the layers actually supplying water are dry.
+
+        Args:
+            Rew (array): relatively extractable water per soil layer [-]
+        Returns:
+            rew_eff (float): uptake-weighted effective REW [-], in [0, 1]
+        """
+        rew_lyr = np.maximum(0.0, Rew[self.ix])
+        w = np.maximum(0.0, self.rootsink)  # only layers with positive uptake contribute
+        rew_eff = float(np.clip(np.sum(w * rew_lyr) / (np.sum(w) + EPS), 0.0, 1.0))
+        self.Rew = rew_eff
+        return rew_eff
 
 def RootDistribution(beta: float, dz: np.ndarray, root_depth: float) -> np.ndarray:
     r"""

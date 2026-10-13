@@ -100,10 +100,12 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       # planttype -specific outputs
       ['pt_total_gpp', 'gross-primary productivity [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_dark_respiration', 'dark (or leaf + wood?) respiration [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
+      ['pt_total_growth_respiration', 'leaf growth respiration [umol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_transpiration', 'transpiration [kg m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_stomatal_conductance_h2o', 'stomatal conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
       ['pt_total_boundary_conductance_h2o', 'leaf boundary layer conductance for H2O [mol m-2 s-1]', ('date', 'simulation', 'planttype')],
-      ['pt_root_water_potential', 'root water potential [m?]', ('date', 'simulation', 'planttype')], # CHECK UNITS!!!
+      ['pt_root_water_potential', 'root water potential [m]', ('date', 'simulation', 'planttype')], # CHECK UNITS!!!
+      ['pt_rew', 'relatively extractable water in root zone [-]', ('date', 'simulation', 'planttype')],
 
       # vertical profiles: layers where planttype lad == 0 are set to np.NaN
       ['pt_leaf_temperature', 'leaf temperature mean [degC]', ('date', 'simulation', 'planttype', 'canopy')],
@@ -180,6 +182,11 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['ffloor_par_albedo', 'PAR albedo (forest floor) [-]', ('date', 'simulation')],
       ['ffloor_nir_albedo', 'NIR albedo (forest floor) [-]', ('date', 'simulation')],
       ['ffloor_groundtypes', 'forestfloor groundtype names', ('groundtype')],
+
+      # forest floor fsm2 state
+      ['ffloor_snow_depth', 'snow depth (forest floor) [m]', ('date', 'simulation')],
+      ['ffloor_snow_heat_flux', 'snow heat flux', ('date', 'simulation')],
+      ['ffloor_snow_surface_temperature', 'snow surface temperature', ('date', 'simulation')],
 
       # ground-type specific outputs
       # energy
