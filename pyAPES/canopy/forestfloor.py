@@ -375,6 +375,7 @@ class ForestFloor(object):
                 'reference_height': parameters['reference_height'],
                 'Dzlb': self.height, # Lower-boundary organic-layer thickness [m]
                 'Tlb': self.temperature + DEG_TO_KELVIN, # Lower-boundary organic-layer temperature [K]
+                'Tsrflb': self.bt_surface_temperature + DEG_TO_KELVIN, # Lower-boundary organic-layer surface temperature [K]
                 'klb': self.thermal_conductivity, # Lower-boundary organic-layer thermal conductivity [W m-1 K-1]
                 'gs1': 1e-3, # !! Surface moisture conductance [ms-1],
                 'alb0': self.bt_albedo['PAR'], # snow-free surface albedo

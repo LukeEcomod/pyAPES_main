@@ -82,6 +82,8 @@ class FSM2(object):
                 'reference_height' (float): first canopy calculation node or forcing height [m]
                 'gs1' (float): Surface moisture conductance (m/s)
                 'Tlb' (float): Lower-boundary organic-layer temperature (K)
+                'Tsrflb' (float): Snow-free organic-layer surface temperature used to initialize the
+                    snow surface temperature when no snowpack is present (K)
                 'klb' (float): Lower-boundary organic-layer thermal conductivity (W/m/K)
                 'Dzlb' (float): Lower-boundary organic-layer thickness (m)
                 'alb0' (float): Surface albedo [-]
@@ -123,6 +125,7 @@ class FSM2(object):
         reference_height = forcing['reference_height'] 
         gs1 = forcing['gs1']
         Tlb = forcing['Tlb']
+        Tsrflb = forcing['Tsrflb']
         klb = forcing['klb']
         Dzlb = forcing['Dzlb']
         alb0 = forcing['alb0']
@@ -138,7 +141,7 @@ class FSM2(object):
         ebal_states = {'Tsrf': self.ebal.Tsrf}
 
         if sum(self.snow.Dsnw) == 0.: # no existing snowpack -> surface temperature from organiclayer.py
-            ebal_states = {'Tsrf': Tlb}
+            ebal_states = {'Tsrf': Tsrflb}
 
         # initialize fluxes and states
         fluxes = {'potential_infiltration': Rf,
