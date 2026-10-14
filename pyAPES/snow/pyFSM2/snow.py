@@ -128,14 +128,14 @@ class SnowModel(object):
                 'trans' (float):      # Wind-blown snow transport rate (kg m-2 s-1)
                 'Tsrf' (float):       # Snow/ground surface temperature (K)
                 'unload' (float):     # Snow mass unloaded from vegetation (kg m-2)
-                'Tsoil' (float):      # Soil layer temperature (K)
-                'ksoil' (float):      # Thermal conductivity of soil layer (W m-2 K-1)
-                'Dzsoil' (float):     # Soil layer thickness (m)
+                'Tlb' (float):        # Lower-boundary temperature (K)
+                'klb' (float):        # Lower-boundary thermal conductivity (W m-1 K-1)
+                'Dzlb' (float):       # Lower-boundary thickness (m)
 
         Returns
             (tuple):
             fluxes (dict):
-                'Gsoil' (float):        # Heat flux into soil (W/m^2)
+                'Glb' (float):          # Heat flux into lower boundary (W/m^2)
                 'Roff' (float):         # Runoff from snow (kg m-2 s-1)
                 'wbal' (float):         # Water balance error (kg m-2 s-1)
             states (dict):
@@ -161,9 +161,9 @@ class SnowModel(object):
         trans = forcing['trans']
         Tsrf = forcing['Tsrf']
         unload = forcing['unload']
-        Tsoil = forcing['Tsoil']
-        ksoil = forcing['ksoil']
-        Dzsoil = forcing['Dzsoil']
+        Tlb = forcing['Tlb']
+        klb = forcing['klb']
+        Dzlb = forcing['Dzlb']
 
         # old states
         Nsnow = int(self.Nsnow)
@@ -174,7 +174,7 @@ class SnowModel(object):
         Rgrn = self.Rgrn.copy()
 
         # No snow
-        Gsoil = Gsrf.copy()
+        Glb = Gsrf.copy()
         Roff = Rf + drip / dt
         Wflx = np.zeros(self.Nsmax)
 
@@ -188,8 +188,8 @@ class SnowModel(object):
 
             if (Nsnow == 1): # single snow layer
                 self.Gs[0] = 2 / (Dsnw[0]/ksnow[0] +
-                                  Dzsoil/ksoil)
-                self.dTs[0] = (Gsrf + self.Gs[0]*(Tsoil - Tsnow[0])
+                                  Dzlb/klb)
+                self.dTs[0] = (Gsrf + self.Gs[0]*(Tlb - Tsnow[0])
                                ) * dt / (self.csnow[0] + self.Gs[0] * dt)
 
             else:
@@ -210,12 +210,12 @@ class SnowModel(object):
 
                 k = Nsnow - 1
                 self.Gs[k] = 2 / (Dsnw[k]/ksnow[k] +
-                                  Dzsoil/ksoil)
+                                  Dzlb/klb)
                 self.a[k] = self.c[k-1]
                 self.b[k] = self.csnow[k] + (self.Gs[k-1] + self.Gs[k])*dt
                 self.c[k] = 0
                 self.rhs[k] = self.Gs[k-1] * (Tsnow[k-1] - Tsnow[k]) * \
-                    dt + self.Gs[k]*(Tsoil - Tsnow[k]) * dt
+                    dt + self.Gs[k]*(Tlb - Tsnow[k]) * dt
                 self.dTs = tridiag_fsm(
                     Nvec=Nsnow, Nmax=self.Nsmax, a=self.a, b=self.b, c=self.c, r=self.rhs)
 
@@ -223,7 +223,7 @@ class SnowModel(object):
                 Tsnow[k] = Tsnow[k] + self.dTs[k]
 
             k = Nsnow - 1
-            Gsoil = self.Gs[k] * (Tsnow[k] - Tsoil)
+            Glb = self.Gs[k] * (Tsnow[k] - Tlb)
 
             # Convert melting ice to liquid water
             dSice = Melt * dt
@@ -558,7 +558,7 @@ class SnowModel(object):
                                  'Rgrn': Rgrn.copy()
                                  }
 
-        fluxes = {'Gsoil': Gsoil,
+        fluxes = {'Glb': Glb,
                   'Roff': Roff,
                   'wbal': wbal,
                   }
