@@ -58,6 +58,7 @@ class OrganicLayer(object):
                    - 'pore_connectivity' (float): pore connectivity parameter (l) for hydraulic conductivity [-]
                     
                - 'porosity' (float): org.layer macroporosity [m3 m-3]
+               - 'freezing_curve' (float): fp parameter of freezing curve [-], default 0.1
                
                - 'photosynthesis' (dict): : photosyntesis model parameters only if layer_type == 'bryophyte'
                     - 'Vcmax' (float): maximum carboxylation velocity at 25 C [umol m-2 (ground) s-1]
@@ -105,6 +106,7 @@ class OrganicLayer(object):
         self.dry_mass = properties['bulk_density'] * properties['height']
         self.bulk_density = properties['bulk_density']
         self.porosity = properties['porosity']
+        self.freezing_curve = properties.get('freezing_curve', 0.1)
 
         # --- hydraulic properties
         self.max_water_content = properties['max_water_content']
@@ -146,11 +148,11 @@ class OrganicLayer(object):
         # [kg m-2]
         self.water_storage = self.water_content * self.dry_mass
 
-        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature, self.water_storage)
+        self.liquid_water_storage, self.ice_storage, _ = frozen_water(self.temperature, self.water_storage, fp=self.freezing_curve)
 
         wtot = self.water_content / WATER_DENSITY * self.bulk_density
 
-        theta_liq, theta_ice, _ = frozen_water(self.temperature, wtot)
+        theta_liq, theta_ice, _ = frozen_water(self.temperature, wtot, fp=self.freezing_curve)
 
         #: [m\ :sup:`3` m\ :sup:`-3`\ ]
         self.volumetric_water = theta_liq
@@ -396,7 +398,7 @@ class OrganicLayer(object):
             # volumetric total, liquid and ice [m m-3]
             wtot = (water_content / WATER_DENSITY
                                 * self.bulk_density)
-            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot, fp=self.freezing_curve)
 
             # [m]
             # theta is restricted above or equal Theta_r in water_retention_curve
@@ -578,7 +580,7 @@ class OrganicLayer(object):
             water_content = (new_water_storage / self.dry_mass)
             # [m3 m-3]
             wtot = water_content / WATER_DENSITY * self.bulk_density
-            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot, fp=self.freezing_curve)
 
             # heat conduction between moss and soil [W m-2 K-1]
             L = thermal_conductivity(theta_liq, theta_ice, self.porosity)
@@ -610,7 +612,7 @@ class OrganicLayer(object):
             
             # -- initial state [at beqining of subtimestep]
             # liquid and ice content, and dWliq/dTs
-            wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
+            wliq_old, wice_old, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
             
             # heat capacities [J K-1 m-2]  - air content?
             heat_capacity_old = (
@@ -735,7 +737,7 @@ class OrganicLayer(object):
                             + SPECIFIC_HEAT_ICE * self.ice_storage) * self.temperature
                             - LATENT_HEAT_FREEZING * self.ice_storage)
 
-        wliq, wice, _ = frozen_water(temperature, water_storage)
+        wliq, wice, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
         heat_conten_new = ((SPECIFIC_HEAT_ORGANIC_MATTER * self.dry_mass
                             + SPECIFIC_HEAT_H2O * wliq
                             + SPECIFIC_HEAT_ICE * wice) * temperature
@@ -752,7 +754,7 @@ class OrganicLayer(object):
 
         # --- State variables of bryophyte layer
         # [kg m-2 == mm]
-        liquid_water_storage, ice_storage, _ = frozen_water(temperature, water_storage)
+        liquid_water_storage, ice_storage, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
         
         # [g g-1]
         water_content = (water_storage / self.dry_mass)
@@ -870,8 +872,8 @@ class OrganicLayer(object):
 
             # --- state at the beginning of subtimestep
             wtot = water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density  # total volumetric [m3 m-3]
-            theta_liq, _, _ = frozen_water(temperature, wtot)
-            wliq_old, wice_old, _ = frozen_water(temperature, water_storage)
+            theta_liq, _, _ = frozen_water(temperature, wtot, fp=self.freezing_curve)
+            wliq_old, wice_old, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
 
             #--- interception of rainfall and recharge from ponding water during subdt [kg m-2 == mm]
             # use assumptotic function
@@ -909,7 +911,7 @@ class OrganicLayer(object):
 
             # --- Heat exchange --- bulk moss temperature based on heat flux from snow and soil temperature
             wtot = new_water_storage / self.dry_mass / WATER_DENSITY * self.bulk_density
-            theta_liq, theta_ice, _ = frozen_water(temperature, wtot)
+            theta_liq, theta_ice, _ = frozen_water(temperature, wtot, fp=self.freezing_curve)
 
             # heat conduction between moss and soil [W m-1 K-1]
             moss_thermal_conductivity = thermal_conductivity(theta_liq, theta_ice, self.porosity)
@@ -1033,7 +1035,7 @@ class OrganicLayer(object):
                             - LATENT_HEAT_FREEZING * self.ice_storage)
 
         # new state
-        wliq, wice, _ = frozen_water(temperature, water_storage)
+        wliq, wice, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
 
         water_content = water_storage / self.dry_mass  # [g g-1]
         theta_liq = wliq / self.dry_mass / WATER_DENSITY * self.bulk_density  # [m3 m-3]
@@ -1135,7 +1137,7 @@ class OrganicLayer(object):
         temperature = forcing['snow_temperature']
         volumetric_water = self.volumetric_water
 
-        wliq, wice, gamma = frozen_water(temperature, water_storage)
+        wliq, wice, gamma = frozen_water(temperature, water_storage, fp=self.freezing_curve)
 
         zm = 0.5 * self.height
         zs = abs(parameters['soil_depth'])
@@ -1194,7 +1196,7 @@ class OrganicLayer(object):
                                                              porosity=self.porosity)
             
             # liquid and ice content, and dWliq/dTs - based on old temperature (causes error to energy balance closure - but do we want iterative solution?)!
-            wliq, wice, gamma = frozen_water(temperature, water_storage)
+            wliq, wice, gamma = frozen_water(temperature, water_storage, fp=self.freezing_curve)
             
             # advance in time
             t = t + sub_dt
@@ -1212,7 +1214,7 @@ class OrganicLayer(object):
         water_closure = (water_storage - self.water_storage 
                         - capillary_rise - interception - pond_recharge) / dt
 
-        wliq, wice, _ = frozen_water(temperature, water_storage)
+        wliq, wice, _ = frozen_water(temperature, water_storage, fp=self.freezing_curve)
 
         fluxes = {
             'evaporation': 0.0,  # [kg m-2 s-1 == mm s-1]
