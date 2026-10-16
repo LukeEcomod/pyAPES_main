@@ -452,7 +452,7 @@ forestfloor = {
         'forest_moss': Forest_moss,
         #'sphagnum': Sphagnum,
     },
-    'snowpack': snowpack,
+    'snowpack': snow,
     'soil_respiration': soil_respiration
 }
 

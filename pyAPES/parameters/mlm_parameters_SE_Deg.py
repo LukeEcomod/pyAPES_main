@@ -54,16 +54,16 @@ grid = {'zmax': 3.0,  # heigth [m] of grid from ground surface
 z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
 
 # --- Turbulent flow & scalar transport in air-space: pyAPES.microclimate.micromet.Micromet
-micromet = {
-    'zos': 0.01,  # forest floor roughness length [m]  -- not used?
-    'dPdx': 0.0,  # horizontal pressure gradient
-    'Cd': 0.15,  # drag coefficient
-    'Utop': 9.0,  # ensemble U/ustar
-    'Ubot': 0.01,  # lower boundary
-    'U_solver': 'fvm', # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
-            'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}  # turbulent Schmidt numbers in canopy flow
-            }
 
+micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
+            'dPdx': 0.0,  # horizontal pressure gradient [units]
+            'Cd': 0.15,  # drag coefficient [-]
+            'Utop': 5.0,  # ensemble U/ustar [-]
+            'Ubot': 0.01,  # flow at lower boundary [m s-1 or -], not used if U_solver='fvm'
+            'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
+            # turbulent Schmidt numbers in canopy flow
+            'Sc': {'T': 2.0, 'H2O': 2.0, 'CO2': 2.0}
+            }
 # --- Short- and long-wave radiation: pyAPES.microclimate.radiation.Radiation
 radiation = {'SWmodel': 'ZHAOQUALLS',
              'LWmodel': 'ZHAOQUALLS',
