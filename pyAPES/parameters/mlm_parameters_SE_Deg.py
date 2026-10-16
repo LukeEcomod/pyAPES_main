@@ -250,7 +250,8 @@ Sphagnum = {
     'water_content_ratio': 0.43,  # max_symplast_water_content:max_water_content -ratio
     'min_water_content': 0.1,
     'porosity': 0.98,
-
+    'freezing_curve': 0.1,
+    
     'photosynthesis': { # farquhar-parameters
         'Vcmax': 45.0, 'Jmax': 85.5, 'Rd': 1.35, # umolm-2s-1
         'alpha': 0.3, 'theta': 0.8, 'beta': 0.9, # quantum yield, curvature, co-limitation
