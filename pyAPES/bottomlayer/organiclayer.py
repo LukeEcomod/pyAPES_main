@@ -624,11 +624,11 @@ class OrganicLayer(object):
             
             # changes during iteration
             T_iter = temperature
-            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage, fp=self.freezing_curve)
 
             # specifications for iterative solution
             Conv_crit1 = 1.0e-3  # degC
-            Conv_crit2 = 1.0e-5  # ice content m3/m3
+            Conv_crit2 = 1.0e-5  # kg m-2
             err1 = 999.0
             err2 = 999.0
             iterNo = 0
@@ -662,7 +662,7 @@ class OrganicLayer(object):
                 if (iterNo > 5) and (T_iter > -0.1) and (T_iter < 0.1):
                     T_iter = 0.5 * (T_iter + T_iterold)
 
-                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage, fp=self.freezing_curve)
 
                 err1 = abs(T_undamped - T_iterold)
                 err2 = abs(wice_iter - wice_iterold)     
@@ -946,11 +946,11 @@ class OrganicLayer(object):
 
             # changes during iteration
             T_iter = temperature
-            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+            wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage, fp=self.freezing_curve)
 
             # specifications for iterative solution
             Conv_crit1 = 1.0e-3  # degC
-            Conv_crit2 = 1.0e-5  # ice content m3/m3
+            Conv_crit2 = 1.0e-5  # kg m-2
             err1 = 999.0
             err2 = 999.0
             iterNo = 0
@@ -984,7 +984,7 @@ class OrganicLayer(object):
                 if (iterNo > 5) and (T_iter > -0.1) and (T_iter < 0.1):
                     T_iter = 0.5 * (T_iter + T_iterold)
 
-                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage)
+                wliq_iter, wice_iter, gamma = frozen_water(T_iter, new_water_storage, fp=self.freezing_curve)
 
                 err1 = abs(T_undamped - T_iterold)
                 err2 = abs(wice_iter - wice_iterold)
