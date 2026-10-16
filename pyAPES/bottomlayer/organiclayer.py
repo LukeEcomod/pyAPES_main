@@ -239,7 +239,7 @@ class OrganicLayer(object):
                                 dt=dt,
                                 forcing=forcing,
                                 parameters=parameters,
-                                sub_dt=1800. # sub_dt = 60. does not work well
+                                sub_dt=300.
                                 )
             else: # no snow -> compute coupled energy and water balance
                 fluxes, states = self.heat_and_water_exchange(
