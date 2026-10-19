@@ -58,7 +58,7 @@ class OrganicLayer(object):
                    - 'pore_connectivity' (float): pore connectivity parameter (l) for hydraulic conductivity [-]
                     
                - 'porosity' (float): org.layer macroporosity [m3 m-3]
-               - 'freezing_curve' (float): fp parameter of freezing curve [-], default 0.1
+               - 'freezing_curve' (float): fp parameter of freezing curve [-], default 2.0
                
                - 'photosynthesis' (dict): : photosyntesis model parameters only if layer_type == 'bryophyte'
                     - 'Vcmax' (float): maximum carboxylation velocity at 25 C [umol m-2 (ground) s-1]
@@ -106,7 +106,7 @@ class OrganicLayer(object):
         self.dry_mass = properties['bulk_density'] * properties['height']
         self.bulk_density = properties['bulk_density']
         self.porosity = properties['porosity']
-        self.freezing_curve = properties.get('freezing_curve', 0.1)
+        self.freezing_curve = properties.get('freezing_curve', 2.0)
 
         # --- hydraulic properties
         self.max_water_content = properties['max_water_content']
@@ -1425,7 +1425,7 @@ class OrganicLayer(object):
 
         return fluxes, states
 
-def frozen_water(T: float, wtot: float, fp: float=0.1, To: float=0.0) -> Tuple:
+def frozen_water(T: float, wtot: float, fp: float=2.0, To: float=0.0) -> Tuple:
     r""" 
     Approximates ice content from soil temperature and total water content.
 
@@ -1522,10 +1522,8 @@ def thermal_conductivity(volumetric_water: float, volumetric_ice: float=0.0, por
         Lo = 0.05
         wtot = volumetric_water + volumetric_ice
         Ke = np.clip(wtot / porosity, 0.0, 1.0)  # degree of saturation
-        # saturated conductivity as in soil.heat.thermal_conductivity
-        Lsat = np.power(K_ORG, 1.0 - porosity) * np.power(K_WATER, porosity - volumetric_ice) \
-            * np.power(K_ICE, volumetric_ice)
-        L = (Lsat - Lo) * Ke + Lo
+        L = np.power(K_ORG, 1.0 - wtot) * np.power(K_WATER, volumetric_water) \
+            * np.power(K_ICE, volumetric_ice) * Ke + (1 - Ke) * Lo
    
     elif method == 'odonnel':  # O'Donnell
         L = np.minimum(0.6, 3.0e-2 + 0.5 * volumetric_water + K_ICE/K_WATER * 0.5* volumetric_ice)
@@ -1899,35 +1897,5 @@ def soil_boundary_layer_conductance(u: float, z: float, zo: float,
     gb_c = MOLECULAR_DIFFUSIVITY_CO2 / THERMAL_DIFFUSIVITY_AIR * gb_h
 
     return gb_h, gb_c, gb_v
-
-def frozen_water(T: float, wtot: float, fp: float=0.1, To: float=0.0) -> Tuple: # !!
-    r""" 
-    Approximates ice content from soil temperature and total water content.
-    References:
-        For peat soils, see experiment of Nagare et al. 2012:
-        http://scholars.wlu.ca/cgi/viewcontent.cgi?article=1018&context=geog_faculty
-    Args:
-        T (float): soil temperature [degC]
-        wtot (float): total water storage [kg m-2]
-        fp (float): parameter of freezing curve [-]. 2...4 for clay and 0.5-1.5 for sandy soils; 
-            < 0.5 for peat soils (Nagare et al. 2012 HESS)
-        To (float): freezing temperature of soil water [degC]
-    
-    Returns:
-        wliq (float): liquid water storage [kg m-2]
-        wice (float): ice storage [kg m-2]
-        gamma (float): dwice/dT
-    """
-    if  T <= To:
-        wice = wtot*(1.0 - np.exp(-(To - T) / fp))
-        # derivative dwliq/dT
-        gamma = (wtot - wice) / fp
-    else:
-        wice = 0.0
-        gamma = 0.0
-
-    wliq = wtot - wice
-
-    return wliq, wice, gamma
 
 # EOF
