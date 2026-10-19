@@ -85,6 +85,7 @@ def initialize_netcdf(variables,
                       canopy_nodes,
                       planttypes,
                       groundtypes,
+                      snow_layers,
                       time_index,
                       filepath='results/',
                       filename='test.nc',
@@ -97,6 +98,7 @@ def initialize_netcdf(variables,
         sim (int): number of simulations
         soil_nodes (int): number of soil calculation nodes
         canopy_nodes (int): number of canopy calculation nodes
+        snow_layers (int): number of snowpack calculation layers (Nsmax)
         time_index (np.datetimeindex): time_index of default forcing data (pd.DataSeries)
         filepath (str): path for saving results
         filename (str): filename
@@ -129,6 +131,7 @@ def initialize_netcdf(variables,
     ncf.createDimension('canopy', canopy_nodes)
     ncf.createDimension('planttype', planttypes)
     ncf.createDimension('groundtype', groundtypes)
+    ncf.createDimension('snowpack', snow_layers)
 
     time = ncf.createVariable('date', 'f8', ('date',))
     time.units = 'days since 0001-01-01 00:00:00.0'

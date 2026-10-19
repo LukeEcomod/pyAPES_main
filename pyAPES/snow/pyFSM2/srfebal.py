@@ -14,7 +14,7 @@ from pyAPES.utils.constants import SPECIFIC_HEAT_AIR, MOLAR_MASS_AIR, \
                                     LATENT_HEAT_VAPORISATION, LATENT_HEAT_FUSION, LATENT_HEAT_SUBLIMATION, \
                                     T_MELT, STEFAN_BOLTZMANN, VON_KARMAN, \
                                     GAS_CONSTANT, MOLAR_MASS_H2O, \
-                                    SATURATION_VAPOR_PRESSURE_MELT, R_RATIO
+                                    SATURATION_VAPOR_PRESSURE_MELT, R_RATIO, GRAVITY
 
 EPS = np.finfo(float).eps  # machine epsilon
 
@@ -144,8 +144,8 @@ class EnergyBalance:
             elif self.EXCHNG == 1:
                 if ne < 8:
                     B = ga * (Tsrf - Ta)
-                    rL = -VON_KARMAN * B / (Ta * ustar**3)
-                    rL = np.clip(rL, -2., 2.)
+                    rL = -VON_KARMAN * GRAVITY * B / (Ta * ustar**3)
+                    #rL = np.clip(rL, -2., 2.)
 
             # Update ustar and ga in every iteration
             ustar = np.maximum(

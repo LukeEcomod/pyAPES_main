@@ -81,6 +81,7 @@ class CanopyModel(object):
             0, cpara['grid']['zmax'], cpara['grid']['Nlayers'])
         self.dz = self.z[1] - self.z[0]  # gridsize [m]
         self.ones = np.ones(len(self.z))  # dummy
+        self.ffloor_snow_depth = 0.0  # forest floor snow depth [m], updated after each run()
 
         # --- switches ---
         # True assumes constant U/ustar at upper boundary
@@ -170,6 +171,7 @@ class CanopyModel(object):
 
         Updates planttypes and total canopy leaf area index and phenological state.
         Recomputes normalize flow statistics with new leaf area density profile.
+        Masks LAD below snow depth if self.ffloor_snow_depth > 0.
 
         Args:
             doy (float): day of year [days]
@@ -206,6 +208,26 @@ class CanopyModel(object):
         self.LAI = sum([pt.LAI for pt in self.planttypes])
         # canopy leaf area density [m2 m-3]
         self.lad = sum([pt.lad for pt in self.planttypes])
+        
+        # Apply snow masking to LAD in canopy layers.
+        if self.ffloor_snow_depth > 0.05:
+            lower_bound = self.z[:-1]
+            upper_bound = self.z[1:]
+            # Scale LAD by snow-free fraction in each layer.
+            snow_free_fraction = np.ones_like(self.lad)
+            snow_per_layer = np.clip(
+                np.minimum(upper_bound, self.ffloor_snow_depth) - lower_bound,
+                0.0,
+                upper_bound - lower_bound
+            )
+            snow_free_fraction[1:] = 1.0 - snow_per_layer / (upper_bound - lower_bound)
+            # Avoid tiny residual LAD values that can cause numerical issues.
+            snow_free_fraction[1:][snow_free_fraction[1:] < 0.1] = 0.0
+            self.lad = self.lad * snow_free_fraction
+            if np.nansum(self.lad) == 0.0:
+                self.hc = 0.
+
+        
         # layerwise mean leaf characteristic dimension [m]
         self.leaf_length = sum(
             [pt.leafp['lt'] * pt.lad for pt in self.planttypes]) / (self.lad + EPS)
