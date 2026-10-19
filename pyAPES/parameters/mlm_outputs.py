@@ -187,6 +187,11 @@ output_variables = {'variables': [# variable name, description [units], (dimensi
       ['ffloor_snow_depth', 'snow depth (forest floor) [m]', ('date', 'simulation')],
       ['ffloor_snow_heat_flux', 'snow heat flux', ('date', 'simulation')],
       ['ffloor_snow_surface_temperature', 'snow surface temperature', ('date', 'simulation')],
+      ['ffloor_snow_temperature', 'snow layer temperature [degC]', ('date', 'simulation', 'snowpack')],
+      ['ffloor_snow_layer_depth', 'snow layer thickness [m]', ('date', 'simulation', 'snowpack')],
+      ['ffloor_snow_liquid_storage', 'snow layer liquid water storage [kg m-2]', ('date', 'simulation', 'snowpack')],
+      ['ffloor_snow_ice_storage', 'snow layer ice storage [kg m-2]', ('date', 'simulation', 'snowpack')],
+      ['ffloor_snow_density', 'snow layer density [kg m-3]', ('date', 'simulation', 'snowpack')],
 
       # ground-type specific outputs
       # energy
