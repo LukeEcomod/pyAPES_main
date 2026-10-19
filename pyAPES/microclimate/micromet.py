@@ -26,16 +26,14 @@ from scipy.linalg import solve_banded
 
 from pyAPES.utils.utilities import central_diff, forward_diff, tridiag, smooth, spatial_average
 from pyAPES.utils.constants import EPS, VON_KARMAN, GRAVITY, MOLECULAR_DIFFUSIVITY_CO2, MOLECULAR_DIFFUSIVITY_H2O, \
-    THERMAL_DIFFUSIVITY_AIR, AIR_VISCOSITY, MOLAR_MASS_AIR, SPECIFIC_HEAT_AIR, DEG_TO_KELVIN
+THERMAL_DIFFUSIVITY_AIR, AIR_VISCOSITY, MOLAR_MASS_AIR, SPECIFIC_HEAT_AIR, DEG_TO_KELVIN
 
 logger = logging.getLogger(__name__)
-
 
 class Micromet(object):
     """
     Horizontal mean flow and scalar profiles within horizontally homogeneous multi-layer canopy
     """
-
     def __init__(self, z: np.ndarray, lad: np.ndarray, hc: float, p: Dict):
         """
         Args:
@@ -145,7 +143,7 @@ class Micromet(object):
 
         return U, ustar
 
-    def scalar_profiles(self, gam: float, H2O: np.ndarray, CO2: np.ndarray, T: np.ndarray,
+    def scalar_profiles(self, gam: float, H2O: np.ndarray, CO2: np.ndarray, T: np.ndarray, 
                         P: float, source: Dict, lbc: Dict, Ebal: bool) -> Tuple:
         """ 
         Solves scalar profiles (H2O, CO2 and T) within the canopy using 1st order closure scheme.
@@ -192,11 +190,9 @@ class Micromet(object):
         H2O = (1 - gam) * H2O_prev + gam * H2O
         # limit change to +/- 10%
         if all(~np.isnan(H2O)):
-            H2O[H2O > H2O_prev] = np.minimum(
-                H2O_prev[H2O > H2O_prev] * 1.1, H2O[H2O > H2O_prev])
-            H2O[H2O < H2O_prev] = np.maximum(
-                H2O_prev[H2O < H2O_prev] * 0.9, H2O[H2O < H2O_prev])
-
+            H2O[H2O > H2O_prev] = np.minimum(H2O_prev[H2O > H2O_prev] * 1.1, H2O[H2O > H2O_prev])
+            H2O[H2O < H2O_prev] = np.maximum(H2O_prev[H2O < H2O_prev] * 0.9, H2O[H2O < H2O_prev])
+        
         # relative error
         err_h2o = max(abs((H2O - H2O_prev) / H2O_prev))
 
@@ -212,11 +208,9 @@ class Micromet(object):
         CO2 = (1 - gam) * CO2_prev + gam * CO2
         # limit change to +/- 10%
         if all(~np.isnan(CO2)):
-            CO2[CO2 > CO2_prev] = np.minimum(
-                CO2_prev[CO2 > CO2_prev] * 1.1, CO2[CO2 > CO2_prev])
-            CO2[CO2 < CO2_prev] = np.maximum(
-                CO2_prev[CO2 < CO2_prev] * 0.9, CO2[CO2 < CO2_prev])
-
+            CO2[CO2 > CO2_prev] = np.minimum(CO2_prev[CO2 > CO2_prev] * 1.1, CO2[CO2 > CO2_prev])
+            CO2[CO2 < CO2_prev] = np.maximum(CO2_prev[CO2 < CO2_prev] * 0.9, CO2[CO2 < CO2_prev])
+        
         # relative error
         err_co2 = max(abs((CO2 - CO2_prev) / CO2_prev))
 
@@ -233,10 +227,8 @@ class Micromet(object):
             T = (1 - gam) * T_prev + gam * T
             # limit change to T_prev +/- 2degC
             if all(~np.isnan(T)):
-                T[T > T_prev] = np.minimum(
-                    T_prev[T > T_prev] + 2.0, T[T > T_prev])
-                T[T < T_prev] = np.maximum(
-                    T_prev[T < T_prev] - 2.0, T[T < T_prev])
+                T[T > T_prev] = np.minimum(T_prev[T > T_prev] + 2.0, T[T > T_prev])
+                T[T < T_prev] = np.maximum(T_prev[T < T_prev] - 2.0, T[T < T_prev])
 
             # absolute error
             err_t = max(abs(T - T_prev))
@@ -245,16 +237,15 @@ class Micromet(object):
 
         return H2O, CO2, T, err_h2o, err_co2, err_t
 
-
-def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
-                      Utop: float, Ubot: float, dPdx: float = 0.0, lbc_flux: bool = None,
-                      U_ini: np.array = None) -> Tuple:
+def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float, 
+                      Utop: float, Ubot: float, dPdx: float=0.0, lbc_flux: bool=None, 
+                      U_ini: np.array=None) -> Tuple:
     """
     Mean velocity profile, shear stress and eddy diffusivity within and above 
     horizontally homogenous plant canopies using 1st order closure. Accounts 
     for horizontal pressure gradient force dPdx, assumes neutral diabatic stability.
     Solves displacement height as centroid of drag force.
-
+    
     Args:
        z - height [m]], constant increments
        Cd - drag coefficient (typical range 0.1 - 0.3) [-]
@@ -264,7 +255,7 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
        Ubot - U /u* [-] at ground (0.0 for no-slip)
        dPdx - u* -normalized horizontal pressure gradient
        lbc_flux - True sets lower BC to zero flux
-
+    
     Returns:
         (tuple):
             tau (array): u* -normalized momentum flux
@@ -277,8 +268,7 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
     """
 
     lad = 0.5*lad  # frontal plant-area density is half of one-sided
-    # dz = z[1] - z[2]
-    dz = z[2] - z[1]
+    dz = z[1] - z[2]
     N = len(z)
     if U_ini is None:
         U = np.linspace(Ubot, Utop, N)
@@ -289,17 +279,17 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
 
     # --- Start iterative solution
     err = 999.9
-    iter_max = 200
+    iter_max = 20
     eps1 = 0.5
     dPdx_m = 0.0
 
     iter_no = 0.0
 
-    while err > 0.001 and iter_no < iter_max:
+    while err > 0.01 and iter_no < iter_max:
         iter_no += 1
         Fd = Cd*lad*U**2  # drag force
         d = sum(z*Fd) / (sum(Fd) + EPS)  # displacement height
-        l_mix = mixing_length(z, hc, d, l_min=0.01)  # m
+        l_mix = mixing_length(z, hc, d)  # m
 
         # --- dU/dz [m-1]
         y = central_diff(U, dz)
@@ -316,7 +306,7 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
         upd = (a1 / (dz*dz) + a2 / (2*dz))  # upper diagonal
         dia = (-a1*2 / (dz*dz) + a3)  # diagonal
         lod = (a1 / (dz*dz) - a2 / (2*dz))  # subdiagonal
-        rhs = np.ones(N) * dPdx  # _m ???
+        rhs = np.ones(N) * dPdx  #_m ???
 
         # upper BC
         upd[-1] = 0.
@@ -352,7 +342,7 @@ def closure_1_model_U(z: np.ndarray, Cd: float, lad: np.ndarray, hc: float,
     tau = tau / tau[-1]  # normalized shear stress
     zo = (z[-1] - d)*np.exp(-0.4*U[-1])  # roughness length
 
-    y = central_diff(U, dz)
+    y = forward_diff(U, dz)
     Kmr = l_mix**2 * abs(y)  # eddy diffusivity
     Km = smooth(Kmr, nn1)
 
@@ -581,8 +571,7 @@ def closure_1_model_scalar(dz: float, Ks: np.ndarray, source: np.ndarray, ubc: f
         lbc = 1e-6 * lbc
 
     if scalar.upper() == 'T':
-        # [J m-3 K-1], volumetric heat capacity of air
-        CF = CF * SPECIFIC_HEAT_AIR
+        CF = CF * SPECIFIC_HEAT_AIR  # [J m-3 K-1], volumetric heat capacity of air
 
     # --- Set elements of tridiagonal matrix --
     ab = np.zeros((3, N))  # tridiagonal matrix for solve_banded
@@ -686,30 +675,18 @@ def e_sat(T: float) -> Tuple:
 
     Args:
         T (float|array): [degC], air temperature
-
+    
     Returns:
         (tuple):
-            esa (float|array): [Pa], saturation vapor pressure over water or ice film
+            esa (float|array): [Pa], saturation vapor pressure over water film
             s (float|array): [Pa K-1], slope of saturation vapor pressure curve
 
     """
-    T_arr = np.asarray(T)
 
-    # Over water at T >= 0 C, over ice at T < 0 C.
-    esa_w = 611.0 * np.exp((17.502 * T_arr) / (T_arr + 240.97))  # Pa
-    s_w = 17.502 * 240.97 * esa_w / ((240.97 + T_arr)**2)
+    esa = 611.0 * np.exp((17.502 * T) / (T + 240.97))  # Pa
+    s = 17.502 * 240.97 * esa / ((240.97 + T)**2)
 
-    esa_i = 611.0 * np.exp((21.87 * T_arr) / (265.5 + T_arr))  # Pa
-    s_i = 21.87 * 265.5 * esa_i / ((265.5 + T_arr)**2)
-
-    esa = np.where(T_arr >= 0.0, esa_w, esa_i)
-    s = np.where(T_arr >= 0.0, s_w, s_i)
-
-    if np.isscalar(T):
-        return float(esa), float(s)
-    
     return esa, s
-
 
 def latent_heat(T: float) -> float:
     """
@@ -717,7 +694,7 @@ def latent_heat(T: float) -> float:
 
     Args:
         T (float|array): [degC], temperature
-
+    
     Returns:
         L (float|array): [J kg-1], latent heat of vaporization or sublimation depending
 
