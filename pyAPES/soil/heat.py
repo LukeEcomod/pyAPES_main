@@ -619,10 +619,8 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     Lo = 0.05
     wtot = wliq + wice
     Ke = np.clip(wtot / poros, 0.0, 1.0)  # Kersten number (degree of saturation)
-    # saturated conductivity: geometric mean over solids, water and ice
-    Lsat = (np.power(K_ORG, 1.0 - poros[ix]) * np.power(K_WATER, poros[ix] - wice[ix])
-            * np.power(K_ICE, wice[ix]))
-    L[ix] = (Lsat - Lo) * Ke[ix] + Lo
+    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) \
+        * np.power(K_ICE, wice[ix]) * Ke[ix] + (1 - Ke[ix]) * Lo
     
     # geometric mean
     #L[ix] = np.power(K_ORG, f_solid[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * np.power(K_AIR, wair[ix])
