@@ -543,8 +543,13 @@ class SnowModel(object):
         swe = sum(Sice[:]) + sum(Sliq[:])
 
         # Treating snow layered outputs so that np.nan if there is no such layer
-        Tsnow_out = np.array([np.nan, np.nan, np.nan])
+        Tsnow_out = np.full(self.Nsmax, np.nan)
         Tsnow_out[:Nsnow] = Tsnow[:Nsnow]
+        rhos_out = np.full(self.Nsmax, np.nan)
+        nonzero_thickness = Dsnw > 0.0
+        rhos_out[nonzero_thickness] = (
+            Sice[nonzero_thickness] + Sliq[nonzero_thickness]
+        ) / Dsnw[nonzero_thickness]
 
         # Swe0 - Swe1 = Sf + Rf - Roff - Evap
         wbal = sum(self.Sliq[:] + self.Sice[:]) - sum(Sliq[:] + Sice[:]) - Sf - Rf + Roff + Esrf
@@ -570,7 +575,7 @@ class SnowModel(object):
                   'Nsnow': Nsnow,
                   'Dsnw': Dsnw,
                   'Tsnow': Tsnow_out,
-                  'rhos': rhos
+                  'rhos': rhos_out
                   }
 
         # End if existing or new snowpack
