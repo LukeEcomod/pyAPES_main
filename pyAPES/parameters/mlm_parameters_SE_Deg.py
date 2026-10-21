@@ -13,20 +13,21 @@ Define pyAPES_MLM output variables and logger config in: parameters.mlm_outputs
 import numpy as np
 import os
 import pathlib
-from pyAPES.utils.utilities import lad_weibul, lad_constant
+from pyAPES.utils.utilities import lad_constant
 
 from dotenv import load_dotenv
 load_dotenv()
 pyAPES_main_folder = os.getenv('pyAPES_main_folder')
 # model forcing: see Demo_creating_model_forcing_Degero.ipynb
-forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2014-2016.dat')
+forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/SE-Deg/SE-Deg_forcing_2021-2023.dat')
+#forcing_file = pathlib.Path(fr'{pyAPES_main_folder}/forcing/Degero/Degero_forcing_2021-2023.dat')
 
 #**************** PARAMETER DICTIONARIES ****************************
 
 gpara = {'dt' : 1800.0,  # timestep in forcing data file [s]
-         'start_time' : "2016-06-01",  # start time of simulation [yyyy-mm-dd]
-         'end_time' : "2016-06-30",  # end time of simulation [yyyy-mm-dd]
-         'start_doy': 150,
+         'start_time' : "2020-01-01",  # start time of simulation [yyyy-mm-dd]
+         'end_time' : "2023-12-31",  # end time of simulation [yyyy-mm-dd]
+         'start_doy': 1,
          'forc_filename' : forcing_file,  # forcing data file
          'results_directory': 'results/',  # This is given relative to pyAPES main folder or if not in .env then current working directory
          'logging_directory': 'logs/',  # This is also given similar to results_directory
@@ -46,8 +47,8 @@ loc = {
 }
 
 # grid
-grid = {'zmax': 10.0,  # heigth [m] of grid from ground surface
-        'Nlayers': 20  # number of layers [-]
+grid = {'zmax': 3.0,  # heigth [m] of grid from ground surface
+        'Nlayers': 21  # number of layers [-]
         }
 
 z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
@@ -93,13 +94,13 @@ pt1 = {
         'seasonal_LAI': True,  # account for seasonal LAI dynamics
         'pheno_cycle': None #'deciduous',  # account for seasonal Vcmax25, Jmax25 dynamics
         },
-    'LAImax': 0.6, # maximum annual LAI m2m-2
-    'lad': lad_constant(z, LAI=1.0, h=0.5),  # leaf-area density m2m-3
+    'LAImax': 0.5, # maximum annual LAI m2m-2
+    'lad': lad_constant(z, LAI=1.0, h=0.3),  # leaf-area density m2m-3
     # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
 
     # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
     'laip': {
-        'lai_min': 0.8,
+        'lai_min': 0.01, # relative to LAImax
         'lai_ini': None,
         'DDsum0': 0.0,
         'Tbase': 5.0,
@@ -142,67 +143,6 @@ pt1 = {
     }
 }
 
-pt2 = { 'name': 'pine',
-        'ctr': {
-            'WaterStress': 'Rew',  # How soil water limitations are accounted for: 'Rew' |'PsiL' | None
-            'seasonal_LAI': False,  # account for seasonal LAI dynamics
-            'pheno_cycle': 'conifer',  # account for seasonal Vcmax25, Jmax25 dynamics
-            },
-        'LAImax': 0.2, # maximum annual LAI m2m-2
-        'lad': lad_weibul(z, LAI=1.0, h=5.0, hb=1.0, species='pine'),  # leaf-area density m2m-3
-        # seasonal cycle of photosynthetic activity: pyAPES.planttype.phenology.Photo_cycle
-        'phenop': {
-            'Xo': 0.0,
-            'fmin': 0.1,
-            'Tbase': -4.67,  # Kolari 2007
-            'tau': 8.33,  # Kolari 2007
-            'smax': 18.0  # Kolari 2014
-            },
-        # seasonal cycle of LAI: pyAPES.planttype.phenology.LAI_cycle
-        'laip': {
-            'lai_min': 0.8,
-            'lai_ini': None,
-            'DDsum0': 0.0,
-            'Tbase': 5.0,
-            'ddo': 45.0,
-            'ddmat': 250.0,
-            'sdl': 12.0,
-            'sdur': 30.0
-            },
-        # A-gs model: pyAPES.leaf.photo
-        'photop': {
-            'Vcmax': 40.0,
-            'Jmax': 64.0,  
-            'Rd': 0.6,  
-            'tresp': { # temperature response parameters (Kattge and Knorr, 2007)
-                'Vcmax': [78., 200., 649.],
-                'Jmax': [56., 200., 646.],
-                'Rd': [33.0]
-                },
-            'alpha': 0.2,   # quantum efficiency parameter [-]
-            'theta': 0.7,   # curvature parameter [-]
-            'beta': 0.95,   # co-limitation parameter [-]
-            'g1': 2.5,      # USO-model stomatal slope kPa^(0.5)
-            'g0': 1.0e-3,   # residual conductance for CO2 [mol m-2 s-1]
-            'kn': 0.5,      # nitrogen attenuation coefficient [-]
-            'drp': [0.39, 0.83, 0.31, 3.0], # Rew-based drought response parameters
-            # growth respiration: Rg25 = construction cost [umol CO2 m-2 leaf]
-            'Rg25': 1.5e6,   # [umol CO2 m-2 leaf]
-            'Q10g': 2.0,  # temperature sensitivity of growth respiration [-]
-            },
-        'leafp': {
-            'lt': 0.02,     # leaf length scale [m]
-            },
-        # root zone: pyAPES.planttype.rootzone.RootUptake
-        'rootp': {
-            'root_depth': 0.5, # rooting depth [m]
-            'beta': 0.943, # root distribution shape parameter [-]
-            'root_to_leaf_ratio': 2.0, # fine-root to leaf-area ratio [-]
-            'root_radius': 2.0e-3, # [m]
-            'root_conductance': 5.0e8, # [s]
-            }
-        }
-
 
 # --- forestfloor: pyAPES.canopy.forestfloor.ForestFloor combines snowpack, soil, and organiclayer types.
 
@@ -228,10 +168,10 @@ snow = {
     # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
     'fsm2': {'physics_options': {
                 'DENSTY': 1,
-                'HYDRL': 1,
+                'HYDRL':  1,
                 'CONDCT': 1,
                 'ZOFFST': 0,
-                'EXCHNG': 1,
+                'EXCHNG': 0,
                 'ALBEDO': 2,
                 'SNFRAC': 0,
                 'SWPART': 0,
@@ -252,7 +192,7 @@ snow = {
                 'snda': 2.8e-6,         # Thermal metamorphism parameter (1/s)
                 'Talb': -2,             # Snow albedo decay temperature threshold (C)
                 'tcld': 3.6e6,          # Cold snow albedo decay time scale (s)
-                'tmlt': 3.6e5,          # Melting snow albedo decay time scale (s)
+                'tmlt': 7.2e5,          # Melting snow albedo decay time scale (s)
                 'trho': 200*3600,       # Snow compaction timescale (s)
                 'Wirr': 0.03,           # Irreducible liquid water content of snow
                 'z0sf': 0.1,           # Snow-free surface roughness length (m)
@@ -298,22 +238,20 @@ soil_respiration = {
     'beta': 1.0 # exponential decay for potential soil respiration depth profile
 }
 
-# Note: renewed bryophyte parameters
-
-
 # this is general Sphagnum parametrisation based on literature review
 Sphagnum = {
     'name': 'Sphagnum sp.',
     'layer_type': 'bryophyte',
     'coverage': 1.0,
     'height': 0.06, # [0.044, 0.076]
-    'roughness_height': 0.02,
+    'roughness_height': 0.005,
     'bulk_density': 35.1,  # [9.28, 46.7]
     'max_water_content': 17.8,  # [15.6, 24.4]
     'water_content_ratio': 0.43,  # max_symplast_water_content:max_water_content -ratio
     'min_water_content': 0.1,
     'porosity': 0.98,
-
+    'freezing_curve': 0.1,
+    
     'photosynthesis': { # farquhar-parameters
         'Vcmax': 45.0, 'Jmax': 85.5, 'Rd': 1.35, # umolm-2s-1
         'alpha': 0.3, 'theta': 0.8, 'beta': 0.9, # quantum yield, curvature, co-limitation
@@ -326,12 +264,12 @@ Sphagnum = {
     },
     'optical_properties': { # moisture responses are hard-coded
         'emissivity': 0.98,
-        'albedo': {'PAR': 0.10, 'NIR': 0.27} # albedos when fully hydrated [-]
+        'albedo': {'PAR': 0.06, 'NIR': 0.20} # albedos when fully hydrated [-]
     },
     'water_retention': {
         'alpha': 0.381,  # based on fitted value
         'n': 1.781,  # based on fitted value
-        'saturated_conductivity': 2.88e-4,  # [m s-1], based on fitted value
+        'saturated_conductivity': 3e-5,  # [m s-1], based on fitted value
         'pore_connectivity': -2.27  # based on fitted value
     },
     'initial_conditions': {
@@ -357,36 +295,36 @@ cpara = {'loc': loc,
          'radiation': radiation,
          'micromet': micromet,
          'interception': interception,
-         'planttypes': {'sedges': pt1, 'pine': pt2},
+         'planttypes': {'sedges': pt1},#, 'pine': pt2},
          'forestfloor': forestfloor
          }
 
 # --- Soil water & heat: pyAPES.soil.Soil
 
 # grid and soil properties: pF and conductivity values for Degerö Stormyr peat profile
-soil_grid = {  # thickness of computational layers [m]: 0.01 m until 0.1m, 0.02m until 0.3m, 0.05m until 1.0m, 0.1m until 2m depth
-            'dz': [0.01] * 10 + [0.02] * 10 + [0.05] * 14 + [0.1] * 10,
+soil_grid = {  # thickness of computational layers [m]: 0.01 m until 0.1m, 0.02m until 0.3m, 0.05m until 1.0m, 0.1m until 5m depth
+            'dz': [0.01] * 10 + [0.02] * 10 + [0.05] * 14 + [0.1] * 40,
             # bottom depth of layers with different characteristics [m]
-            'zh': [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1., -1.5, -2.0]
+            'zh': [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1., -1.5, -2.0, -5.0]
             }
 
 soil_properties = {
     'pF': {  # vanGenuchten water retention parameters
-           'ThetaS': [0.945, 0.945, 0.945, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918],  # [m3m-3]
-           'ThetaR': [0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098],  # [m3m-3]
-           'alpha': [0.338, 0.338, 0.338, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072],  # [cm-1]
-           'n': [1.402, 1.402, 1.402, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371]  # [-]
+            'ThetaS': [0.945, 0.945, 0.945, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918, 0.918],  # [m3m-3]
+            'ThetaR': [0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098, 0.098],  # [m3m-3]
+            'alpha': [0.338, 0.338, 0.338, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072, 0.072],  # [cm-1]
+            'n': [1.402, 1.402, 1.402, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371, 1.371]  # [-]
     },
-    'saturated_conductivity_vertical': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
-    'saturated_conductivity_horizontal': [9E-05, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_vertical': [3E-5, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
+        'saturated_conductivity_horizontal': [3E-5, 3E-05, 1E-05, 3E-06, 1E-06, 3E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07, 1E-07],  # [m s-1]
     'solid_heat_capacity': None,  # [J m-3 (solid) K-1] - if None, estimated from organic/mineral composition
     'solid_composition': {  # fraction of solids
-        'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        'sand':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'silt':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'clay':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'organic': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        'sand':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'silt':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'clay':    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     },
-    'freezing_curve': [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # freezing curve parameter
+    'freezing_curve': [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # freezing curve parameter
     'bedrock': {
         'solid_heat_capacity': 2.16e6,  # [J m-3 (solid) K-1]
         'thermal_conductivity': 3.0  # thermal conductivity of non-porous bedrock [W m-1 K-1]
@@ -396,7 +334,7 @@ soil_properties = {
 # --- water model: pyAPES.soil.water.Water
 water_model = {'solve': True,
                'type': 'Equilibrium',  # solution approach 'Richards' | 'Equilibrium'
-               'pond_storage_max': 0.002,  #  maximum pond depth [m]
+               'pond_storage_max': 0.0,  #  maximum pond depth [m]
                'initial_condition': {
                        'ground_water_level': -0.05,  # groundwater depth [m], <=0
                        'pond_storage': 0.0  # pond depth at surface [m]
@@ -404,11 +342,11 @@ water_model = {'solve': True,
                'lower_boundary': {
                        'type': 'impermeable',
                        'value': None,
-                       'depth': -2.0
+                   'depth': -5.0
                        },
                'drainage_equation': {
                        'type': 'Hooghoudt',
-                       'depth': 0.1,  # drain depth [m]
+                       'depth': 0.05,  # drain depth [m]
                        'spacing': 100.0,  # drain spacing [m]
                        'width': 1.0,  # drain width [m]
                        }
@@ -416,13 +354,14 @@ water_model = {'solve': True,
 
 # --- heat model: pyAPES.soil.heat.Heat
 T_ini = 2.0
+
 heat_model = {'solve': True,
               'initial_condition': {
                       'temperature': T_ini,  # initial soil temperature [degC], assumed constant with depth - can also be array of correct length
                       },
               'lower_boundary': {  # lower boundary condition (type, value)
                       'type': 'temperature',
-                      'value': 2.0
+                      'value': 5.59
                       },
               }
 
