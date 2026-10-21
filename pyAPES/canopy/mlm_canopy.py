@@ -206,15 +206,19 @@ class CanopyModel(object):
 
         # canopy leaf area index [m2 m-2]
         self.LAI = sum([pt.LAI for pt in self.planttypes])
-        # canopy leaf area density [m2 m-3]
-        self.lad = sum([pt.lad for pt in self.planttypes])
+        # Restore unsnowed LAD before updating canopy height and applying snow masking.
+        self.lad = sum([pt.lad_normed * pt.LAI for pt in self.planttypes])
+        if len(np.where(self.lad > 0.0)[0]) > 0:
+            f = np.where(self.lad > 0.0)[0][-1]
+            self.hc = self.z[f].copy()
+        else:
+            self.hc = 0.0
         
         # Apply snow masking to LAD in canopy layers.
+        snow_free_fraction = np.ones_like(self.lad)
         if self.ffloor_snow_depth > 0.05:
             lower_bound = self.z[:-1]
             upper_bound = self.z[1:]
-            # Scale LAD by snow-free fraction in each layer.
-            snow_free_fraction = np.ones_like(self.lad)
             snow_per_layer = np.clip(
                 np.minimum(upper_bound, self.ffloor_snow_depth) - lower_bound,
                 0.0,
@@ -223,11 +227,16 @@ class CanopyModel(object):
             snow_free_fraction[1:] = 1.0 - snow_per_layer / (upper_bound - lower_bound)
             # Avoid tiny residual LAD values that can cause numerical issues.
             snow_free_fraction[1:][snow_free_fraction[1:] < 0.1] = 0.0
-            self.lad = self.lad * snow_free_fraction
-            if np.nansum(self.lad) == 0.0:
-                self.hc = 0.
 
-        
+        for pt in self.planttypes:
+            pt.lad = pt.lad_normed * pt.LAI * snow_free_fraction
+            pt.mask = np.where(pt.lad > 0.0, 1.0, np.nan)
+        self.lad = sum([pt.lad for pt in self.planttypes])
+
+        if self.ffloor_snow_depth > 0.05 and np.nansum(self.lad) == 0.0:
+            self.hc = 0.0
+
+
         # layerwise mean leaf characteristic dimension [m]
         self.leaf_length = sum(
             [pt.leafp['lt'] * pt.lad for pt in self.planttypes]) / (self.lad + EPS)
