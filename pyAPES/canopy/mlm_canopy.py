@@ -265,8 +265,8 @@ class CanopyModel(object):
                 hc=self.hc,
                 z0=zos,
                 Utop=forcing['wind_speed'] / (forcing['friction_velocity'] + EPS))
-        elif self.micromet.U_solver =='fvm' and zos != self.micromet.zos:
-            # zos changed (snow appeared or melted). Recompute normalized flow statistics in canopy with current meteo
+        elif self.Switch_Eflow is True and self.micromet.U_solver =='fvm' and zos != self.micromet.zos:
+            # zos changed (snow appeared or melted). Recompute normalized flow statistics
             # This elif statement is only triggered when Eflow is True and the surface roughness length has changed
             # U_solver=='fdm' is not needed here because it does not depend on zos
             self.micromet.normalized_flow_stats(
@@ -274,7 +274,7 @@ class CanopyModel(object):
                 lad=self.lad,
                 hc=self.hc,
                 z0=zos,
-                Utop=forcing['wind_speed'] / (forcing['friction_velocity'] + EPS))
+                Utop=self.micromet.Utop) # Giving Utop as argument is not necessary but done here for clarity
         # get U and ustar profiles [m s-1]
         U, ustar = self.micromet.update_state(
             ustaro=forcing['friction_velocity'])
