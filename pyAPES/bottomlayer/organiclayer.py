@@ -804,7 +804,7 @@ class OrganicLayer(object):
 
         return fluxes, states
 
-    def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=60.0) -> Tuple:
+    def heat_and_water_exchange_under_snow(self, dt: float, forcing: Dict, parameters: Dict, sub_dt: float=300.0) -> Tuple:
         """
         Computes heat and water exchange under snow, i.e. no surface energy balance, no evaporation.
         Moss temperature follows from the heat flux from snow, conduction to soil and heat advected

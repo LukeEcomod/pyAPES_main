@@ -236,14 +236,14 @@ class CanopyModel(object):
         if self.ffloor_snow_depth > 0.05 and np.nansum(self.lad) == 0.0:
             self.hc = 0.0
 
-
         # layerwise mean leaf characteristic dimension [m]
         self.leaf_length = sum(
             [pt.leafp['lt'] * pt.lad for pt in self.planttypes]) / (self.lad + EPS)
         # interception model vertical leaf-area [m2 m-2]
         self.interception.LAIz = self.lad * self.dz
         # normalized enselble flow statistics with new lad
-        if self.Switch_Eflow and self.planttypes[0].Switch_lai:
+        if self.Switch_Eflow and (self.planttypes[0].Switch_lai or 
+                                  self.ffloor_snow_depth > 0.0):
             zos = self._surface_roughness_length()
             self.micromet.normalized_flow_stats(self.z, self.lad, self.hc, z0=zos)
 
