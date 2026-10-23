@@ -173,7 +173,7 @@ snow = {
                 'ZOFFST': 0,
                 'EXCHNG': 0,
                 'ALBEDO': 2,
-                'SNFRAC': 0,
+                'SNFRAC': 1,
                 'SWPART': 0,
             },
             'params': {
