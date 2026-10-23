@@ -115,7 +115,7 @@ class SWrad(object):
 
 
         # Surface and vegetation net shortwave radiation
-        asrf = (1 - self.fsnow)*alb0 + fsnow * albs
+        asrf = (1 - fsnow)*alb0 + fsnow * albs
         SWsrf = (1 - asrf)*(Sdif + Sdir)
         SWout = asrf*(Sdif + Sdir)
         SWsub = Sdif + Sdir
@@ -128,8 +128,6 @@ class SWrad(object):
             
         fluxes = {'SWout': SWout,
                   'SWsrf': SWsrf,
-                  'SWsub': SWsrf,
-                  'SWsub': SWsrf,
                  }
 
         states = {'snow_albedo': albs,

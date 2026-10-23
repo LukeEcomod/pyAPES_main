@@ -162,7 +162,7 @@ class FSM2(object):
         snow_forcing = {'drip': 0,
                         'Esrf': ebal_fluxes['Esrf'],
                         'Gsrf': ebal_fluxes['Gsrf'],
-                        'ksoil': thermal_states['ksoil'][0],
+                        'klb': thermal_states['ksoil'][0],
                         'ksnow': thermal_states['ksnow'],
                         'Melt': ebal_fluxes['Melt'],
                         'Rf': Rf,
@@ -171,14 +171,14 @@ class FSM2(object):
                         'trans': 0,
                         'Tsrf': ebal_states['Tsrf'],
                         'unload': 0,
-                        'Tsoil': soil_states['Tsoil'][0],
-                        'Dzsoil': Dzsoil[0]
+                        'Tlb': soil_states['Tsoil'][0],
+                        'Dzlb': Dzsoil[0]
                         }
                 
         snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
 
         # RUN (soil thermodynamics)
-        soil_forcing = {'Gsoil': snow_fluxes['Gsoil'],
+        soil_forcing = {'Gsoil': snow_fluxes['Glb'],
                         'csoil': thermal_states['csoil'],
                         'ksoil': thermal_states['ksoil']}
         soil_fluxes, soil_states = self.soil.run(dt, soil_forcing)
@@ -198,7 +198,7 @@ class FSM2(object):
                 }
 
         fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                'snow_heat_flux': snow_fluxes['Gsoil'],
+                'snow_heat_flux': snow_fluxes['Glb'],
                 'snow_longwave_out': ebal_fluxes['LWout'],
                 'snow_sensible_heat': ebal_fluxes['H'],
                 'snow_latent_heat': ebal_fluxes['LE'],

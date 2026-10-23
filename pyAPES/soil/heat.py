@@ -356,6 +356,11 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
 
             # solve new temperature and ice content
             T_iter = thomas(a, b, g, f)
+            # convergence check uses the undamped solution
+            T_undamped = T_iter
+            # damp the iteration to suppress cycles around 0 degC
+            if (iterNo > 5) and np.any((T_iter > -0.1) & (T_iter < 0.1)):
+                T_iter = 0.5 * (T_iter + T_iterold)
             Wliq_iter, Wice_iter, gamma = frozen_water(T_iter, Wtot, fp=fp, To=FREEZING_POINT_H2O)
 
             # if problems reaching convergence devide time step and retry
@@ -394,7 +399,7 @@ def heatflow1D(t_final: float, grid: Dict, T_ini: np.ndarray, Wtot: np.ndarray,
                     break
 
             # errors for determining convergence
-            err1 = np.max(abs(T_iter - T_iterold))
+            err1 = np.max(abs(T_undamped - T_iterold))
             err2 = np.max(abs(Wice_iter - Wice_iterold))
 
         """ iteration loop ends """
@@ -611,7 +616,8 @@ def thermal_conductivity(poros, wliq, wice, solid_composition, bedrockL):
     Lo = 0.05
     wtot = wliq + wice
     Ke = wtot / poros
-    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * Ke[ix] + (1- Ke[ix]) * Lo
+    L[ix] = np.power(K_ORG, 1.0 - wtot[ix]) * np.power(K_WATER, wliq[ix]) \
+        * np.power(K_ICE, wice[ix]) * Ke[ix] + (1 - Ke[ix]) * Lo
     
     # geometric mean
     #L[ix] = np.power(K_ORG, f_solid[ix]) * np.power(K_WATER, wliq[ix]) * np.power(K_ICE, wice[ix]) * np.power(K_AIR, wair[ix])

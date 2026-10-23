@@ -75,33 +75,32 @@ class FSM2(object):
                 'Sf' (float): snowfall rate (kg/m2/s)
                 'Rf' (float): rainfall rate (kg/m2/s)
                 'LW' (float): surface longwave radiation (W/m2)
-                'Ps' (float): atmospheric pressure (?)
+                'Ps' (float): atmospheric pressure (Pa)
                 'h2o' (float): water vapor mole fraction [mol mol-1]
                 'Ta' (float): air temperature (K)
                 'Ua' (float): wind speed (m/s)
                 'reference_height' (float): first canopy calculation node or forcing height [m]
                 'gs1' (float): Surface moisture conductance (m/s)
-                'Tsoil' (float): Soil temperature (K)
-                'Tbt' (float): # Organic layer temperature [K]
-                'ksoil' (float): Thermal conductivity of first soil layer (W/m/K)
-                'kbt' (float):  Thermal conductivity of organic layer (W/m/K)
-                'Dzsoil' (float): Soil layer thickness (m)
-                'Dzbt' (float):  Thickness of organic layer (m)
+                'Tlb' (float): Lower-boundary organic-layer temperature (K)
+                'Tsrflb' (float): Snow-free organic-layer surface temperature used to initialize the
+                    snow surface temperature when no snowpack is present (K)
+                'klb' (float): Lower-boundary organic-layer thermal conductivity (W/m/K)
+                'Dzlb' (float): Lower-boundary organic-layer thickness (m)
                 'alb0' (float): Surface albedo [-]
                 'z0sf' (float): Surface roughness length [m]
 
         Returns:
             Tuple:
                 fluxes (dict):
-                    'potential_infiltration' (float): Infiltration from snowpack (m)
-                    'snow_heat_flux' (float): Heat flux into snow/ground surface (W/m^2)
+                    'potential_infiltration' (float): Infiltration rate from snowpack (kg m-2 s-1)
+                    'snow_heat_flux' (float): Heat flux into the lower boundary (W/m^2)
                     'snow_longwave_out' (float): Outgoing LW radiation (W/m^2)
                     'snow_shortwave_out' (float): Outgoing SW radiation (W/m^2)
                     'snow_sensible_heat' (float): Sensible heat flux to the atmosphere (W/m^2)
                     'snow_latent_heat' (float): Latent heat flux to the atmosphere (W/m^2)
                     'snow_net_radiation' (float): Net radiation (W/m^2)
                     'snow_energy_closure' (float): Energy balance closure (W/m^2)
-                    'snow_water_closure' (float): Water balance closure (m)
+                    'snow_water_closure' (float): Water balance closure (kg m-2 s-1)
                 states (dict):
                     'snow_water_equivalent' (float): # Total snow mass on ground (kg m-2)
                     'snow_depth' (float): # Snow depth (m)
@@ -125,12 +124,10 @@ class FSM2(object):
         Ua = forcing['Ua']
         reference_height = forcing['reference_height'] 
         gs1 = forcing['gs1']
-        Tsoil = forcing['Tsoil']
-        Tbt = forcing['Tbt']
-        ksoil = forcing['ksoil']
-        kbt = forcing['kbt']
-        Dzsoil = forcing['Dzsoil']
-        Dzbt = forcing['Dzbt']
+        Tlb = forcing['Tlb']
+        Tsrflb = forcing['Tsrflb']
+        klb = forcing['klb']
+        Dzlb = forcing['Dzlb']
         alb0 = forcing['alb0']
         z0sf = forcing['z0sf']
 
@@ -144,7 +141,7 @@ class FSM2(object):
         ebal_states = {'Tsrf': self.ebal.Tsrf}
 
         if sum(self.snow.Dsnw) == 0.: # no existing snowpack -> surface temperature from organiclayer.py
-            ebal_states = {'Tsrf': Tbt}
+            ebal_states = {'Tsrf': Tsrflb}
 
         # initialize fluxes and states
         fluxes = {'potential_infiltration': Rf,
@@ -193,12 +190,10 @@ class FSM2(object):
                             'Sice': snow_states['Sice'],
                             'Sliq': snow_states['Sliq'],
                             'Tsnow': snow_states['Tsnow'],
-                            'Tsoil': Tsoil,
-                            'ksoil': ksoil,
-                            'kbt': kbt,
                             'gs1': gs1,
-                            'Dzsoil': Dzsoil,
-                            'Dzbt': Dzbt}
+                            'Tlb': Tlb,
+                            'klb': klb,
+                            'Dzlb': Dzlb}
             
             thermal_fluxes, thermal_states = self.thermal.run(thermal_forcing)
 
@@ -227,7 +222,7 @@ class FSM2(object):
             snow_forcing = {'drip': 0,
                             'Esrf': ebal_fluxes['Esrf'],
                             'Gsrf': ebal_fluxes['Gsrf'],
-                            'ksoil': ksoil,
+                            'klb': klb,
                             'ksnow': thermal_states['ksnow'],
                             'Melt': ebal_fluxes['Melt'],
                             'Rf': Rf,
@@ -236,8 +231,8 @@ class FSM2(object):
                             'trans': 0.,
                             'Tsrf': ebal_states['Tsrf'],
                             'unload': 0.,
-                            'Tsoil': Tsoil,
-                            'Dzsoil': Dzsoil
+                            'Tlb': Tlb,
+                            'Dzlb': Dzlb
                             }
                     
             snow_fluxes, snow_states = self.snow.run(dt, snow_forcing)
@@ -256,7 +251,7 @@ class FSM2(object):
                     }
 
             fluxes = {'potential_infiltration': snow_fluxes['Roff'],
-                    'snow_heat_flux': snow_fluxes['Gsoil'], # heat flux to soil
+                    'snow_heat_flux': snow_fluxes['Glb'], # heat flux to the lower boundary
                     'snow_longwave_out': ebal_fluxes['LWout'],
                     'snow_shortwave_out': swrad_fluxes['SWout'],
                     'snow_sensible_heat': ebal_fluxes['H'],

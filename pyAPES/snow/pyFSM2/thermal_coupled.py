@@ -3,7 +3,7 @@
     :synopsis: APES-model component
 .. moduleauthor:: Jari-Pekka Nousu
 
-*Thermal properties of snow and soil (based on FSM2)*
+*Thermal properties of snow and its lower boundary (based on FSM2)*
 
 """
 
@@ -16,7 +16,7 @@ EPS = np.finfo(float).eps  # machine epsilon
 class Thermal:
     def __init__(self, properties: Dict) -> object:
         """
-        Thermal properties module for snow and soil.
+        Thermal properties module for snow and its lower boundary.
 
         Args:
             properties (dict):
@@ -26,7 +26,7 @@ class Thermal:
                 'layers' (dict):
                     'Nsmax' (int): Maximum number of snow layers
                 'physics_options' (dict):
-                    'CONDCT' (int): Soil thermal conductivity scheme selection
+                    'CONDCT' (int): Snow thermal conductivity scheme selection
                     'DENSTY' (int): Snow density scheme selection
         Returns:
             self (object)
@@ -38,7 +38,7 @@ class Thermal:
         self.CONDCT = properties['physics_options']['CONDCT']
         self.DENSTY = properties['physics_options']['DENSTY']
 
-    def run(self, forcing: Dict, solve_soil=True) -> Tuple:
+    def run(self, forcing: Dict) -> Tuple:
         """
         Calculates one timestep.
     
@@ -49,12 +49,10 @@ class Thermal:
                 'Sice' (np.ndarray): Ice content of snow layers (kg m-2)
                 'Sliq' (np.ndarray): Liquid content of snow layers (kg m-2)
                 'Tsnow' (np.ndarray): Snow layer temperatures (K)
-                'Tsoil' (np.ndarray): Soil layer temperatures (K)
-                'ksoil' (np.ndarray): Soil layer thermal conductivities (W m-1 K-1)
-                'kbt' (float): Thermal conductivity of organic layer (W m-1 K-1)
+                'Tlb' (float): Lower-boundary organic-layer temperature (K)
+                'klb' (float): Lower-boundary organic-layer thermal conductivity (W m-1 K-1)
                 'gs1' (float): Surface moisture conductance (m/s)
-                'Dzsoil' (float): Soil layer thickness (m)
-                'Dzbt' (float): Thickness of organic layer (m)
+                'Dzlb' (float): Lower-boundary organic-layer thickness (m)
  
         Returns:
             (tuple):
@@ -65,7 +63,6 @@ class Thermal:
                 'ks1' (float): Surface layer thermal conductivity (W m-1 K-1)
                 'Ts1' (float): Surface layer temperature (K)
                 'ksnow' (np.ndarray): Thermal conductivity of snow layers (W m-1 K-1)
-                'ksoil' (np.ndarray): Thermal conductivity of soil layers (W m-1 K-1)
         """
         
         # read forcings
@@ -74,12 +71,10 @@ class Thermal:
         Sice = forcing['Sice']
         Sliq = forcing['Sliq']
         Tsnow = forcing['Tsnow']
-        Tsoil = forcing['Tsoil']
-        ksoil = forcing['ksoil']
-        kbt = forcing['kbt']
+        Tlb = forcing['Tlb']
+        klb = forcing['klb']
         gs1 = forcing['gs1']
-        Dzsoil = forcing['Dzsoil']
-        Dzbt = forcing['Dzbt']
+        Dzlb = forcing['Dzlb']
 
         ksnow = np.zeros(int(self.Nsmax))
         ksnow[:] = self.kfix
@@ -92,22 +87,17 @@ class Thermal:
                         rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                 ksnow[k] = 2.224 * (rhos / WATER_DENSITY)**1.885
         
-        # properties of organic layer and soil combined
-        Dzsoil += Dzbt # Dz for soil and organic layers
-        ksoil = Dzsoil / ((Dzsoil - Dzbt) / ksoil + 
-                          Dzbt / kbt) # Effective k for stacked soil and organic layers (series conduction)
-
         # Surface layer
-        Ds1 = np.maximum(Dzsoil, Dsnw[0]) # thickness
-        Ts1 = Tsoil + (Tsnow[0] - Tsoil)*Dsnw[0]/Dzsoil # temperature
-        ks1 = Dzsoil/(2*Dsnw[0]/ksnow[0] +
-                              (Dzsoil - 2*Dsnw[0])/ksoil) # thermal conductivity
+        Ds1 = np.maximum(Dzlb, Dsnw[0]) # thickness
+        Ts1 = Tlb + (Tsnow[0] - Tlb)*Dsnw[0]/Dzlb # temperature
+        ks1 = Dzlb/(2*Dsnw[0]/ksnow[0] +
+                              (Dzlb - 2*Dsnw[0])/klb) # thermal conductivity
         
         hs = np.sum(Dsnw) # snow depth
 
-        if (hs > 0.5*Dzsoil):
+        if (hs > 0.5*Dzlb):
             ks1 = ksnow[0]
-        if (hs > Dzsoil):
+        if (hs > Dzlb):
             Ts1 = Tsnow[0]
 
         fluxes = {}
@@ -117,7 +107,6 @@ class Thermal:
                   'ks1': ks1,
                   'Ts1': Ts1,
                   'ksnow': ksnow,
-                  'ksoil': ksoil,
                   }
 
         return fluxes, states
