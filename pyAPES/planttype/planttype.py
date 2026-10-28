@@ -214,6 +214,9 @@ class PlantType(object):
         # previous-day LAI for growth respiration calculation
         self._LAI_prev = self.LAI
 
+        # Raw errors for the canopy loop
+        self.err_raw = {'sunlit': 0, 'shaded': 0}
+
     def update_daily(self, doy, T, PsiL=0.0, Rew=1.0) -> None:
         """
         Updates planttype pheno_state, gas-exchange parameters, LAI and lad.
@@ -495,10 +498,12 @@ class PlantType(object):
 
             Lv = latent_heat(T) * MOLAR_MASS_H2O
 
-            itermax = 20
+            itermax = 50
             err = 999.0
             iter_no = 0
-
+            gamma = 1.0 # starting relaxation factor
+            gamma_floor = 0.01 # lowest possible gamma
+            osc_check_after = 5 # after how many iterations check is there oscillation
             while err > 0.01 and iter_no < itermax:
                 iter_no += 1
                 Told = Tl.copy()
@@ -525,9 +530,23 @@ class PlantType(object):
                 # solve leaf temperature from energy balance
                 Tl[ic] = (Rabs[ic] + SPECIFIC_HEAT_AIR*gr[ic]*Tl_ave[ic] + SPECIFIC_HEAT_AIR*gb_h[ic]*T[ic] - Lv[ic]*geff_v[ic]*Dleaf[ic]
                           + Lv[ic]*s[ic]*geff_v[ic]*Told[ic]) / (SPECIFIC_HEAT_AIR*(gr[ic] + gb_h[ic]) + Lv[ic]*s[ic]*geff_v[ic])
-                err = np.nanmax(abs(Tl - Told))
+                
+                err = np.nanmax(np.abs(Tl - Told)) # Take the error before relaxation
+                
+                # relaxation: take only gamma fraction of new solutions.
+                Tl[ic] = gamma*Tl[ic] + (1-gamma)*Told[ic]
+                
+                # Oscillation check. If solution starts to oscillate try smaller gamma and take mean
+                # of Tl and Told
 
-                if (err < 0.01 or iter_no == itermax) and abs(np.mean(T) - np.mean(Tl)) > 20.0:
+                if iter_no > osc_check_after and err > err_prev:
+                    Tl[ic] = 0.5* (Told[ic] + Tl[ic])
+                    gamma = np.maximum(gamma/2, gamma_floor)
+
+                # No need to define err_prev earlier since iter_no > osc_check_after fails when iter_no=1
+                err_prev = err
+
+                if (err < 0.01 or iter_no == itermax) and np.abs(np.mean(T) - np.mean(Tl)) > 20.0:
                     logger.debug(logger_info + ' Unrealistic leaf temperature %.2f set to air temperature %.2f, %.2f, %.2f, %.2f, %.2f',
                                  np.mean(Tl), np.mean(T),
                                  np.mean(LWnet), np.mean(Tl_ave), np.mean(Tl_ini), np.mean(H2O))
@@ -588,7 +607,8 @@ class PlantType(object):
             # mol m-2 s-1, condensation accounted for in wetleaf water balance
             E = geff_v * np.maximum(0.0, Dleaf)
             LE = E * Lv  # W m-2
-
+        # Capture raw error for this leaftype. Used in mlm_canopy.py outer loop
+        self.err_raw[leaftype] = err if Ebal else 0.0
         # prepare output dict
         # print(photo_results)
         x = {'net_co2': photo_results['An'],
