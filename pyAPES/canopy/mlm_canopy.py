@@ -556,6 +556,7 @@ class CanopyModel(object):
                 'soil_depth': parameters['soil_depth'],
                 'soil_hydraulic_conductivity': parameters['soil_hydraulic_conductivity'][0],
                 'soil_thermal_conductivity': parameters['soil_thermal_conductivity'],
+                'date': parameters['date'],
                 'iteration': iter_no,
             }
 

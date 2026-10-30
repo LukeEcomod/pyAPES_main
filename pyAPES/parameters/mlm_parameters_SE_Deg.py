@@ -58,7 +58,7 @@ z = np.linspace(0, grid['zmax'], grid['Nlayers'])  # grid [m] above ground
 micromet = {'zos': 0.01,  # forest floor roughness length [m]  -- not used?
             'dPdx': 0.0,  # horizontal pressure gradient [units]
             'Cd': 0.15,  # drag coefficient [-]
-            'Utop': 5.0,  # ensemble U/ustar [-]
+            'Utop': 12.0,  # ensemble U/ustar [-]
             'Ubot': 0.01,  # flow at lower boundary [m s-1 or -], not used if U_solver='fvm'
             'U_solver': 'fvm',  # method for solving the flow field. Either 'fdm' or 'fvm'. fvm assumes conductance-based formulation at the bottom boundary
             # turbulent Schmidt numbers in canopy flow
@@ -167,7 +167,7 @@ snow = {
 
     # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
     'fsm2': {'physics_options': {
-                'DENSTY': 1,
+                'DENSTY': 0,
                 'HYDRL':  1,
                 'CONDCT': 1,
                 'ZOFFST': 0,

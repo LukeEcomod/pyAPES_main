@@ -668,8 +668,8 @@ class OrganicLayer(object):
                 err2 = abs(wice_iter - wice_iterold)     
 
                 if iterNo == 20:
-                    logger.debug('moss: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
-                                 sub_dt, err1, err2)
+                    logger.debug('%s heat_and_water_exchange: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
+                                 parameters['date'], sub_dt, err1, err2, stacklevel=2)
                     if err1 > 0.01:
                         T_iter = T_old
                     break
@@ -990,8 +990,8 @@ class OrganicLayer(object):
                 err2 = abs(wice_iter - wice_iterold)
 
                 if iterNo == 20:
-                    logger.debug('moss under snow: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
-                                 sub_dt, err1, err2)
+                    logger.debug('%s heat_and_water_exchange_under_snow: not converging, sub_dt = %.1f, err_T = %.5f, err_Wice = %.5f',
+                                 parameters['date'], sub_dt, err1, err2, stacklevel=2)
                     if err1 > 0.01:
                         T_iter = T_old
                     break
