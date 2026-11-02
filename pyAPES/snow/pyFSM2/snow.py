@@ -26,11 +26,12 @@ class SnowModel(object):
         Args:
             properties (dict)
                 'physics_options' (dict):
-                    'DENSTY' (int): 0,1,2
+                    'DENSTY' (int): 0,1,2,3
                     'HYDRL': (int): 0,1,2
                 'params' (dict):
                     'eta0' (float): # Reference snow viscosity (Pa s)
                     'rcld' (float): # Maximum density for cold snow (kg m-3)
+                    'rhos_max' (float): # Maximum snow density (kg/m^3)
                     'rfix' (float): # Fixed snow density (kg m-3)
                     'rgr0' (float): # Fresh snow grain radius (m)
                     'rhof' (float): # Fresh snow density (kg m-3)
@@ -39,6 +40,11 @@ class SnowModel(object):
                     'snda' (float): # Thermal metamorphism parameter (1/s)
                     'trho' (float): # Snow compaction timescale (s)
                     'Wirr' (float): # Irreducible liquid water content of snow
+                    'a_eta' (float): # Temperature factor for Crocus B92 compaction (K^-1)
+                    'b_eta' (float): # First density factor for Crocus B92 compaction (m^3/kg)
+                    'c_eta' (float): # Second density factor for Crocus B92 compaction (kg/m^3)
+                    'eta0' (float): # Reference snow viscosity (Pa s)
+                    'eta1' (float): # Reference snow viscosity for Crocus B92 compaction (Pa s)
                 'layers' (dict):
                     'Nsmax' (int): # Maximum number of snow layers
                     'Dzsnow' (list): # Minimum snow layer thicknesses (m)
@@ -67,6 +73,12 @@ class SnowModel(object):
         self.snda = properties['params']['snda']
         self.trho = properties['params']['trho']
         self.Wirr = properties['params']['Wirr']
+        self.a_eta = properties['params']['a_eta']
+        self.b_eta = properties['params']['b_eta']
+        self.c_eta = properties['params']['c_eta']
+        self.eta0 = properties['params']['eta0']
+        self.eta1 =properties['params']['eta1']
+        self.rhos_max =properties['params']['rhos_max']
         self.HYDRL = properties['physics_options']['HYDRL']
         self.DENSTY = properties['physics_options']['DENSTY']
         self.Nsnow = properties['initial_conditions']['Nsnow']
@@ -298,13 +310,48 @@ class SnowModel(object):
 
             if self.DENSTY == 2:
                 # Snow compaction by overburden
-                mass = 0
+                mass = 0.
                 for k in range(Nsnow):
                     mass = mass + 0.5*(Sice[k] + Sliq[k])
                     if (Dsnw[k] > EPS):
                         rhos = (Sice[k] + Sliq[k]) / Dsnw[k]
                         rhos = rhos + (rhos*GRAVITY*mass*dt/(self.eta0*np.exp(-(Tsnow[k] - T_MELT)/12.4 + rhos/55.6)) +
                                        dt * rhos*self.snda*np.exp((Tsnow[k] - T_MELT)/23.8 - max(rhos - 150, 0.)/21.7))
+                        Dsnw[k] = (Sice[k] + Sliq[k]) / rhos
+                    mass = mass + 0.5*(Sice[k] + Sliq[k])
+            if self.DENSTY == 3:
+                # Snow compaction by overburden
+                # and dependent on liquid water content (Crocus B92)
+                mass = 0.
+                for k in range (Nsnow):
+                    mass = mass + 0.5*(Sice[k] + Sliq[k])
+                    if (Dsnw[k] > EPS):
+                        rhos = np.minimum((Sice[k] + Sliq[k]) / Dsnw[k], self.rhos_max)
+                        f1 = 1. / (1. + 600. * Sliq[k] / (WATER_DENSITY * Dsnw[k]))
+                        f2 = 1.0
+                        eta = f1 * f2 * self.eta1 * (rhos / self.c_eta) * np.exp(self.a_eta * (T_MELT - Tsnow[k]) + self.b_eta * rhos)
+                        rhos = rhos + rhos * GRAVITY * mass * dt / eta
+                        rhos = np.minimum(rhos, self.rhos_max)
+                        Dsnw[k] = (Sice[k] + Sliq[k]) / rhos
+                    mass = mass + 0.5*(Sice[k] + Sliq[k])
+
+            if self.DENSTY == 4:
+                # Snow compaction by overburden
+                # and dependent on liquid water content (Crocus B92)
+                # and depth hoar index (Park et al., 2026)
+                mass = 0.
+                for k in range (Nsnow):
+                    mass = mass + 0.5*(Sice[k] + Sliq[k])
+                    if (Dsnw[k] > EPS):
+                        rhos = np.minimum((Sice[k] + Sliq[k]) / Dsnw[k], self.rhos_max)
+                        f1 = 1. / (1. + 600. * Sliq[k] / (WATER_DENSITY * Dsnw[k]))
+                        # f2 should be modified based on self.dhi
+                        # should it be only computed for the basal snow layer?
+                        # or all? how did change do?
+                        f2 = 1.0
+                        eta = f1 * f2 * self.eta1 * (rhos / self.c_eta) * np.exp(self.a_eta * (T_MELT - Tsnow[k]) + self.b_eta * rhos)
+                        rhos = rhos + rhos * GRAVITY * mass * dt / eta
+                        rhos = np.minimum(rhos, self.rhos_max)
                         Dsnw[k] = (Sice[k] + Sliq[k]) / rhos
                     mass = mass + 0.5*(Sice[k] + Sliq[k])
 

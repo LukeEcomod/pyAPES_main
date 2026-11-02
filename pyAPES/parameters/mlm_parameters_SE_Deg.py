@@ -167,7 +167,7 @@ snow = {
 
     # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
     'fsm2': {'physics_options': {
-                'DENSTY': 0,
+                'DENSTY': 3,
                 'HYDRL':  1,
                 'CONDCT': 1,
                 'ZOFFST': 0,
@@ -183,6 +183,11 @@ snow = {
                 'hfsn': 0.1,            # Snowcover fraction depth scale (m)
                 'kfix': 0.24,           # Fixed thermal conductivity of snow (W/m/K)
                 'rcld': 300,            # Maximum density for cold snow (kg/m^3)
+                'rhos_max': 750.,       # Maximum snow density (kg/m^3)
+                'a_eta': 0.1,           # Temperature factor for Crocus B92 compaction (K^-1)
+                'b_eta': 0.023,         # First density factor for Crocus B92 compaction (m^3/kg)
+                'c_eta': 250.,          # Second density factor for Crocus B92 compaction (kg/m^3)
+                'eta1': 7.62237e6,      # Reference snow viscosity for Crocus B92 compaction (Pa s)
                 'rfix': 300,            # Fixed snow density (kg/m^3)
                 'rgr0': 5e-5,           # Fresh snow grain radius (m)
                 'rhof': 100,            # Fresh snow density (kg/m^3)
