@@ -26,7 +26,7 @@ class SnowModel(object):
         Args:
             properties (dict)
                 'physics_options' (dict):
-                    'DENSTY' (int): 0,1,2,3
+                    'DENSTY' (int): 0,1,2,3,4
                     'HYDRL': (int): 0,1,2
                 'params' (dict):
                     'eta0' (float): # Reference snow viscosity (Pa s)
@@ -45,6 +45,8 @@ class SnowModel(object):
                     'c_eta' (float): # Second density factor for Crocus B92 compaction (kg/m^3)
                     'eta0' (float): # Reference snow viscosity (Pa s)
                     'eta1' (float): # Reference snow viscosity for Crocus B92 compaction (Pa s)
+                    'G_t0' (float): # Lower depth-hoar index threshold (degC m-1 s)
+                    'G_tv' (float): # Upper depth-hoar index threshold (degC m-1 s)
                 'layers' (dict):
                     'Nsmax' (int): # Maximum number of snow layers
                     'Dzsnow' (list): # Minimum snow layer thicknesses (m)
@@ -81,6 +83,9 @@ class SnowModel(object):
         self.rhos_max =properties['params']['rhos_max']
         self.HYDRL = properties['physics_options']['HYDRL']
         self.DENSTY = properties['physics_options']['DENSTY']
+        if self.DENSTY == 4:
+            self.G_t0 = properties['params']['G_t0']
+            self.G_tv = properties['params']['G_tv']
         self.Nsnow = properties['initial_conditions']['Nsnow']
         self.Dsnw = properties['initial_conditions']['Dsnw'] 
         self.Rgrn = properties['initial_conditions']['Rgrn'] 
@@ -107,6 +112,7 @@ class SnowModel(object):
         self.thetaw = np.zeros(self.Nsmax)  # Volumetric liquid water content
         self.theta0 = np.zeros(self.Nsmax)  # Liquid water content at start of timestep
         self.Qw = np.zeros(self.Nsmax+1)    # Water flux at snow layer boundaruess (m s-1)
+        self.dhi = np.zeros(self.Nsmax)  # Accumulated depth-hoar index by layer (degC m-1 s)
 
         # temporary storage of iteration results
         self.iteration_state = None
@@ -121,6 +127,7 @@ class SnowModel(object):
         self.Nsnow = self.iteration_state['Nsnow']
         self.Dsnw = self.iteration_state['Dsnw']
         self.Rgrn = self.iteration_state['Rgrn']
+        self.dhi = self.iteration_state['dhi']
 
     def run(self, dt: float, forcing: Dict) -> Tuple:
         """
@@ -184,6 +191,7 @@ class SnowModel(object):
         Tsnow = self.Tsnow.copy()
         Dsnw = self.Dsnw.copy()
         Rgrn = self.Rgrn.copy()
+        dhi = self.dhi.copy()
 
         # No snow
         Glb = Gsrf.copy()
@@ -344,11 +352,37 @@ class SnowModel(object):
                     mass = mass + 0.5*(Sice[k] + Sliq[k])
                     if (Dsnw[k] > EPS):
                         rhos = np.minimum((Sice[k] + Sliq[k]) / Dsnw[k], self.rhos_max)
+                        # f1 viscocity multiplier controls liquid water content effect
                         f1 = 1. / (1. + 600. * Sliq[k] / (WATER_DENSITY * Dsnw[k]))
-                        # f2 should be modified based on self.dhi
-                        # should it be only computed for the basal snow layer?
-                        # or all? how did change do?
-                        f2 = 1.0
+                        # f2 viscocity multiplier controls depth hoar effect
+                        # Empty slots can remain until regridding, so find the next active layer.
+                        lower_layer = None
+                        for candidate_layer in range(k+1, Nsnow):
+                            if Dsnw[candidate_layer] > EPS:
+                                lower_layer = candidate_layer
+                                break
+                        if lower_layer is not None:
+                            dz = 0.5 * (Dsnw[k] + Dsnw[lower_layer]) + \
+                                np.sum(Dsnw[k + 1:lower_layer])
+                            lower_temperature = Tsnow[lower_layer]
+                        else:
+                            dz = 0.5 * (Dsnw[k] + Dzlb)
+                            lower_temperature = Tlb
+                        gradient = abs((lower_temperature - Tsnow[k]) / dz) # degC m-1
+                        phi = 1.0 - Sice[k] / (ICE_DENSITY * Dsnw[k]) # layer's porosity
+                        sliq_max = WATER_DENSITY * Dsnw[k] * phi * self.Wirr # maximum liquid water content
+                        if Sliq[k] > 0.9 * sliq_max: # Reset depth-hoar history if layer is wet
+                            dhi[k] = 0.0
+                        elif gradient >= 10.: # Accumulate depth-hoar history if gradient >= 10 degC m-1
+                            T_c = np.clip(Tsnow[k] - T_MELT, -40, 0)
+                            f_T = 1 + 0.0733*T_c + 0.00197*T_c**2 + 0.0000187*T_c**3
+                            dhi[k] += gradient * f_T * dt
+                        # Ramp viscosity multiplier from 1 to 10 between the depth-hoar thresholds.
+                        f2 = np.clip(
+                            1.0 + 9.0 * (dhi[k] - self.G_t0) / (self.G_tv - self.G_t0),
+                            1.0,
+                            10.0,
+                        )
                         eta = f1 * f2 * self.eta1 * (rhos / self.c_eta) * np.exp(self.a_eta * (T_MELT - Tsnow[k]) + self.b_eta * rhos)
                         rhos = rhos + rhos * GRAVITY * mass * dt / eta
                         rhos = np.minimum(rhos, self.rhos_max)
@@ -365,6 +399,9 @@ class SnowModel(object):
                         ggr = 7.3e-8*np.exp(-4600/Tsnow[k])
                 Rgrn[k] = Rgrn[k] + dt * ggr / Rgrn[k]
         # End if for existing snowpack
+
+        dhi_source = dhi.copy()
+        dhi_source_depth = Dsnw.copy()
 
         # Add snowfall and frost to layer 1 with fresh snow density and grain size
         Esnow = 0.
@@ -408,6 +445,16 @@ class SnowModel(object):
         R = Rgrn[:].copy()
         S = Sice[:].copy()
         W = Sliq[:].copy()
+        # Added snow has no accumulated depth-hoar history yet.
+        dhi_fraction = np.divide(
+            np.minimum(dhi_source_depth, D),
+            D,
+            out=np.zeros_like(D),
+            where=D > EPS,
+        )
+        dhi_source *= dhi_fraction
+        dhi_sum = np.zeros(self.Nsmax)
+        dhi_weight = np.zeros(self.Nsmax)
 
         if Nsnow > 0:
             for k in range(Nsnow):
@@ -451,19 +498,25 @@ class SnowModel(object):
                         break  # Exit the loop if we've reached the maximum number of new layers
                     if D[kold] < dnew:
                         # All snow from old layer partially fills new layer
+                        overlap = D[kold]
                         Rgrn[knew] += S[kold] * R[kold]
                         Sice[knew] += S[kold]
                         Sliq[knew] += W[kold]
                         self.U[knew] += self.E[kold]
+                        dhi_sum[knew] += overlap * dhi_source[kold]
+                        dhi_weight[knew] += overlap
                         dnew -= D[kold]
                         break  # Exit the inner while loop
                     else:
                         # Some snow from old layer fills new layer
+                        overlap = dnew
                         wt = dnew / D[kold]
                         Rgrn[knew] += wt * S[kold] * R[kold]
                         Sice[knew] += wt * S[kold]
                         Sliq[knew] += wt * W[kold]
                         self.U[knew] += wt * self.E[kold]
+                        dhi_sum[knew] += overlap * dhi_source[kold]
+                        dhi_weight[knew] += overlap
                         D[kold] *= (1 - wt)
                         self.E[kold] *= (1 - wt)
                         S[kold] *= (1 - wt)
@@ -472,6 +525,15 @@ class SnowModel(object):
                         if knew > Nsnow-1:
                             break  # Exit the inner while loop
                         dnew = Dsnw[knew]  # Move to the next new layer
+
+        # Preserve the thickness-weighted history.
+        # targets without old-snow overlap start at zero.
+        dhi = np.divide(
+            dhi_sum,
+            dhi_weight,
+            out=np.zeros_like(dhi_sum),
+            where=dhi_weight > EPS,
+        )
 
         # Diagnose snow layer temperatures
         for k in range(Nsnow):
@@ -607,7 +669,8 @@ class SnowModel(object):
                                  'Sice': Sice.copy(),
                                  'Tsnow': Tsnow.copy(),
                                  'Dsnw': Dsnw.copy(),
-                                 'Rgrn': Rgrn.copy()
+                                 'Rgrn': Rgrn.copy(),
+                                 'dhi': dhi.copy()
                                  }
 
         fluxes = {'Glb': Glb,

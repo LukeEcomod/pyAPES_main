@@ -167,7 +167,7 @@ snow = {
 
     # --- pyAPES.snow.pyFSM2.fsm2_coupled.FSM2
     'fsm2': {'physics_options': {
-                'DENSTY': 3,
+                'DENSTY': 2,
                 'HYDRL':  1,
                 'CONDCT': 1,
                 'ZOFFST': 0,
@@ -200,11 +200,13 @@ snow = {
                 'tmlt': 7.2e5,          # Melting snow albedo decay time scale (s)
                 'trho': 200*3600,       # Snow compaction timescale (s)
                 'Wirr': 0.03,           # Irreducible liquid water content of snow
-                'z0sf': 0.1,           # Snow-free surface roughness length (m)
+                'z0sf': 0.1,            # Snow-free surface roughness length (m)
                 'z0sn': 0.001,          # Snow roughness length (m)
-                'zT': 2.,              # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
-                'zU': 3.,              # Wind measurement height with offset (m) ! only in fsm2_standalone
+                'zT': 2.,               # Temperature measurement height with offset (m) ! ! only in fsm2_standalone
+                'zU': 3.,               # Wind measurement height with offset (m) ! only in fsm2_standalone
                 'hfsn': 0.1,            # Snowcover fraction depth scale (m)
+                'G_t0': 1e7,            # Depth-hoar index where the viscosity increase begins (degC m-1 s)
+                'G_tv': 4e7             # Depth-hoar index where the viscosity increase reaches its maximum (degC m-1 s)
             },
             'layers': {
                 'Nsmax': 3,                 # Maximum number of snow layers
